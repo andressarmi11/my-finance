@@ -1,4 +1,5 @@
-import { test, expect, type Page } from './fixtures';
+import type { Page } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 /**
  * La compra con tarjeta de credito NO te quita la plata el dia que la haces:
