@@ -40,7 +40,7 @@ UI (React)  ->  hooks  ->  domain (TS puro)  ->  Repository (interfaz)
 - Local-first (IndexedDB) en fases 1-12. Supabase entra en la Fase 13, y
   con el repo público en GitHub Pages, **Auth deja de ser opcional**: sin
   login, la `anon key` pública expondría una tabla legible por cualquiera.
-- GitHub Pages con repo público. `base: '/my-finance/'` en vite.config.ts.
+- GitHub Pages con repo público. `base: '/step-up/'` en vite.config.ts.
 - Notificaciones: no existen notificaciones locales programadas en Safari
   iOS. El scheduler vive en el servidor (pg_cron -> Edge Function -> Web
   Push), pendiente de implementar en la Fase 14.
@@ -55,6 +55,6 @@ typecheck limpio, lint limpio, build de producción exitoso, PWA instalable
 Nota de infraestructura: en este entorno de trabajo, `node_modules` debe
 vivir en disco local (no en el mount de red de `/mnt/user-data/outputs`),
 o `npm install` se cuelga o corrompe paquetes. El proyecto se desarrolla en
-`/home/claude/work/my-finance` y se copia a outputs sin `node_modules` al
+`/home/claude/work/step-up` y se copia a outputs sin `node_modules` al
 final de cada tanda de fases. Esto no afecta al usuario: en su máquina o en
 GitHub Actions, `node_modules` corre sobre disco normal sin este problema.

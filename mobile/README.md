@@ -1,4 +1,4 @@
-# My Finance — app nativa (Flutter)
+# Step up — app nativa (Flutter)
 
 Port nativo de la app web que vive en la raíz del repo. Comparten el mismo
 Supabase, el mismo esquema y la misma lógica de negocio.
@@ -115,7 +115,7 @@ año) dura un año y además podés instalarla por TestFlight sin cable.
    **Ajustes → General → VPN y gestión de dispositivos**, tocá tu Apple ID
    y **Confiar**.
 
-Listo: queda en la pantalla de inicio como "My Finance", y funciona sin
+Listo: queda en la pantalla de inicio como "Step up", y funciona sin
 cable y sin internet.
 
 ### Cuando deje de abrir (a los 7 días)

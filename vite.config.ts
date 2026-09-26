@@ -5,9 +5,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // base debe coincidir con el nombre del repo en GitHub Pages:
-// https://<usuario>.github.io/my-finance/
+// https://<usuario>.github.io/step-up/
 export default defineConfig({
-  base: '/my-finance/',
+  base: '/step-up/',
   plugins: [
     react(),
     tailwindcss(),
@@ -15,13 +15,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['apple-touch-icon.png', 'icons/favicon-64.png'],
       manifest: {
-        id: '/my-finance/',
-        name: 'My Finance',
-        short_name: 'My Finance',
+        id: '/step-up/',
+        name: 'Step up',
+        short_name: 'Step up',
         description: 'Finanzas personales por quincenas, para Colombia.',
         lang: 'es-CO',
-        start_url: '/my-finance/',
-        scope: '/my-finance/',
+        start_url: '/step-up/',
+        scope: '/step-up/',
         display: 'standalone',
         // theme_color/background_color en claro; el modo oscuro real lo
         // define la app en runtime via prefers-color-scheme (ver index.html)
@@ -39,7 +39,7 @@ export default defineConfig({
         // No hay llamadas de red propias que cachear todavia (todo es
         // IndexedDB local); esto se revisa de nuevo en la Fase 13.
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
-        navigateFallback: '/my-finance/index.html',
+        navigateFallback: '/step-up/index.html',
         // Sin esto quedan cachés de despliegues viejos apuntando a
         // archivos con hash que ya no existen: el import de Análisis
         // fallaba y la pantalla quedaba en blanco.

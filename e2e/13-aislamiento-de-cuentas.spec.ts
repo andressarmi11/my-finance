@@ -38,8 +38,8 @@ test('los datos no cruzan entre cuentas', async ({ page }) => {
     // resuelve el NAVEGADOR contra el dev server. Como literales,
     // TypeScript intentaría resolverlos en disco y no existen como esa
     // ruta.
-    const rutaDb = '/my-finance/src/data/db.ts';
-    const rutaDueno = '/my-finance/src/data/sync/dueno.ts';
+    const rutaDb = '/step-up/src/data/db.ts';
+    const rutaDueno = '/step-up/src/data/sync/dueno.ts';
     const { db } = (await import(rutaDb)) as ModuloDb;
     const { asegurarDueno, duenoLocal } = (await import(rutaDueno)) as ModuloDueno;
 

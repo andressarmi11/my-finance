@@ -17,7 +17,7 @@ function download(filename: string, content: string, mime: string) {
 export async function exportBackupJSON(): Promise<void> {
   const data = await localRepository.exportAll();
   const stamp = new Date().toISOString().slice(0, 10);
-  download(`my-finance-backup-${stamp}.json`, JSON.stringify(data, null, 2), 'application/json');
+  download(`step-up-backup-${stamp}.json`, JSON.stringify(data, null, 2), 'application/json');
 }
 
 function csvEscape(value: string): string {
@@ -46,7 +46,7 @@ export async function exportTransactionsCSV(): Promise<void> {
   ]);
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
   const stamp = new Date().toISOString().slice(0, 10);
-  download(`my-finance-movimientos-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
+  download(`step-up-movimientos-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
 }
 
 export interface BackupPreview {
@@ -71,7 +71,7 @@ export function parseBackupFile(text: string): ParseResult {
   }
   const result = BackupSchema.safeParse(json);
   if (!result.success) {
-    return { success: false, error: 'El archivo no tiene el formato de un backup de My Finance.' };
+    return { success: false, error: 'El archivo no tiene el formato de un backup de Step up.' };
   }
   const backup = result.data;
   return {

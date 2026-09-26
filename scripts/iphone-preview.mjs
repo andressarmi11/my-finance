@@ -14,7 +14,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 
 const PORT = Number(process.env.PREVIEW_PORT ?? 5199);
-const BASE = process.env.PREVIEW_URL ?? `http://localhost:${PORT}/my-finance/`;
+const BASE = process.env.PREVIEW_URL ?? `http://localhost:${PORT}/step-up/`;
 const SHOTS_ONLY = process.argv.includes('--shots');
 const OUT = 'preview-shots';
 

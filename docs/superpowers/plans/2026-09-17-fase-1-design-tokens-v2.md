@@ -311,7 +311,7 @@ Expected: build sin errores, `dist/` generado. Vite hace tree-shake automático 
 
 Run: `npm run dev` en background.
 
-Después abrir `http://localhost:5173/my-finance/` en Safari (macOS o iPhone en la LAN) y verificar:
+Después abrir `http://localhost:5173/step-up/` en Safari (macOS o iPhone en la LAN) y verificar:
 - Los colores azul y naranja de las quincenas se ven más vibrantes que antes (era indigo apagado + ocre; ahora SystemBlue + SystemOrange).
 - La tipografía de los números (`.figures`) se ve redondeada — es SF Pro Rounded en Apple. En Chrome no-Apple cae al fallback.
 - El dashboard con datos de ejemplo se sigue viendo consistente (rows, spacing, chips). Nada se ve "roto".
@@ -352,14 +352,14 @@ Expected: push exitoso. Dispara los workflows CI + Deploy to GitHub Pages en Git
 
 Run:
 ```bash
-sleep 5 && gh run list --repo Mr-Un-known/my-finance --limit 2 --json databaseId,name,status,conclusion
+sleep 5 && gh run list --repo andressarmi11/step-up --limit 2 --json databaseId,name,status,conclusion
 ```
 
 Después esperar a que ambos terminen:
 ```bash
-RUN_ID=$(gh run list --repo Mr-Un-known/my-finance --workflow "Deploy to GitHub Pages" --limit 1 --json databaseId --jq '.[0].databaseId')
-until [ "$(gh run view $RUN_ID --repo Mr-Un-known/my-finance --json status --jq .status)" = "completed" ]; do sleep 8; done
-gh run view $RUN_ID --repo Mr-Un-known/my-finance --json conclusion --jq .conclusion
+RUN_ID=$(gh run list --repo andressarmi11/step-up --workflow "Deploy to GitHub Pages" --limit 1 --json databaseId --jq '.[0].databaseId')
+until [ "$(gh run view $RUN_ID --repo andressarmi11/step-up --json status --jq .status)" = "completed" ]; do sleep 8; done
+gh run view $RUN_ID --repo andressarmi11/step-up --json conclusion --jq .conclusion
 ```
 
 Expected: `success` en Deploy y CI. Si CI falla, es porque algún E2E rompió por el cambio visual — investigar y arreglar el test (probablemente selector demasiado específico), luego re-push.

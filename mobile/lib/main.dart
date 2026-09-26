@@ -32,7 +32,7 @@ class MyFinanceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'My Finance',
+        title: 'Step up',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: T.q10),

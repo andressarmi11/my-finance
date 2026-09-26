@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localRepository } from '@/data/local/localRepository';
 import { OnboardingScreen } from './OnboardingScreen';
+import { Logo } from '@/components/ui/Logo';
 
 /**
  * Muestra la configuracion inicial la primera vez y nunca mas.
@@ -22,7 +23,9 @@ function Cargando() {
   return (
     <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)' }}>
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontSize: 34, margin: '0 0 8px' }}>💰</p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+          <Logo size={44} tile />
+        </div>
         <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>Trayendo tus datos…</p>
       </div>
     </div>

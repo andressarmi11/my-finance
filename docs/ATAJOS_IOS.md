@@ -24,7 +24,7 @@ cuenta, no con el navegador.
 ## La forma corta: mandarle la frase y que la app entienda
 
 ```
-https://mr-un-known.github.io/my-finance/movimientos?texto=TU%20FRASE
+https://andressarmi11.github.io/step-up/movimientos?texto=TU%20FRASE
 ```
 
 La app interpreta español: saca el monto, la fecha, el método de pago y
@@ -53,7 +53,7 @@ una lista fija.
 Si prefieres que el Atajo arme cada dato:
 
 ```
-https://mr-un-known.github.io/my-finance/movimientos?nuevo=1&tipo=ingreso
+https://andressarmi11.github.io/step-up/movimientos?nuevo=1&tipo=ingreso
 ```
 
 | Parámetro   | Qué hace                                   | Valores                  |
@@ -84,7 +84,7 @@ El más útil, y son tres pasos:
 3. Agrega **Texto** y pega, poniendo la variable de *Texto dictado* al final:
 
    ```
-   https://mr-un-known.github.io/my-finance/movimientos?texto=[Texto dictado]
+   https://andressarmi11.github.io/step-up/movimientos?texto=[Texto dictado]
    ```
 
 4. Agrega **Abrir URLs** con ese texto.
@@ -102,7 +102,7 @@ trasera** (Ajustes → Accesibilidad → Tocar → Toque en la parte trasera).
 **Variante que abre la app instalada** (en vez de Safari): en lugar de
 *Abrir URLs*, usa **Obtener contenido de la URL** con la dirección de
 dictado que copiaste de Ajustes, arrastrando al final la variable *Texto
-dictado*. Después agrega **Abrir app** → *My Finance*. El movimiento ya
+dictado*. Después agrega **Abrir app** → *Step up*. El movimiento ya
 está esperándote en la bandeja.
 
 ---
@@ -117,10 +117,10 @@ del SMS, no una app leyendo tu bandeja.
 
 ### Antes: saca tu clave
 
-La clave sale de **My Finance**, o sea de tu propia app — no de Atajos ni
+La clave sale de **Step up**, o sea de tu propia app — no de Atajos ni
 del panel de Supabase.
 
-1. Abre <https://mr-un-known.github.io/my-finance/> (o el ícono de la
+1. Abre <https://andressarmi11.github.io/step-up/> (o el ícono de la
    pantalla de inicio, si ya la instalaste).
 2. Inicia sesión con tu correo y contraseña.
 3. Pestaña **Ajustes**, la última de la barra de abajo.
@@ -176,12 +176,12 @@ El nombre del banco no queda como concepto.
 
 ### Si quieres que además se abra la app
 
-Agrega al final del Atajo la acción **Abrir app** y elegí *My Finance*.
+Agrega al final del Atajo la acción **Abrir app** y elegí *Step up*.
 Esa acción sí entiende las web apps instaladas en la pantalla de inicio
 (no así los enlaces). La app abre con el movimiento ya esperándote en la
 bandeja.
 
-Si *My Finance* no aparece en la lista, es que todavía no la instalaste:
+Si *Step up* no aparece en la lista, es que todavía no la instalaste:
 Safari → **Compartir** → **Agregar a inicio**.
 
 ## ¿Y no hay un enlace que instale el Atajo solo?
@@ -212,7 +212,7 @@ con una sola pegada.
 Para lo que gastas siempre igual:
 
 ```
-https://mr-un-known.github.io/my-finance/movimientos?texto=pasaje%2012%20mil
+https://andressarmi11.github.io/step-up/movimientos?texto=pasaje%2012%20mil
 ```
 
 Un solo paso **Abrir URLs**. Ponlo como widget y es un toque.

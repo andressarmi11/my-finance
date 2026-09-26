@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
 
     const transaction = tx as TransactionRow | null;
     const payload = JSON.stringify({
-      title: 'My Finance',
+      title: 'Step up',
       body: transaction
         ? `Recuerda: ${transaction.concept} — $${Number(transaction.amount).toLocaleString('es-CO')}`
         : 'Tienes un pago próximo.',

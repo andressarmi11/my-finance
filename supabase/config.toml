@@ -13,11 +13,11 @@ project_id = "xuguvoikrxzvklflikdh"
 [auth]
 # Adónde puede volver el enlace de "olvidé mi contraseña". Sin esto, el
 # enlace llega pero rebota fuera de la app.
-site_url = "https://mr-un-known.github.io/my-finance/"
+site_url = "https://andressarmi11.github.io/step-up/"
 additional_redirect_urls = [
-  "https://mr-un-known.github.io/my-finance/",
-  "http://localhost:5173/my-finance/",
-  "http://localhost:5199/my-finance/",
+  "https://andressarmi11.github.io/step-up/",
+  "http://localhost:5173/step-up/",
+  "http://localhost:5199/step-up/",
 ]
 
 [auth.email]

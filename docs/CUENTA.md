@@ -94,8 +94,8 @@ Dashboard → **Authentication** → **Sign In / Providers** → **Email**:
 En **URL Configuration**, agrega a *Redirect URLs*:
 
 ```
-https://<tu-usuario>.github.io/my-finance/
-http://localhost:5173/my-finance/
+https://<tu-usuario>.github.io/step-up/
+http://localhost:5173/step-up/
 ```
 
 Sin eso, el enlace de "olvidé mi contraseña" no vuelve a la app.

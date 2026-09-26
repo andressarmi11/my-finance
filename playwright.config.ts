@@ -1,13 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4173;
-const BASE = `http://localhost:${PORT}/my-finance/`;
+const BASE = `http://localhost:${PORT}/step-up/`;
 
 // El test de aislamiento entre cuentas importa modulos FUENTE para llamar
 // directo al guardia de datos locales; el preview sirve un bundle donde no
 // son alcanzables. Por eso corre contra el dev server, en su propio puerto.
 const PORT_DEV = 5173;
-const BASE_DEV = `http://localhost:${PORT_DEV}/my-finance/`;
+const BASE_DEV = `http://localhost:${PORT_DEV}/step-up/`;
 const SOLO_AISLAMIENTO = /aislamiento-de-cuentas/;
 
 export default defineConfig({

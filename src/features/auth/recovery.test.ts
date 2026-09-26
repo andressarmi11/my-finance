@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { esUrlDeRecuperacion } from './recovery';
 
-const BASE = 'https://mr-un-known.github.io/my-finance/';
+const BASE = 'https://andressarmi11.github.io/step-up/';
 
 describe('esUrlDeRecuperacion', () => {
   it('reconoce el flujo implícito, con el token en el fragmento', () => {

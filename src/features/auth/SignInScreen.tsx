@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
 import { botonStyle, enlaceStyle, inputStyle, MIN_CLAVE, traducirError } from './authStyles';
+import { Logo } from '@/components/ui/Logo';
 
 type Modo = 'entrar' | 'crear' | 'olvide';
 
@@ -69,9 +70,11 @@ export function SignInScreen() {
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--gap-l)' }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
-        <p style={{ fontSize: 40, textAlign: 'center', margin: '0 0 8px' }}>💰</p>
-        <h1 className="figures" style={{ textAlign: 'center', fontSize: 'var(--text-2xl)', fontWeight: 700, margin: '0 0 4px' }}>
-          My Finance
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <Logo size={76} tile />
+        </div>
+        <h1 className="figures" style={{ textAlign: 'center', fontSize: 'var(--text-2xl)', fontWeight: 700, letterSpacing: '-0.022em', margin: '0 0 4px' }}>
+          Step up
         </h1>
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '0 0 24px', fontSize: 'var(--text-base)' }}>
           {modo === 'crear' ? 'Crea tu cuenta y tus datos te siguen a cualquier dispositivo.'

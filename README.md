@@ -1,4 +1,4 @@
-# My Finance
+# Step up
 
 Aplicación personal de finanzas, pensada en **quincenas** y en pesos
 colombianos. Responde tres preguntas en tres segundos: cuánto me queda en
@@ -11,13 +11,13 @@ notificaciones push son opcionales (ver abajo).
 ## Empezar
 
 ```bash
-git clone https://github.com/<tu-usuario>/my-finance.git
-cd my-finance
+git clone https://github.com/<tu-usuario>/step-up.git
+cd step-up
 npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173/my-finance/` y toca "Cargar datos de
+Abre `http://localhost:5173/step-up/` y toca "Cargar datos de
 ejemplo" para ver la app funcionando de una vez.
 
 ## Scripts

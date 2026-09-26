@@ -1,6 +1,6 @@
 # Deployment — de tu computador a tu iPhone
 
-Guía paso a paso, de cero, para llevar My Finance de este código a una app
+Guía paso a paso, de cero, para llevar Step up de este código a una app
 instalada en tu teléfono. Nada de esto es obligatorio en orden estricto,
 pero sí en dependencia: no puedes instalar en el iPhone sin haber
 desplegado, no puedes desplegar sin haber subido a GitHub.
@@ -19,13 +19,13 @@ desplegado, no puedes desplegar sin haber subido a GitHub.
 ## 1. Correr el proyecto en tu computador
 
 ```bash
-git clone https://github.com/<tu-usuario>/my-finance.git
-cd my-finance
+git clone https://github.com/<tu-usuario>/step-up.git
+cd step-up
 npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173/my-finance/`. Deberías ver el dashboard vacío.
+Abre `http://localhost:5173/step-up/`. Deberías ver el dashboard vacío.
 Toca "Cargar datos de ejemplo" para probar que todo funciona.
 
 ```bash
@@ -46,11 +46,11 @@ Si el proyecto no está en un repositorio todavía:
 ```bash
 git init
 git add .
-git commit -m "My Finance — versión inicial"
+git commit -m "Step up — versión inicial"
 ```
 
-Crea un repositorio nuevo en GitHub llamado **exactamente** `my-finance`
-(en minúsculas) — el nombre debe coincidir con `base: '/my-finance/'` en
+Crea un repositorio nuevo en GitHub llamado **exactamente** `step-up`
+(en minúsculas) — el nombre debe coincidir con `base: '/step-up/'` en
 `vite.config.ts`, o la app no encontrará sus propios archivos una vez
 publicada. Si prefieres otro nombre, cambia ese `base` primero.
 
@@ -58,7 +58,7 @@ publicada. Si prefieres otro nombre, cambia ese `base` primero.
 en una cuenta personal no publica sitios desde repos privados.
 
 ```bash
-git remote add origin https://github.com/<tu-usuario>/my-finance.git
+git remote add origin https://github.com/<tu-usuario>/step-up.git
 git branch -M main
 git push -u origin main
 ```
@@ -74,7 +74,7 @@ git push -u origin main
 3. Ve a la pestaña **Actions** de tu repo. Deberías ver un workflow
    "Deploy to GitHub Pages" corriendo (se dispara solo con el push del
    paso anterior). Espera a que termine en verde — toma 1-2 minutos.
-4. Tu app ya está en: `https://<tu-usuario>.github.io/my-finance/`
+4. Tu app ya está en: `https://<tu-usuario>.github.io/step-up/`
 
 Cada vez que hagas `git push` a `main`, este workflow se vuelve a correr
 y actualiza el sitio automáticamente.
@@ -158,14 +158,14 @@ si por ahora solo quieres el respaldo en la nube.
 
 ## 5. Instalar en tu iPhone
 
-1. Abre `https://<tu-usuario>.github.io/my-finance/` en **Safari** (tiene
+1. Abre `https://<tu-usuario>.github.io/step-up/` en **Safari** (tiene
    que ser Safari — Chrome en iOS no puede instalar PWAs).
 2. Toca el botón de **Compartir** (el cuadrado con la flecha hacia
    arriba).
 3. Baja hasta **"Agregar a inicio"** (o "Add to Home Screen").
 4. Confirma el nombre y toca **Agregar**.
 
-Ya tienes el ícono de My Finance en tu pantalla de inicio, y se abre como
+Ya tienes el ícono de Step up en tu pantalla de inicio, y se abre como
 una app — sin la barra de Safari.
 
 Si configuraste notificaciones (paso 4.5), ahora sí puedes activarlas
