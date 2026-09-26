@@ -30,7 +30,7 @@ export function TransactionsScreen() {
   const [prefill, setPrefill] = useState<Prefill | undefined>();
   const [query, setQuery] = useState('');
   // null = no estamos seleccionando. Un Set vacio = modo seleccion, sin nada
-  // elegido todavia.
+  // elegido todavia. modify
   const [seleccion, setSeleccion] = useState<Set<string> | null>(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const [aplicando, setAplicando] = useState(false);
