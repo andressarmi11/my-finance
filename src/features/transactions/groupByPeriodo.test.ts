@@ -42,4 +42,27 @@ describe('groupByPeriodo', () => {
   it('sin transacciones no hay grupos', () => {
     expect(groupByPeriodo([])).toEqual([]);
   });
+
+  /**
+   * El caso que rompia: la compra con tarjeta se LISTA en septiembre pero la
+   * plata sale en la quincena del 25 de octubre. Si el encabezado de octubre
+   * solo mirara lo que octubre lista, diria un restante distinto al que
+   * muestra el dashboard para esa misma quincena.
+   */
+  it('el restante de una quincena cuenta la compra con TC aunque se liste en otro mes', () => {
+    const compraTC = tx({
+      date: '2026-09-20', amount: 500_000,
+      cycleCutoffDate: '2026-10-15', cyclePaymentDate: '2026-11-02',
+    });
+    const sueldoOctubre = tx({ date: '2026-10-25', type: 'income', amount: 2_000_000 });
+    const todas = [compraTC, sueldoOctubre];
+
+    // Lo que la pantalla de octubre lista: solo el sueldo.
+    const groups = groupByPeriodo([sueldoOctubre], [10, 25], todas);
+    const q2 = groups.find((g) => g.key === '2026-10-Q2')!;
+
+    expect(q2.transactions).toHaveLength(1);
+    expect(q2.balance.expense).toBe(500_000);
+    expect(q2.balance.restante).toBe(1_500_000);
+  });
 });

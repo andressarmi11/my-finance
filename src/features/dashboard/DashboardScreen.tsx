@@ -62,8 +62,12 @@ export function DashboardScreen() {
     [year, month, settings.diasDePago],
   );
 
+  // Por el periodo de CARGO, no el de registro: estos cuatro numeros —
+  // flujo, falta pagar, proximos — responden "cuanta plata se mueve este
+  // mes", y una compra con tarjeta se mueve el dia que se paga el extracto,
+  // no el dia que la hiciste. Ver domain/periodo/resolve.ts.
   const monthTransactions = useMemo(
-    () => resolved.filter((t) => monthKeys.includes(t.resolvedQuincenaKey)),
+    () => resolved.filter((t) => monthKeys.includes(t.resolvedCargoKey)),
     [resolved, monthKeys],
   );
 

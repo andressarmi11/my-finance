@@ -8,8 +8,14 @@
  *
  * "Sobrante del mes" = la suma de los restantes de sus periodos. Antes eran
  * siempre dos; ahora son los que haya, uno si te pagan una vez al mes.
+ *
+ * Se suma por el periodo de CARGO, no por el de registro: una compra con
+ * tarjeta no te quita la plata el dia que la haces, sino el dia que pagas
+ * el extracto. Son la misma clave para todo lo que no es tarjeta.
+ * Ver domain/periodo/resolve.ts.
  */
 import { periodosDelMes, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } from './periodo';
+import type { PeriodosResueltos } from './resolve';
 import type { QuincenaKey, Transaction } from '../types';
 
 export interface PeriodoBalance {
@@ -30,20 +36,19 @@ export interface MonthBalance {
 }
 
 /**
- * transactions ya debe traer, para cada una, el periodo resuelto
- * (tx.quincenaKey manual, o el calculado en la capa que lee de la base).
+ * transactions ya debe traer los dos periodos resueltos (conPeriodoResuelto).
  * Este archivo no importa calcularPeriodo para no acoplar "sumar" con
  * "calcular fecha" — se prueban por separado.
  */
 export function calcularBalancePeriodo(
-  transactionsWithKey: Array<Transaction & { resolvedQuincenaKey: QuincenaKey }>,
+  transactionsWithKey: Array<Transaction & PeriodosResueltos>,
   key: QuincenaKey,
 ): PeriodoBalance {
   let income = 0;
   let expense = 0;
   for (const tx of transactionsWithKey) {
     if (tx.status === 'cancelled') continue;
-    if (tx.resolvedQuincenaKey !== key) continue;
+    if (tx.resolvedCargoKey !== key) continue;
     if (tx.type === 'income') income += tx.amount;
     else expense += tx.amount;
   }
@@ -51,7 +56,7 @@ export function calcularBalancePeriodo(
 }
 
 export function calcularBalanceMes(
-  transactionsWithKey: Array<Transaction & { resolvedQuincenaKey: QuincenaKey }>,
+  transactionsWithKey: Array<Transaction & PeriodosResueltos>,
   year: number,
   month: number,
   dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,

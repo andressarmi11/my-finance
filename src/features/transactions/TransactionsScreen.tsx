@@ -148,8 +148,8 @@ export function TransactionsScreen() {
   }, [transactions, query, searching, cursor, settings.diasDePago]);
 
   const groups = useMemo(
-    () => groupByPeriodo(visible, settings.diasDePago),
-    [visible, settings.diasDePago],
+    () => groupByPeriodo(visible, settings.diasDePago, transactions),
+    [visible, settings.diasDePago, transactions],
   );
 
   const monthTotal = useMemo(() => {

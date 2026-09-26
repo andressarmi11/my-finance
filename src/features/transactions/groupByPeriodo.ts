@@ -64,9 +64,21 @@ function etiqueta(pagos: DiasDePago, indice: number, key: QuincenaKey): string {
 export function groupByPeriodo(
   transactions: Transaction[],
   dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+  /**
+   * De donde sale el restante de cada encabezado. Por defecto, lo mismo que
+   * se lista — pero quien llama suele pasar el historial COMPLETO, y tiene
+   * que hacerlo: una compra con tarjeta de septiembre se carga en octubre,
+   * asi que el restante de octubre depende de un movimiento que la lista de
+   * octubre no muestra. Sin esto el encabezado decia un numero y el
+   * dashboard otro para la misma quincena.
+   */
+  paraBalance: Transaction[] = transactions,
 ): PeriodoGroup[] {
   const pagos = normalizar(dias);
   const resolved = conPeriodoResuelto(transactions, pagos);
+  const resueltasParaBalance = paraBalance === transactions
+    ? resolved
+    : conPeriodoResuelto(paraBalance, pagos);
 
   const byKey = new Map<QuincenaKey, Transaction[]>();
   for (const tx of resolved) {
@@ -87,7 +99,7 @@ export function groupByPeriodo(
       start: rango.start,
       colorVar: COLORES[(i - 1) % COLORES.length]!,
       softVar: SUAVES[(i - 1) % SUAVES.length]!,
-      balance: calcularBalancePeriodo(resolved, key),
+      balance: calcularBalancePeriodo(resueltasParaBalance, key),
       transactions: txs,
     });
   }
