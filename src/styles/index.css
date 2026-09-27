@@ -17,7 +17,10 @@ body {
 }
 
 /* Todas las cifras en tabular para que las columnas de pesos no bailen. */
+/* tabular-nums: sin esto los montos de una lista no alinean por columna,
+   porque el 1 es mas angosto que el 8 en las cifras proporcionales. */
 .figures {
+  font-variant-numeric: tabular-nums;
   font-family: var(--font-figures);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.015em;

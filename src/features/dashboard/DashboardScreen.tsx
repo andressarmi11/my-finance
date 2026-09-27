@@ -1,3 +1,4 @@
+import { IconCheck, IconCreditCardOff } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -9,6 +10,8 @@ import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository'
 import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { formatMoney } from '@/domain/money/format';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
 import { calcularBalanceMes } from '@/domain/periodo/balance';
 import { calculateMonthFlow } from '@/domain/totals/available';
 import { calculatePorPagar } from '@/domain/totals/porPagar';
@@ -168,7 +171,7 @@ export function DashboardScreen() {
             borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: 12,
           }}
         >
-          <span aria-hidden style={{ fontSize: 20 }}>💳</span>
+          <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
               {vencidos.length === 1 ? 'Un saldo sin pagar' : `${vencidos.length} saldos sin pagar`}
@@ -327,7 +330,7 @@ export function DashboardScreen() {
                     transition: 'all var(--dur-fast) var(--ease-spring-out)',
                   }}
                 >
-                  ✓
+                  <IconCheck size={15} stroke={2.5} aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -337,9 +340,11 @@ export function DashboardScreen() {
                     padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
                   }}
                 >
-                  <span aria-hidden style={{ fontSize: 22, width: 28, textAlign: 'center', flex: 'none' }}>
-                    {cat?.icon ?? (isIncome ? '💰' : '✳️')}
-                  </span>
+                  <CategoryAvatar
+                    icon={cat?.icon ?? (isIncome ? 'salary' : 'other')}
+                    color={cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA}
+                    size={36}
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {tx.concept}

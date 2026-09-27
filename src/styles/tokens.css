@@ -1,4 +1,19 @@
 /* ---------------------------------------------------------------
+   Step up — sistema visual v3
+
+   Que cambio de v2 y por que: v2 usaba los SystemColors LITERALES de
+   iOS (#007AFF, #FF9500, #34C759) y fuentes de sistema. Funcionaba, pero
+   la app no se veia como ella misma: se veia como una app de muestra de
+   Apple. La identidad estaba prestada.
+
+   v3 conserva el ADN azul/ambar del logo —los tres escalones— pero con
+   colores propios: el azul baja a un indigo mas saturado, el naranja se
+   vuelve un ambar mas terroso. Y se USA Instrument Sans, que index.html
+   ya descargaba en cada arranque sin que ningun archivo la pidiera.
+
+   Los contrastes NO se eligieron a ojo: se midieron con la formula de
+   luminancia relativa de WCAG 2.1. Los valores estan anotados abajo.
+   -----------------------------------------------------------------
    Step up — sistema visual v2 (iOS 18 native)
    Identidad: la app se organiza por QUINCENAS, así que cada quincena
    tiene su propio color, ahora alineado a los SystemColors de iOS.
@@ -26,39 +41,42 @@
   --gray-950: #1C1C1E;
 
   /* ────────────── Backgrounds / superficies ────────────── */
-  --paper: #F2F2F7;              /* iOS grouped background */
+  --paper: #F4F6F9;              /* iOS grouped background */
   --surface: #FFFFFF;            /* card / row surface */
-  --surface-sunken: #E5E5EA;     /* input / sunken sections */
+  --surface-sunken: #E9ECF1;     /* input / sunken sections */
 
   /* ────────────── Texto ────────────── */
-  --text: #000000;               /* iOS label */
-  --text-muted: #3C3C43;         /* iOS secondaryLabel base */
-  --text-faint: #6E6E73;         /* 5.07:1. El #8E8E93 de iOS daba 3.26:1 */
+  --text: #151B28;               /* iOS label */
+  --text-muted: #4A5263;      /* 7.84:1 sobre blanco */         /* iOS secondaryLabel base */
+  --text-faint: #6E7686;      /* 4.57:1 */         /* 5.07:1. El #8E8E93 de iOS daba 3.26:1 */
 
   /* ────────────── Líneas ────────────── */
-  --line: #E5E5EA;
-  --line-strong: #C7C7CC;
+  --line: #E4E8EE;
+  --line-strong: #C6CCD6;
 
-  /* ────────────── Acentos de quincena (iOS SystemColors) ────────────── */
-  --q10: #007AFF;                /* SystemBlue */
-  --q10-soft: #E5F0FF;
-  --q25: #FF9500;                /* SystemOrange */
-  --q25-soft: #FFF3E0;
+  /* ────────────── Acentos de quincena ──────────────
+     Los dos colores con los que la app separa la quincena del 10 de la
+     del 25, y los mismos del logo. Ya no son los SystemColors de iOS:
+     ver la nota de v3 arriba. */
+  --q10: #2F4FE0;                /* Indigo Step up. 6.33:1 sobre blanco */
+  --q10-soft: #EFF2FD;
+  --q25: #E07B26;                /* Ambar. SOLO relleno: 2.99:1, ver --q25-text */
+  --q25-soft: #FDF5EC;
 
-  /* ────────────── Semánticos (iOS SystemColors) ────────────── */
-  --positive: #34C759;           /* SystemGreen */
-  --positive-soft: #E3F9E7;
+  /* ────────────── Semánticos ────────────── */
+  --positive: #0E7C52;           /* Verde plata. 5.22:1 */
+  --positive-soft: #E9F4EF;
   --committed: #AF52DE;          /* SystemPurple */
-  --danger: #FF3B30;             /* SystemRed */
-  --danger-soft: #FFE5E3;
-  --warning: #FFCC00;            /* SystemYellow (nuevo) */
+  --danger: #C0352B;             /* 5.55:1 */
+  --danger-soft: #FCEDEB;
+  --warning: #E8B427;
   --warning-soft: #FFF9DB;       /* nuevo */
 
 
   /* ────────────── Colores para TEXTO ──────────────
-     Los SystemColors de iOS estan pensados para tinta sobre fondo, no para
-     texto: sobre blanco, --positive da 2.22:1, --q25 2.20:1, --danger
-     3.55:1 y --q10 4.02:1. Todos por debajo del 4.5:1 que pide WCAG 1.4.3
+     Un color de identidad esta pensado para tinta sobre fondo, no para
+     texto. Con la paleta v3 medida: --q25 da 2.99:1 sobre blanco, que no
+     pasa ni el 3:1 de contraste no textual. Bajo el 4.5:1 que pide WCAG 1.4.3
      para texto normal, y los dos primeros ni siquiera llegan al 3:1 de
      texto grande. Se veia en los montos de ingreso, en TODOS los mensajes
      de error, en la fecha de pago de tarjeta y en la pestaña activa.
@@ -66,10 +84,11 @@
      existen en modo claro y alla se reasignan al color de identidad.
      Regla: fondos, chips, bordes e iconos usan el color de identidad;
      cualquier cosa que se LEA usa su -text. */
-  --positive-text: #1A7F46;      /* 5.04:1 sobre blanco */
-  --danger-text:   #D70015;      /* 5.38:1 */
-  --q10-text:      #0068D6;      /* 5.31:1 */
-  --q25-text:      #B25F00;      /* 4.64:1 */
+  --positive-text: #0C6B47;      /* 6.54:1 sobre blanco */
+  --danger-text:   #B02D24;      /* 6.47:1 */
+  --q10-text:      #2A47CC;      /* 7.31:1 */
+  --q25-text:      #9C520E;      /* 5.79:1 — el #E07B26 de identidad da 2.99:1
+                                    y no pasa ni el 3:1 no textual */
 
   /* ────────────── Colores de categoria ──────────────
      Generados, no elegidos a mano. Doce tonos repartidos en el circulo
@@ -98,8 +117,12 @@
   --cat-ahorro: #B54D98;
 
   /* ────────────── Tipografía ────────────── */
-  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-figures: 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  /* Instrument Sans: index.html ya la descargaba y nadie la usaba, asi que
+     la app corria en fuentes de sistema — parte de por que no tenia voz.
+     Una sola familia: un segundo tipo para las cifras seria ruido. El
+     fallback de sistema cubre el primer arranque sin red (es una PWA). */
+  --font-ui: 'Instrument Sans', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-figures: 'Instrument Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
   /* Escala vieja (retro-compat) — valores ajustados a iOS */
   --step--1: 0.8125rem;          /* 13px */
@@ -109,15 +132,21 @@
   --step-3:  2.125rem;           /* 34px — largeTitle iOS */
   --step-4:  2.75rem;            /* 44px — display */
 
-  /* Escala nueva iOS text styles */
+  /* Escala recalibrada para Instrument Sans.
+     Los valores de v2 estaban medidos para SF Pro. Instrument Sans tiene
+     mas altura de x, asi que a los mismos pixeles se ve notablemente mas
+     grande y los titulos quedaban gritando. Se baja el extremo de display
+     —que es donde se nota— y se dejan quietos los tamanos chicos, que no
+     pueden perder legibilidad. */
   --text-xs:   0.75rem;          /* 12px */
   --text-sm:   0.8125rem;        /* 13px */
-  --text-base: 0.9375rem;        /* 15px */
-  --text-md:   1.0625rem;        /* 17px */
-  --text-lg:   1.25rem;          /* 20px */
-  --text-xl:   1.5rem;           /* 24px */
-  --text-2xl:  2.125rem;         /* 34px */
-  --text-3xl:  2.75rem;          /* 44px */
+  --text-base: 0.875rem;         /* 14px */
+  --text-md:   1rem;             /* 16px — tambien el minimo que evita
+                                    que iOS haga zoom al enfocar un input */
+  --text-lg:   1.1875rem;        /* 19px */
+  --text-xl:   1.375rem;         /* 22px */
+  --text-2xl:  1.75rem;          /* 28px */
+  --text-3xl:  2.25rem;          /* 36px */
 
   /* Line-heights */
   --lh-tight: 1.15;
@@ -176,30 +205,30 @@
     --gray-950: #F2F2F7;
 
     /* Backgrounds */
-    --paper: #000000;              /* iOS Dark grouped background */
-    --surface: #1C1C1E;
-    --surface-sunken: #2C2C2E;
+    --paper: #0E1116;
+    --surface: #181D26;
+    --surface-sunken: #222833;
 
     /* Texto */
     --text: #FFFFFF;
-    --text-muted: #EBEBF5;
-    --text-faint: #8E8E93;
+    --text-muted: #E2E6EE;
+    --text-faint: #8A93A3;
 
     /* Líneas */
-    --line: #38383A;
-    --line-strong: #48484A;
+    --line: #2B323E;
+    --line-strong: #3A4250;
 
     /* Acentos (versiones más brillantes de iOS Dark) */
-    --q10: #0A84FF;
-    --q10-soft: #1B2B47;
-    --q25: #FF9F0A;
-    --q25-soft: #3E2A0F;
+    --q10: #6B8AFF;                /* 6.04:1 sobre el fondo oscuro */
+    --q10-soft: #1D2540;
+    --q25: #FFB340;                /* 10.60:1 */
+    --q25-soft: #35280F;
 
     /* Semánticos */
-    --positive: #30D158;
+    --positive: #3DD16B;           /* 9.48:1 */
     --positive-soft: #0D2F17;
     --committed: #BF5AF2;
-    --danger: #FF453A;
+    --danger: #FF7A70;             /* 7.45:1 */
     --danger-soft: #3A0F0C;
     --warning: #FFD60A;
     --warning-soft: #3A2E00;
@@ -252,27 +281,27 @@
   --gray-900: #E5E5EA;
   --gray-950: #F2F2F7;
 
-  --paper: #000000;
-  --surface: #1C1C1E;
-  --surface-sunken: #2C2C2E;
+  --paper: #0E1116;
+  --surface: #181D26;
+  --surface-sunken: #222833;
 
   --text: #FFFFFF;
-  --text-muted: #EBEBF5;
-  --text-faint: #8E8E93;
+  --text-muted: #E2E6EE;
+  --text-faint: #8A93A3;
 
-  --line: #38383A;
-  --line-strong: #48484A;
+  --line: #2B323E;
+  --line-strong: #3A4250;
 
-  --q10: #0A84FF;
-  --q10-soft: #1B2B47;
-  --q25: #FF9F0A;
-  --q25-soft: #3E2A0F;
+  --q10: #6B8AFF;
+  --q10-soft: #1D2540;
+  --q25: #FFB340;
+  --q25-soft: #35280F;
 
-  --positive: #30D158;
-  --positive-soft: #0D2F17;
+  --positive: #3DD16B;
+  --positive-soft: #0D2F1C;
   --committed: #BF5AF2;
-  --danger: #FF453A;
-  --danger-soft: #3A0F0C;
+  --danger: #FF7A70;
+  --danger-soft: #35130F;
   --warning: #FFD60A;
   --warning-soft: #3A2E00;
 

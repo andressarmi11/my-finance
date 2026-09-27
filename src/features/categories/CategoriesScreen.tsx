@@ -6,6 +6,8 @@ import { localRepository } from '@/data/local/localRepository';
 import { db } from '@/data/db';
 import { formatMoney } from '@/domain/money/format';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
+import { categoryColor } from '@/domain/seed/categoryColor';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import type { Category } from '@/domain/types';
 import { CategoryForm } from './CategoryForm';
 import { VACIO } from '@/lib/vacio';
@@ -54,7 +56,7 @@ export function CategoriesScreen() {
             onClick={() => setEditing(c)}
             style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--line)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
           >
-            <span aria-hidden style={{ fontSize: 20 }}>{c.icon}</span>
+            <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={36} />
             <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
             <span className="figures" style={{ color: 'var(--text-muted)' }}>
               {formatMoney(spendByCategory.get(c.id) ?? 0)}

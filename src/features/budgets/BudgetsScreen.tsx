@@ -10,11 +10,11 @@ import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import type { Category } from '@/domain/types';
 import { todayISO } from '@/lib/todayISO';
 import { BudgetAmountSheet } from './BudgetAmountSheet';
+import { BudgetBar } from './BudgetBar';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { categoryColor } from '@/domain/seed/categoryColor';
+import { daysInMonth } from '@/domain/dates';
 import { VACIO } from '@/lib/vacio';
-
-const STATE_COLOR: Record<'ok' | 'warning' | 'exceeded', string> = {
-  ok: 'var(--positive-text)', warning: 'var(--q25)', exceeded: 'var(--danger-text)',
-};
 
 export function BudgetsScreen() {
   const navigate = useNavigate();
@@ -25,6 +25,11 @@ export function BudgetsScreen() {
   const budgets = useLiveQuery(() => localRepository.listBudgets(year, month), [year, month]) ?? VACIO;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
   const [editing, setEditing] = useState<Category | null>(null);
+
+  // Que tan avanzado va el mes: la marca de ritmo de la barra. Gastar el
+  // 60% es bueno el dia 25 y malo el dia 5, y sin esto la barra no lo dice.
+  const diaDeHoy = Number(today.split('-')[2]);
+  const progresoDelMes = diaDeHoy / daysInMonth(year, month);
 
   const monthPrefix = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
   const monthTransactions = useMemo(
@@ -72,37 +77,34 @@ export function BudgetsScreen() {
                 key={c.id} type="button" onClick={() => setEditing(c)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 'var(--radius-m)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', cursor: 'pointer', textAlign: 'left' }}
               >
-                <span aria-hidden>{c.icon}</span>
+                <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
                 <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
-                  {spent > 0 ? `${formatMoney(spent)} gastado · ` : ''}Definir presupuesto
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
+                  {spent > 0 ? `${formatMoney(spent)} gastado` : 'Definir presupuesto'}
                 </span>
               </button>
             );
           }
 
           const status = calculateBudgetStatus(spent, budget.amount);
-          const pct = Math.min(100, Math.round(status.percentage * 100));
           return (
             <button
               key={c.id} type="button" onClick={() => setEditing(c)}
               style={{ padding: '12px 14px', borderRadius: 'var(--radius-m)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', textAlign: 'left' }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span aria-hidden>{c.icon}</span>
-                <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
-                <span className="figures" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  {formatMoney(spent)} / {formatMoney(budget.amount)}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
+                <span style={{ flex: 1, minWidth: 0, fontWeight: 600 }}>{c.name}</span>
+                <span className="figures" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+                  {formatMoney(spent)} de {formatMoney(budget.amount)}
                 </span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${pct}%`, background: STATE_COLOR[status.state], borderRadius: 3 }} />
-              </div>
-              {status.state === 'exceeded' && (
-                <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--danger-text)' }}>
-                  Superado por {formatMoney(Math.abs(status.remaining))}
-                </p>
-              )}
+              <BudgetBar
+                gastado={spent}
+                presupuestado={budget.amount}
+                estado={status.state}
+                progresoDelMes={progresoDelMes}
+              />
             </button>
           );
         })}

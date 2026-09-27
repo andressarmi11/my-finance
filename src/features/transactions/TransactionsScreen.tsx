@@ -353,7 +353,13 @@ export function TransactionsScreen() {
           <section key={group.key} style={{ marginBottom: 'var(--gap-l)' }}>
             <div
               style={{
-                background: `var(${group.softVar})`, borderRadius: 'var(--radius-m)',
+                // Superficie neutra, no un bloque teñido: el color de la
+                // quincena vive en el punto y la etiqueta. Tenir el area
+                // entera hacia que el fondo compitiera con los montos, que
+                // son lo que se viene a leer.
+                background: 'var(--surface)',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--radius-m)',
                 padding: '12px 14px 4px',
               }}
             >

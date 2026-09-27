@@ -1,3 +1,5 @@
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
 import { formatMoney } from '@/domain/money/format';
 import { formatShortDate } from '@/lib/formatShortDate';
@@ -86,9 +88,11 @@ export function TransactionRow({
           padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
         }}
       >
-        <span aria-hidden style={{ fontSize: 20, flex: 'none', width: 24, textAlign: 'center' }}>
-          {category?.icon ?? (isIncome ? '💰' : '✳️')}
-        </span>
+        <CategoryAvatar
+          icon={category?.icon ?? (isIncome ? 'salary' : 'other')}
+          color={category ? categoryColor(category) : COLOR_SIN_CATEGORIA}
+          size={36}
+        />
 
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>

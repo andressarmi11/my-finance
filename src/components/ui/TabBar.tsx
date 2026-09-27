@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
+import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
@@ -224,25 +225,25 @@ function QuickActionSheet({
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
         <ActionRow
-          emoji="🎙️"
+          icono={IconMicrophone}
           label="Contarle a la app"
           sub="Habla o escribe: “gasté 45 mil en el almuerzo”"
           onClick={() => onSelect('hablar')}
         />
         <ActionRow
-          emoji="💸"
+          icono={IconTrendingDown}
           label="Nuevo gasto"
           sub="Rápido, con el método por defecto"
           onClick={() => onSelect('gasto')}
         />
         <ActionRow
-          emoji="💰"
+          icono={IconCurrencyDollar}
           label="Nuevo ingreso"
           sub="Sueldo, freelance, ventas…"
           onClick={() => onSelect('ingreso')}
         />
         <ActionRow
-          emoji="🔁"
+          icono={IconRepeat}
           label="Nuevo recurrente"
           sub="Renta, servicios, suscripciones…"
           onClick={() => onSelect('recurrente')}
@@ -270,7 +271,9 @@ function QuickActionSheet({
   );
 }
 
-function ActionRow({ emoji, label, sub, onClick }: { emoji: string; label: string; sub: string; onClick: () => void }) {
+function ActionRow({ icono: Icono, label, sub, onClick }: {
+  icono: ComponentType<IconProps>; label: string; sub: string; onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -292,7 +295,15 @@ function ActionRow({ emoji, label, sub, onClick }: { emoji: string; label: strin
         color: 'var(--text)',
       }}
     >
-      <span style={{ fontSize: 26 }}>{emoji}</span>
+      <span
+        aria-hidden
+        style={{
+          flex: 'none', width: 40, height: 40, borderRadius: 12, display: 'grid',
+          placeItems: 'center', background: 'var(--surface-sunken)', color: 'var(--text)',
+        }}
+      >
+        <Icono size={21} stroke={1.75} />
+      </span>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{label}</div>
         <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{sub}</div>

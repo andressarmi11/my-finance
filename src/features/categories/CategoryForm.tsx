@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category } from '@/domain/types';
 import { Field, FieldGroup } from '@/components/ui/Field';
+import { CategoryIcon, ICONOS_ELEGIBLES } from '@/components/ui/CategoryIcon';
 
-const ICONS = ['🏠', '🍽️', '🚗', '🎬', '✈️', '💊', '🔁', '🛍️', '🎓', '💡', '💳', '🐷', '✳️', '📱', '🎁', '⚽', '🐾', '👶'];
+// Los nombres viven en components/ui/CategoryIcon.tsx: un solo registro.
 const COLORS = ['#5B6FE0', '#E0A23B', '#3BA3E0', '#C15BD1', '#3BC1A3', '#E05B5B', '#8A5CF6', '#D18A5B', '#5B8AD1', '#B0721A', '#B3261E', '#1E8E6A', '#6C727F'];
 
 export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDelete }: {
@@ -14,7 +15,7 @@ export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDele
   onDelete?: () => void;
 }) {
   const [name, setName] = useState(existing?.name ?? '');
-  const [icon, setIcon] = useState(existing?.icon ?? ICONS[0]!);
+  const [icon, setIcon] = useState<string>(existing?.icon ?? ICONOS_ELEGIBLES[0]!);
   const [color, setColor] = useState(existing?.color ?? COLORS[0]!);
   const [kind, setKind] = useState<Category['kind']>(existing?.kind ?? 'expense');
   const [touched, setTouched] = useState(false);
@@ -59,10 +60,15 @@ export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDele
         {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>Ponle un nombre.</p>}
 
         <FieldGroup label="Ícono" id="cat-icono" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          {ICONS.map((i) => (
-            <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i}
-              style={{ width: 40, height: 40, borderRadius: 10, fontSize: 18, border: `1.5px solid ${icon === i ? color : 'var(--line)'}`, background: icon === i ? `color-mix(in srgb, ${color} 16%, var(--surface))` : 'var(--surface)', cursor: 'pointer' }}>
-              {i}
+          {ICONOS_ELEGIBLES.map((i) => (
+            <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i} aria-label={i}
+              style={{
+                width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center',
+                border: `1.5px solid ${icon === i ? color : 'var(--line)'}`,
+                background: icon === i ? `color-mix(in srgb, ${color} 16%, var(--surface))` : 'var(--surface)',
+                color: icon === i ? color : 'var(--text-muted)', cursor: 'pointer',
+              }}>
+              <CategoryIcon icon={i} size={20} />
             </button>
           ))}
         </FieldGroup>

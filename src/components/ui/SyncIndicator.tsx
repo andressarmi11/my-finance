@@ -1,3 +1,4 @@
+import { IconAlertTriangle, IconCloudUpload } from '@tabler/icons-react';
 import type { EstadoSync } from '@/data/sync/useCloudSync';
 
 /**
@@ -35,7 +36,9 @@ export function SyncIndicator({ estado, error, onReintentar }: {
         color: 'var(--text)',
       }}
     >
-      <span aria-hidden>{esError ? '⚠️' : '☁️'}</span>
+      {esError
+        ? <IconAlertTriangle size={16} stroke={1.9} aria-hidden />
+        : <IconCloudUpload size={16} stroke={1.9} aria-hidden />}
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {esError ? (error || 'No se pudo sincronizar') : 'Sincronizando…'}
       </span>

@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { groupByCard, type CreditCycleGroup } from '@/domain/credit-card/groupByCycle';
 import type { Disponible } from '@/domain/credit-card/disponible';
 import type { PaymentMethod, Transaction } from '@/domain/types';
@@ -153,7 +154,7 @@ function CompraRow({ tx, icon }: { tx: Transaction; icon?: string }) {
   const { day, month } = formatShortDate(tx.date);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)', opacity: tx.status === 'paid' ? 0.55 : 1 }}>
-      <span aria-hidden style={{ fontSize: 16 }}>{icon ?? '✳️'}</span>
+      <CategoryIcon icon={icon} size={18} color="var(--text-faint)" />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{tx.concept}</span>
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{day} {month}</span>
       <span className="figures" style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(tx.amount)}</span>

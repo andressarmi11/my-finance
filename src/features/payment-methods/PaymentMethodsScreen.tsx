@@ -1,3 +1,4 @@
+import { IconBuildingBank, IconCash, IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -66,7 +67,17 @@ export function PaymentMethodsScreen() {
               onClick={() => setEditing(m)}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--line)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             >
-              <span aria-hidden style={{ fontSize: 20 }}>{m.type === 'credit' ? '💳' : m.type === 'cash' ? '💵' : '🏦'}</span>
+              <span
+                aria-hidden
+                style={{
+                  flex: 'none', width: 36, height: 36, borderRadius: 12, display: 'grid',
+                  placeItems: 'center', background: 'var(--surface-sunken)', color: 'var(--text-muted)',
+                }}
+              >
+                {m.type === 'credit' ? <IconCreditCard size={19} stroke={1.75} />
+                  : m.type === 'cash' ? <IconCash size={19} stroke={1.75} />
+                  : <IconBuildingBank size={19} stroke={1.75} />}
+              </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
                 <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>

@@ -1,3 +1,4 @@
+import { IconDeviceMobileShare } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { isIOS, isStandalone } from '@/lib/platform';
 
@@ -45,7 +46,7 @@ export function InstallBanner() {
         background: 'var(--q10-soft)', border: '1px solid var(--q10)', display: 'flex', gap: 8, alignItems: 'center',
       }}
     >
-      <span aria-hidden style={{ fontSize: 16 }}>📲</span>
+      <IconDeviceMobileShare size={18} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
       <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text)', flex: 1, lineHeight: 1.35 }}>
         Instálala: <strong>Compartir</strong> → <strong>Agregar a inicio</strong>.
         {' '}Al abrirla, entra con tu misma cuenta y tus datos aparecen ahí.

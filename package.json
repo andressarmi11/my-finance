@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
+    "@tabler/icons-react": "^3.48.0",
     "dexie": "^4.0.10",
     "dexie-react-hooks": "^1.1.7",
     "react": "^18.3.1",
