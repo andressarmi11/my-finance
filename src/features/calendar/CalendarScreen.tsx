@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
+import { MonthNav, monthName } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
@@ -10,7 +11,6 @@ import { buildCalendarGrid, shiftMonthISO } from './calendarGrid';
 import { VACIO } from '@/lib/vacio';
 
 const WEEKDAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 export function CalendarScreen() {
   const today = todayISO();
@@ -39,16 +39,28 @@ export function CalendarScreen() {
   }, [transactions]);
 
   const cells = useMemo(() => buildCalendarGrid(view.year, view.month), [view]);
+  const enMesActual = view.year === year && view.month === month;
 
   const dayTransactions = transactions.filter((t) => t.date === selected);
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
 
   return (
     <Screen title="Calendario" subtitle="Gastos, ingresos y pagos de TC">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <button type="button" onClick={() => setView((v) => shiftMonthISO(v.year, v.month, -1))} style={navButtonStyle} aria-label="Mes anterior">‹</button>
-        <span style={{ fontWeight: 700 }}>{MONTH_NAMES[view.month - 1]} {view.year}</span>
-        <button type="button" onClick={() => setView((v) => shiftMonthISO(v.year, v.month, 1))} style={navButtonStyle} aria-label="Mes siguiente">›</button>
+      {/* MonthNav y no una copia local: esta pantalla tenia su propia
+          navegacion inline, y por eso se quedo sin el boton Hoy cuando el
+          componente compartido lo gano. */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+        <MonthNav
+          label={`${monthName(view.month)} ${view.year}`}
+          onPrev={() => setView((v) => shiftMonthISO(v.year, v.month, -1))}
+          onNext={() => setView((v) => shiftMonthISO(v.year, v.month, 1))}
+          onToday={enMesActual ? undefined : () => {
+            setView({ year, month });
+            // Tambien se elige hoy: volver al mes y quedar parado en un dia
+            // cualquiera del mes pasado seria volver a medias.
+            setSelected(today);
+          }}
+        />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
@@ -124,8 +136,3 @@ export function CalendarScreen() {
 function Dot({ color }: { color: string }) {
   return <span aria-hidden style={{ width: 4, height: 4, borderRadius: 2, background: color, display: 'inline-block' }} />;
 }
-
-const navButtonStyle: React.CSSProperties = {
-  width: 36, height: 36, borderRadius: 18, border: '1px solid var(--line-strong)', background: 'var(--surface)',
-  color: 'var(--text)', fontSize: 18, cursor: 'pointer',
-};

@@ -15,12 +15,16 @@ export function Screen({ title, subtitle, right, children }: {
         style={{
           marginBottom: 'var(--gap-l)',
           display: 'flex',
+          // wrap + una base minima para el titulo: cuando el slot derecho
+          // no cabe —por ejemplo la navegacion de mes con el boton Hoy—
+          // baja a su propia linea en vez de montarse sobre el titulo.
+          flexWrap: 'wrap',
           alignItems: 'flex-end',
           justifyContent: 'space-between',
           gap: 12,
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: '1 1 190px', minWidth: 0 }}>
           <h1
             className="figures"
             style={{
