@@ -114,6 +114,25 @@ export function TransactionForm({
     [paymentMethods, isIncome],
   );
 
+  /**
+   * Una compra con tarjeta NO esta pagada el dia que la pasas: la debes
+   * hasta que pagues el extracto. El default de markPaidNow ("con fecha de
+   * hoy o anterior, ya ocurrio") vale para efectivo y debito, pero con
+   * tarjeta hacia que toda compra naciera 'paid' — y entonces el cupo
+   * disponible nunca se movia y el grupo "en tarjeta" de porPagar.ts
+   * quedaba siempre vacio.
+   *
+   * Solo aplica al crear: si estas editando algo que ya marcaste pagado, tu
+   * decision manda.
+   */
+  const creditoPrevio = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!existing && isCredit && creditoPrevio.current !== true) {
+      setValue((v) => ({ ...v, markPaidNow: false }));
+    }
+    creditoPrevio.current = isCredit;
+  }, [isCredit, existing]);
+
   const paymentPreview = useMemo(() => {
     if (!isCredit || !value.date) return null;
     const cycle = calculateCreditCardCycle(value.date, selectedMethod?.cutoffDay, selectedMethod?.paymentDay);
@@ -369,7 +388,7 @@ export function TransactionForm({
             border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--text-base)',
           }}
         >
-          <span>{isIncome ? 'Ya lo recibiste' : 'Ya está pagado'}</span>
+          <span>{isIncome ? 'Ya lo recibiste' : isCredit ? 'Ya pagaste el extracto' : 'Ya está pagado'}</span>
           <span
             aria-hidden
             style={{

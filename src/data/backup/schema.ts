@@ -60,6 +60,8 @@ export const PaymentMethodSchema = z.object({
   updatedAt: z.string().default(''),
   cutoffDay: z.number().int().min(1).max(31).optional(),
   paymentDay: z.number().int().min(1).max(31).optional(),
+  // Opcional: los backups hechos antes del cupo siguen importando.
+  creditLimit: z.number().int().min(0).optional(),
 });
 
 export const TransactionSchema = z.object({

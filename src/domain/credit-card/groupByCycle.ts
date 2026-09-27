@@ -5,7 +5,8 @@
  * equivalente calculado de la fila "Pago compras TC" de tu Excel.
  */
 import { compareISO } from '../dates';
-import type { Transaction } from '../types';
+import { calcularDisponible, type Disponible } from './disponible';
+import type { ISODate, PaymentMethod, Transaction } from '../types';
 
 export interface CreditCycleGroup {
   paymentDate: string;
@@ -34,4 +35,45 @@ export function groupByCycle(creditTransactions: Transaction[]): CreditCycleGrou
     });
   }
   return groups.sort((a, b) => compareISO(a.paymentDate, b.paymentDate));
+}
+
+export interface CardCycles {
+  tarjeta: PaymentMethod;
+  /** null si la tarjeta no tiene cupo configurado. */
+  disponible: Disponible | null;
+  cycles: CreditCycleGroup[];
+}
+
+/**
+ * Lo mismo, pero partido POR TARJETA primero y ciclo adentro.
+ *
+ * groupByCycle solo agrupa por fecha de pago, que alcanzaba cuando habia
+ * una sola tarjeta. Con dos, dos compras distintas pueden caer el mismo
+ * dia de pago y quedaban sumadas en una fila que no significa nada: cada
+ * tarjeta se paga aparte.
+ *
+ * Se devuelven TODAS las tarjetas, incluso sin compras, porque su cupo
+ * disponible sigue siendo informacion que el usuario quiere ver.
+ */
+export function groupByCard(
+  tarjetas: PaymentMethod[],
+  transacciones: Transaction[],
+  hoy: ISODate,
+): CardCycles[] {
+  const credito = tarjetas.filter((t) => t.type === 'credit');
+  const porTarjeta = new Map<string, Transaction[]>(credito.map((t) => [t.id, []]));
+
+  for (const tx of transacciones) {
+    if (!tx.paymentMethodId) continue;
+    porTarjeta.get(tx.paymentMethodId)?.push(tx);
+  }
+
+  return credito.map((tarjeta) => {
+    const suyas = porTarjeta.get(tarjeta.id) ?? [];
+    return {
+      tarjeta,
+      disponible: calcularDisponible(tarjeta, suyas, hoy),
+      cycles: groupByCycle(suyas),
+    };
+  });
 }

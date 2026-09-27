@@ -248,6 +248,46 @@ esta pantalla funciona o no con N tarjetas.
 
 ---
 
+## E-bis. Saldos sin pagar, en el inicio
+
+El cupo de la sección B depende de que el usuario marque los ciclos como
+pagados. Si no lo hace, el disponible se desvía en silencio y nadie se
+entera. Así que la app tiene que recordárselo donde sí mira todos los
+días: el dashboard.
+
+Función nueva, junto a `calcularDisponible`:
+
+```ts
+export interface SaldoSinPagar {
+  tarjeta: PaymentMethod;
+  paymentDate: ISODate;
+  total: number;
+  count: number;
+}
+
+/** Ciclos cuya fecha de pago YA pasó y siguen sin marcarse pagados. */
+export function saldosSinPagar(
+  tarjetas: PaymentMethod[],
+  transacciones: Transaction[],
+  hoy: ISODate,
+): SaldoSinPagar[];
+```
+
+Vencidos primero, del más viejo al más nuevo: el que lleva más tiempo sin
+pagar es el que más urge.
+
+En el dashboard aparece como una tarjeta de aviso —solo si hay algo que
+avisar, nunca vacía— con el total y cuántos ciclos, que lleva a
+`CreditCardScreen` para marcarlos. Sigue la regla que el repo ya aplica
+en `SyncIndicator.tsx:11-13`: que algo funcione no es noticia, solo se
+muestra lo que pide acción.
+
+**No se reutiliza `porPagar`**: ese mira el mes en curso y mezcla
+pendientes, programados y tarjeta. Este mira hacia atrás, solo tarjeta y
+solo vencido. Son preguntas distintas.
+
+---
+
 ## F. Pruebas
 
 Lo no trivial lleva prueba; lo obvio no.

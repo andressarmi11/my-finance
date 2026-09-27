@@ -70,12 +70,14 @@ export function categoryToRow(userId: string, c: Category): CategoryRow {
 
 export interface PaymentMethodRow {
   id: string; user_id: string; type: string; name: string; is_default: boolean;
-  cutoff_day: number | null; payment_day: number | null; updated_at: string;
+  cutoff_day: number | null; payment_day: number | null; credit_limit: number | null;
+  updated_at: string;
 }
 export function paymentMethodFromRow(row: PaymentMethodRow): PaymentMethod {
   return {
     id: row.id, type: row.type as PaymentMethod['type'], name: row.name, isDefault: row.is_default,
     cutoffDay: row.cutoff_day ?? undefined, paymentDay: row.payment_day ?? undefined,
+    creditLimit: row.credit_limit ?? undefined,
     updatedAt: row.updated_at,
   };
 }
@@ -83,6 +85,7 @@ export function paymentMethodToRow(userId: string, m: PaymentMethod): PaymentMet
   return {
     id: m.id, user_id: userId, type: m.type, name: m.name, is_default: m.isDefault,
     cutoff_day: m.cutoffDay ?? null, payment_day: m.paymentDay ?? null,
+    credit_limit: m.creditLimit ?? null,
     updated_at: m.updatedAt || new Date().toISOString(),
   };
 }

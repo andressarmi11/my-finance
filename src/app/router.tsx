@@ -7,6 +7,7 @@ import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 import { CalendarScreen } from '@/features/calendar/CalendarScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { CategoriesScreen } from '@/features/categories/CategoriesScreen';
+import { PaymentMethodsScreen } from '@/features/payment-methods/PaymentMethodsScreen';
 import { RecurringRulesScreen } from '@/features/recurring/RecurringRulesScreen';
 import { CreditCardScreen } from '@/features/credit-card/CreditCardScreen';
 import { BudgetsScreen } from '@/features/budgets/BudgetsScreen';
@@ -33,6 +34,7 @@ export const router = createBrowserRouter(
         { path: 'analisis', element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary> },
         { path: 'ajustes', element: <SettingsScreen /> },
         { path: 'ajustes/categorias', element: <CategoriesScreen /> },
+        { path: 'ajustes/metodos', element: <PaymentMethodsScreen /> },
         { path: 'ajustes/recurrentes', element: <RecurringRulesScreen /> },
         { path: 'tarjeta', element: <CreditCardScreen /> },
         { path: 'ajustes/presupuestos', element: <BudgetsScreen /> },

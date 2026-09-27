@@ -12,6 +12,7 @@ import { formatMoney } from '@/domain/money/format';
 import { calcularBalanceMes } from '@/domain/periodo/balance';
 import { calculateMonthFlow } from '@/domain/totals/available';
 import { calculatePorPagar } from '@/domain/totals/porPagar';
+import { saldosSinPagar } from '@/domain/credit-card/disponible';
 import { calcularPeriodo, periodosDelMes } from '@/domain/periodo/periodo';
 import { conPeriodoResuelto } from '@/domain/periodo/resolve';
 import { shiftMonth } from '@/domain/dates';
@@ -47,6 +48,7 @@ export function DashboardScreen() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
+  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const resolved = useMemo(
@@ -83,6 +85,14 @@ export function DashboardScreen() {
   // Antes los tres filtros se solapaban y el chip mostraba un conteo
   // inflado al lado de un total correcto. Ver domain/totals/porPagar.ts.
   const porPagar = useMemo(() => calculatePorPagar(monthTransactions), [monthTransactions]);
+
+  // Saldos de tarjeta que ya vencieron y siguen sin marcarse pagados.
+  // Mira TODO el historial, no el mes: lo que se olvido de pagar en junio
+  // sigue comiendo cupo hoy, y es justo lo que nadie recuerda solo.
+  const vencidos = useMemo(
+    () => saldosSinPagar(paymentMethods, transactions, today),
+    [paymentMethods, transactions, today],
+  );
 
   // Proximos: la MISMA lista del mes que alimenta el hero, para que
   // "falta pagar" de arriba y "esperas gastar" de abajo coincidan.
@@ -144,6 +154,37 @@ export function DashboardScreen() {
 
   return (
     <Screen title={settings.displayName ? `Hola, ${settings.displayName}` : 'Inicio'} right={nav}>
+      {/* Solo si hay algo que avisar. Que todo este al dia no es noticia
+          — misma regla que SyncIndicator. */}
+      {vencidos.length > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/tarjeta')}
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 12,
+            background: 'var(--danger-soft)',
+            border: '1px solid color-mix(in srgb, var(--danger) 30%, var(--line))',
+            borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: 12,
+          }}
+        >
+          <span aria-hidden style={{ fontSize: 20 }}>💳</span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
+              {vencidos.length === 1 ? 'Un saldo sin pagar' : `${vencidos.length} saldos sin pagar`}
+            </span>
+            <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+              {vencidos.length === 1
+                ? `${vencidos[0]!.tarjeta.name} · venció el ${formatShortDate(vencidos[0]!.paymentDate).day} ${formatShortDate(vencidos[0]!.paymentDate).month}`
+                : 'Márcalos para liberar cupo'}
+            </span>
+          </span>
+          <span className="figures" style={{ flex: 'none', fontWeight: 700, color: 'var(--danger-text)' }}>
+            {formatMoney(vencidos.reduce((a, v) => a + v.total, 0))}
+          </span>
+        </button>
+      )}
+
       {/* Hero: como termina el mes si todo se cumple. */}
       <div
         style={{

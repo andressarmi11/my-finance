@@ -6,11 +6,22 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
-import { groupByCycle } from '@/domain/credit-card/groupByCycle';
+import { groupByCard, type CreditCycleGroup } from '@/domain/credit-card/groupByCycle';
+import type { Disponible } from '@/domain/credit-card/disponible';
+import type { PaymentMethod, Transaction } from '@/domain/types';
 import { formatShortDate } from '@/lib/formatShortDate';
-import { todayISO } from '@/lib/todayISO';
+import { nowISO, todayISO } from '@/lib/todayISO';
+import { haptic } from '@/lib/haptic';
 import { VACIO } from '@/lib/vacio';
 
+/**
+ * Una seccion por tarjeta, y los ciclos adentro.
+ *
+ * Antes juntaba las compras de TODAS las tarjetas en un solo timeline de
+ * ciclos: con dos tarjetas que pagan el mismo dia, sumaba en una fila
+ * plata que se paga por separado, y las filas ni decian de que tarjeta
+ * eran. Ver domain/credit-card/groupByCycle.ts (groupByCard).
+ */
 export function CreditCardScreen() {
   const navigate = useNavigate();
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
@@ -18,20 +29,27 @@ export function CreditCardScreen() {
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const creditMethodIds = useMemo(
-    () => new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id)),
-    [paymentMethods],
-  );
-  const creditTransactions = useMemo(
-    () => transactions.filter((t) => t.paymentMethodId && creditMethodIds.has(t.paymentMethodId)),
-    [transactions, creditMethodIds],
+  const today = todayISO();
+  const cards = useMemo(
+    () => groupByCard(paymentMethods, transactions, today),
+    [paymentMethods, transactions, today],
   );
 
-  const cycles = useMemo(() => groupByCycle(creditTransactions), [creditTransactions]);
-  const today = todayISO();
+  /** Marcar el ciclo pagado es lo que libera el cupo. No hay entidad
+   *  "extracto": es el status de sus movimientos. */
+  async function marcarCicloPagado(cycle: CreditCycleGroup) {
+    haptic('medium');
+    for (const tx of cycle.transactions) {
+      if (tx.status === 'paid') continue;
+      await localRepository.saveTransaction({ ...tx, status: 'paid', updatedAt: nowISO() });
+    }
+  }
+
+  const sinTarjetas = cards.length === 0;
+  const sinCompras = cards.every((c) => c.cycles.length === 0);
 
   return (
-    <Screen title="Tarjeta de crédito" subtitle="Cada compra, y el total por ciclo">
+    <Screen title="Tarjetas" subtitle="Cada compra, y el total por ciclo">
       <button
         type="button"
         onClick={() => navigate(-1)}
@@ -40,42 +58,105 @@ export function CreditCardScreen() {
         ← Volver
       </button>
 
+      {sinTarjetas ? (
+        <EmptyState
+          title="Todavía no tienes tarjetas"
+          body="Agrega una en Ajustes → Métodos de pago, con su día de corte y su día de pago."
+        />
+      ) : sinCompras ? (
+        <EmptyState
+          title="Sin compras con tarjeta"
+          body="Cuando registres un gasto con tarjeta de crédito, aquí verás cada compra y el total que se paga en cada ciclo."
+        />
+      ) : (
+        cards.map(({ tarjeta, disponible, cycles }) => (
+          <TarjetaSection
+            key={tarjeta.id}
+            tarjeta={tarjeta}
+            disponible={disponible}
+            cycles={cycles}
+            today={today}
+            categoryById={categoryById}
+            onMarcarPagado={marcarCicloPagado}
+          />
+        ))
+      )}
+    </Screen>
+  );
+}
+
+function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMarcarPagado }: {
+  tarjeta: PaymentMethod;
+  disponible: Disponible | null;
+  cycles: CreditCycleGroup[];
+  today: string;
+  categoryById: Map<string, { icon: string }>;
+  onMarcarPagado: (cycle: CreditCycleGroup) => void;
+}) {
+  return (
+    <section style={{ marginBottom: 'var(--gap-xl)' }}>
+      <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>{tarjeta.name}</h2>
+        {disponible && (
+          <span style={{ textAlign: 'right' }}>
+            <span className="figures" style={{ fontWeight: 700, color: disponible.disponible >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
+              {formatMoney(disponible.disponible)}
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}> de {formatMoney(disponible.cupo)}</span>
+          </span>
+        )}
+      </header>
+
       {cycles.length === 0 ? (
-        <EmptyState title="Sin compras con tarjeta" body="Cuando registres un gasto con tarjeta de crédito, aquí verás cada compra y el total que se paga en cada ciclo." />
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', margin: 0 }}>Sin compras todavía.</p>
       ) : (
         cycles.map((cycle) => {
           const isNext = cycle.paymentDate >= today;
+          const vencido = cycle.paymentDate < today && cycle.transactions.some((t) => t.status !== 'paid');
           const { day, month } = formatShortDate(cycle.paymentDate);
           return (
-            <section key={cycle.paymentDate} style={{ marginBottom: 'var(--gap-l)' }}>
-              <div style={{ background: isNext ? 'var(--q25-soft)' : 'var(--surface-sunken)', borderRadius: 'var(--radius-m)', padding: '12px 14px 4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 700, fontSize: 13, color: isNext ? 'var(--q25)' : 'var(--text-muted)' }}>
-                    Se paga el {day} {month}
-                  </span>
-                  <span className="figures" style={{ fontWeight: 700, fontSize: 17 }}>{formatMoney(cycle.total)}</span>
-                </div>
-
-                {cycle.transactions.map((tx) => {
-                  const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
-                  const { day: pDay, month: pMonth } = formatShortDate(tx.date);
-                  return (
-                    <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-                      <span aria-hidden style={{ fontSize: 16 }}>{cat?.icon ?? '✳️'}</span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{tx.concept}</span>
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{pDay} {pMonth}</span>
-                      <span className="figures" style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(tx.amount)}</span>
-                    </div>
-                  );
-                })}
-                <div style={{ padding: '8px 0 6px', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {cycle.count} {cycle.count === 1 ? 'compra' : 'compras'} en este ciclo
-                </div>
+            <div key={cycle.paymentDate} style={{ background: vencido ? 'var(--danger-soft)' : isNext ? 'var(--q25-soft)' : 'var(--surface-sunken)', borderRadius: 'var(--radius-m)', padding: '12px 14px 4px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: vencido ? 'var(--danger-text)' : isNext ? 'var(--q25)' : 'var(--text-muted)' }}>
+                  {vencido ? 'Venció el' : 'Se paga el'} {day} {month}
+                </span>
+                <span className="figures" style={{ fontWeight: 700, fontSize: 17 }}>{formatMoney(cycle.total)}</span>
               </div>
-            </section>
+
+              {cycle.transactions.map((tx) => (
+                <CompraRow key={tx.id} tx={tx} icon={tx.categoryId ? categoryById.get(tx.categoryId)?.icon : undefined} />
+              ))}
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 0 6px' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  {cycle.count} {cycle.count === 1 ? 'compra' : 'compras'} en este ciclo
+                </span>
+                {cycle.transactions.some((t) => t.status !== 'paid') && (
+                  <button
+                    type="button"
+                    onClick={() => onMarcarPagado(cycle)}
+                    style={{ minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                  >
+                    Marcar pagado
+                  </button>
+                )}
+              </div>
+            </div>
           );
         })
       )}
-    </Screen>
+    </section>
+  );
+}
+
+function CompraRow({ tx, icon }: { tx: Transaction; icon?: string }) {
+  const { day, month } = formatShortDate(tx.date);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)', opacity: tx.status === 'paid' ? 0.55 : 1 }}>
+      <span aria-hidden style={{ fontSize: 16 }}>{icon ?? '✳️'}</span>
+      <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{tx.concept}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{day} {month}</span>
+      <span className="figures" style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(tx.amount)}</span>
+    </div>
   );
 }

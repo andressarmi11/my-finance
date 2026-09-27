@@ -75,7 +75,25 @@ export const localRepository: Repository = {
 
   listPaymentMethods: () => db.paymentMethods.toArray(),
   savePaymentMethod: async (method) => { await db.paymentMethods.put(sellar(method)); },
-  deletePaymentMethod: async (id) => { await db.paymentMethods.delete(id); await borrarConLapida('paymentMethods', id); },
+  deletePaymentMethod: async (id) => {
+    // Las referencias se sueltan ANTES de borrar la tarjeta. En Postgres lo
+    // hace el ON DELETE SET NULL de las FK; aca hay que hacerlo a mano o
+    // quedan transacciones apuntando a una tarjeta que ya no existe hasta
+    // que el proximo sync baje la version con null. Mismo caso que
+    // deleteTransaction con sus recordatorios.
+    //
+    // Los movimientos NO se borran: son plata que si se gasto. Quedan sin
+    // metodo, y la UI ya tolera paymentMethod undefined.
+    await db.transactions.where('paymentMethodId').equals(id).modify({ paymentMethodId: null });
+    // filter y no where: recurringRules solo indexa 'id, frequency' (db.ts),
+    // asi que where('paymentMethodId') reventaria. Son pocas reglas.
+    const reglas = await db.recurringRules.filter((r) => r.paymentMethodId === id).toArray();
+    for (const regla of reglas) {
+      await db.recurringRules.put(sellar({ ...regla, paymentMethodId: null }));
+    }
+    await db.paymentMethods.delete(id);
+    await borrarConLapida('paymentMethods', id);
+  },
 
   listTransactions: (range) =>
     range

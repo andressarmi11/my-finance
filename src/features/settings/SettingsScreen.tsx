@@ -11,7 +11,6 @@ import { ImportPreviewSheet } from './ImportPreviewSheet';
 import { CloudSection } from './CloudSection';
 import { AutomationSection } from './AutomationSection';
 import { NotificationsSection } from '@/features/notifications/NotificationsSection';
-import { VACIO } from '@/lib/vacio';
 
 const THEMES: Array<{ value: Settings['theme']; label: string }> = [
   { value: 'system', label: 'Sistema' },
@@ -21,8 +20,6 @@ const THEMES: Array<{ value: Settings['theme']; label: string }> = [
 
 export function SettingsScreen() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
-  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
-  const creditMethod = paymentMethods.find((m) => m.type === 'credit');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<
@@ -187,27 +184,6 @@ export function SettingsScreen() {
         )}
       </section>
 
-      {creditMethod && (
-        <section style={sectionStyle}>
-          <h2 style={sectionTitle}>Tarjeta de crédito</h2>
-          <Row label="Día de corte">
-            <NumberInput
-              value={creditMethod.cutoffDay ?? 15}
-              onCommit={(v) => void localRepository.savePaymentMethod({ ...creditMethod, cutoffDay: v })}
-            />
-          </Row>
-          <Row label="Día de pago">
-            <NumberInput
-              value={creditMethod.paymentDay ?? 2}
-              onCommit={(v) => void localRepository.savePaymentMethod({ ...creditMethod, paymentDay: v })}
-            />
-          </Row>
-          <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '4px 0 0' }}>
-            Solo aplica a compras nuevas — las que ya hiciste conservan su fecha de pago original.
-          </p>
-        </section>
-      )}
-
       <section style={sectionStyle}>
         <h2 style={sectionTitle}>Recordatorios</h2>
         <Row label="Avisar con">
@@ -221,6 +197,7 @@ export function SettingsScreen() {
       <section style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <h2 style={sectionTitle}>Organizar</h2>
         <NavLink to="/ajustes/categorias" label="Categorías" />
+        <NavLink to="/ajustes/metodos" label="Métodos de pago" />
         <NavLink to="/ajustes/recurrentes" label="Recurrentes" />
         <NavLink to="/ajustes/presupuestos" label="Presupuestos" />
       </section>

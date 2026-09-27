@@ -70,10 +70,20 @@ export interface PaymentMethod {
   id: Id;
   type: PaymentMethodType;
   name: string;
+  /**
+   * HEREDADO — no escribir. La fuente de verdad del metodo por defecto es
+   * Settings.defaultPaymentMethodId; este campo solo sobrevive como ultimo
+   * eslabon del ?? para quien nunca toco ese ajuste (ver
+   * TransactionsScreen: settings.defaultPaymentMethodId ?? find(isDefault)).
+   * Tener dos lugares donde vive "el por defecto" ya hacia que una casilla
+   * que escribiera aca pareciera no hacer nada.
+   */
   isDefault: boolean;
   /** Solo si type === 'credit'. Configurables, nunca hardcodeados. */
   cutoffDay?: number; // 15
   paymentDay?: number; // 2
+  /** Cupo total en pesos enteros. Solo si type === 'credit'. */
+  creditLimit?: number;
   /**
    * Cuando se guardo por ultima vez. Lo necesita la sincronizacion: sin
    * esto, bajar de la nube pisaba lo local a ciegas y cada edicion se
