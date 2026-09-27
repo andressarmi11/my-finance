@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localRepository } from '@/data/local/localRepository';
 import { OnboardingScreen } from './OnboardingScreen';
@@ -26,9 +26,14 @@ export function OnboardingGate({ esperando, children }: { esperando: boolean; ch
    * Solo cubre el hueco entre consultas; la primera vez `settings` si es
    * undefined de verdad y la pantalla de carga aparece como debe.
    */
-  const ultimaConocida = useRef(settings);
-  if (settings) ultimaConocida.current = settings;
-  const vigente = settings ?? ultimaConocida.current;
+  // Ajuste de estado DURANTE el render, no en un useEffect: el efecto
+  // corre despues de pintar, asi que llegaba un render tarde y el hueco
+  // —justo el que hay que tapar— seguia desmontando la pantalla. React
+  // soporta llamar al setter del propio componente en render: reintenta
+  // antes de confirmar nada.
+  const [ultimaConocida, setUltimaConocida] = useState(settings);
+  if (settings && settings !== ultimaConocida) setUltimaConocida(settings);
+  const vigente = settings ?? ultimaConocida;
 
   /**
    * Una vez que la configuracion inicial esta EN PANTALLA, ya no se quita.
@@ -43,14 +48,13 @@ export function OnboardingGate({ esperando, children }: { esperando: boolean; ch
    * ANTES de mostrar nada, se espera a que baje la cuenta para no volver a
    * preguntar nombre y moneda.
    */
-  const yaSeMostro = useRef(false);
+  const faltaConfigurar = !!vigente && vigente.onboardedAt === null;
+  const [yaSeMostro, setYaSeMostro] = useState(false);
+  if (faltaConfigurar && !yaSeMostro) setYaSeMostro(true);
 
   if (!vigente) return <Cargando />;
-  if (esperando && !yaSeMostro.current) return <Cargando />;
-  if (vigente.onboardedAt === null) {
-    yaSeMostro.current = true;
-    return <OnboardingScreen settings={vigente} />;
-  }
+  if (esperando && !yaSeMostro) return <Cargando />;
+  if (faltaConfigurar) return <OnboardingScreen settings={vigente} />;
   return <>{children}</>;
 }
 

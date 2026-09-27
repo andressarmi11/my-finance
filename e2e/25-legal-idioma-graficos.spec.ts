@@ -30,6 +30,25 @@ sinCuenta.describe('legal', () => {
 
 });
 
+/*
+ * Reintentos SOLO en los bloques que pasan por la configuracion inicial.
+ *
+ * Que se sabe: estos tests pasan 60/60 corriendo el archivo solo, y fallan
+ * ~2 de cada 130 bajo la carga de la suite completa. El sintoma siempre es
+ * el mismo —la configuracion inicial no termina de cerrarse— y vive en el
+ * fixture compartido, no en lo que estos tests comprueban.
+ *
+ * Persiguiendolo SI salio un bug real, que ya esta arreglado:
+ * OnboardingGate desmontaba la pantalla y te devolvia al primer paso (ver
+ * features/onboarding/OnboardingGate.tsx). Lo que queda es fragilidad de
+ * la maquina bajo carga.
+ *
+ * Esto NO es licencia para reintentar un test que falla de verdad: si
+ * alguno empieza a fallar por su propia asercion —el idioma, el documento,
+ * el enlace— el reintento no lo va a salvar y hay que arreglarlo.
+ */
+test.describe.configure({ retries: 2 });
+
 test.describe('legal desde la app', () => {
   test('se llega desde Ajustes', async ({ page }) => {
     await page.goto('ajustes');
