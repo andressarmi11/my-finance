@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
+import { expandirDiferido } from '@/domain/credit-card/diferido';
 import { formatMoney, parseMoney } from '@/domain/money/format';
 import type { Category, PaymentMethod, Transaction, TransactionType } from '@/domain/types';
 import { nowISO, todayISO } from '@/lib/todayISO';
@@ -16,6 +17,16 @@ import { VACIO } from '@/lib/vacio';
 function shortDate(iso: string): string {
   const { day, month } = formatShortDate(iso);
   return `${day} ${month}`;
+}
+
+/**
+ * Con año, pero solo si hace falta. Un diferido a 12 cuotas cruza de año
+ * siempre, y sin el año "primera el 2 nov, última el 2 oct" se lee al
+ * revés — parece que la última cae antes que la primera.
+ */
+function shortDateConAno(iso: string, referencia: string): string {
+  const base = shortDate(iso);
+  return iso.slice(0, 4) === referencia.slice(0, 4) ? base : `${base} ${iso.slice(0, 4)}`;
 }
 
 export interface TransactionFormValue {
@@ -88,7 +99,7 @@ export function TransactionForm({
   categories: Category[];
   paymentMethods: PaymentMethod[];
   defaultPaymentMethodId: string | null;
-  onSave: (tx: Transaction) => void;
+  onSave: (tx: Transaction, diferido?: { cuotas: number; valorCuota?: number }) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
   onCancel: () => void;
@@ -125,11 +136,16 @@ export function TransactionForm({
    * Solo aplica al crear: si estas editando algo que ya marcaste pagado, tu
    * decision manda.
    */
+  // Diferido. 1 = no hay diferido, que es el caso normal.
+  const [cuotas, setCuotas] = useState(existing?.installmentCount ?? 1);
+  const [valorCuotaTexto, setValorCuotaTexto] = useState('');
+
   const creditoPrevio = useRef<boolean | null>(null);
   useEffect(() => {
     if (!existing && isCredit && creditoPrevio.current !== true) {
       setValue((v) => ({ ...v, markPaidNow: false }));
     }
+    if (!isCredit) setCuotas(1);
     creditoPrevio.current = isCredit;
   }, [isCredit, existing]);
 
@@ -138,6 +154,15 @@ export function TransactionForm({
     const cycle = calculateCreditCardCycle(value.date, selectedMethod?.cutoffDay, selectedMethod?.paymentDay);
     return cycle.paymentDate;
   }, [isCredit, value.date, selectedMethod]);
+
+  /** Como quedaria repartido, para mostrarlo antes de guardar. */
+  const previewCuotas = useMemo(() => {
+    if (!isCredit || cuotas <= 1 || !value.date || amount === null || amount <= 0) return null;
+    return expandirDiferido(
+      value.date, amount, cuotas, selectedMethod?.cutoffDay, selectedMethod?.paymentDay,
+      parseMoney(valorCuotaTexto) ?? undefined,
+    );
+  }, [isCredit, cuotas, value.date, amount, selectedMethod, valorCuotaTexto]);
 
   // Smart-fill: al escribir concepto, inferir categoría + método (200ms debounce).
   // Sólo si el user no editó manualmente los chips (i.e. está en un match previo).
@@ -208,7 +233,10 @@ export function TransactionForm({
       updatedAt: now,
     };
     haptic('medium');
-    onSave(tx);
+    // Editar una cuota suelta NO vuelve a repartir: es lo que haces cuando
+    // pagas una. El diferido solo se arma al crear.
+    const esNuevoDiferido = !existing && isCredit && cuotas > 1;
+    onSave(tx, esNuevoDiferido ? { cuotas, valorCuota: parseMoney(valorCuotaTexto) ?? undefined } : undefined);
   }
 
   const headerLabel = existing
@@ -362,10 +390,44 @@ export function TransactionForm({
             </button>
           ))}
         </FieldGroup>
-        {isCredit && paymentPreview && (
+        {isCredit && paymentPreview && cuotas === 1 && (
           <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
             Se paga el {shortDate(paymentPreview)}
           </p>
+        )}
+
+        {/* Diferido. Solo al CREAR: editar una cuota suelta no vuelve a
+            repartir la compra. */}
+        {isCredit && !existing && (
+          <>
+            <Field label="Cuotas" htmlFor="tx-cuotas">
+              <input
+                id="tx-cuotas" type="number" inputMode="numeric" min={1} max={48}
+                value={cuotas}
+                onChange={(e) => setCuotas(Math.max(1, Math.min(48, Number(e.target.value) || 1)))}
+                style={inputStyle}
+              />
+            </Field>
+
+            {cuotas > 1 && (
+              <>
+                <Field label="Valor de cada cuota" htmlFor="tx-valor-cuota">
+                  <input
+                    id="tx-valor-cuota" inputMode="numeric"
+                    value={valorCuotaTexto}
+                    onChange={(e) => setValorCuotaTexto(e.target.value)}
+                    placeholder={previewCuotas ? formatMoney(previewCuotas[0]!.amount) : '$ 0'}
+                    style={inputStyle}
+                  />
+                </Field>
+                <p style={{ margin: '-8px 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
+                  {previewCuotas
+                    ? `Primera el ${shortDate(previewCuotas[0]!.cyclePaymentDate)}, última el ${shortDateConAno(previewCuotas[previewCuotas.length - 1]!.cyclePaymentDate, previewCuotas[0]!.cyclePaymentDate)}. Si tu banco cobra interés, escribe la cuota real.`
+                    : 'Si tu banco cobra interés, escribe acá la cuota que te dijo.'}
+                </p>
+              </>
+            )}
+          </>
         )}
 
         <Field label="Fecha" htmlFor="tx-fecha">

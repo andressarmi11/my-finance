@@ -108,6 +108,24 @@ export interface Transaction {
   cycleCutoffDate?: ISODate;
   cyclePaymentDate?: ISODate;
 
+  /**
+   * Compra diferida. Las N cuotas son N transacciones que comparten grupo;
+   * el id de cada una es `${installmentGroupId}:cuota-${n}`, determinista,
+   * para que la lapida de borrado sepa cual murio (mismo razonamiento que
+   * occurrenceId en data/local/materialize.ts).
+   */
+  installmentGroupId?: Id;
+  /** 1..N */
+  installmentNumber?: number;
+  /** N */
+  installmentCount?: number;
+  /**
+   * Cuando se hizo la COMPRA. Distinta de `date` a partir de la cuota 2.
+   * Existe para el cupo: un diferido bloquea el cupo entero el dia de la
+   * compra, no cuota a cuota (ver credit-card/disponible.ts).
+   */
+  purchaseDate?: ISODate;
+
   /** null = se calcula por fecha. Con valor = el usuario lo movio a mano. */
   quincenaKey: QuincenaKey | null;
 

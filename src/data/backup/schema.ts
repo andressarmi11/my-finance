@@ -76,6 +76,11 @@ export const TransactionSchema = z.object({
   notes: z.string().optional(),
   cycleCutoffDate: isoDate.optional(),
   cyclePaymentDate: isoDate.optional(),
+  // Diferidos. Opcionales: los backups anteriores siguen importando.
+  installmentGroupId: z.string().min(1).optional(),
+  installmentNumber: z.number().int().min(1).optional(),
+  installmentCount: z.number().int().min(1).optional(),
+  purchaseDate: isoDate.optional(),
   quincenaKey: z.string().nullable(),
   recurringRuleId: z.string().optional(),
   periodKey: z.string().optional(),

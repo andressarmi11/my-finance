@@ -77,6 +77,40 @@ describe('calcularDisponible', () => {
   });
 });
 
+describe('calcularDisponible con compras diferidas', () => {
+  /* Una nevera a 12 cuotas comprada hoy bloquea el cupo ENTERO hoy, no de
+     a 100.000 por mes: es lo que hace el banco al pasar la tarjeta. Las
+     cuotas futuras tienen fecha futura, asi que sin mirar purchaseDate
+     quedarian fuera del filtro `<= hoy`. */
+  it('bloquea el cupo completo el dia de la compra, no cuota a cuota', () => {
+    const cuotas = Array.from({ length: 12 }, (_, i) => gasto({
+      amount: 100_000,
+      date: `2026-${String(9 + i > 12 ? 9 + i - 12 : 9 + i).padStart(2, '0')}-20`,
+      purchaseDate: '2026-09-20',
+      installmentGroupId: 'g1',
+      installmentNumber: i + 1,
+      installmentCount: 12,
+    }));
+    const d = calcularDisponible(tarjeta(), cuotas, HOY)!;
+    expect(d.usado).toBe(1_200_000);
+    expect(d.disponible).toBe(3_800_000);
+  });
+
+  it('marcar una cuota pagada libera solo esa', () => {
+    const cuotas = [
+      gasto({ amount: 100_000, date: '2026-09-20', purchaseDate: '2026-09-20', status: 'paid' }),
+      gasto({ amount: 100_000, date: '2026-10-20', purchaseDate: '2026-09-20' }),
+      gasto({ amount: 100_000, date: '2026-11-20', purchaseDate: '2026-09-20' }),
+    ];
+    expect(calcularDisponible(tarjeta(), cuotas, HOY)!.usado).toBe(200_000);
+  });
+
+  it('un diferido que todavia no compraste no consume nada', () => {
+    const futuro = gasto({ amount: 900_000, date: '2026-12-20', purchaseDate: '2026-12-20' });
+    expect(calcularDisponible(tarjeta(), [futuro], HOY)!.usado).toBe(0);
+  });
+});
+
 describe('saldosSinPagar', () => {
   const visa = tarjeta({ id: 'tc-1', name: 'Visa' });
   const amex = tarjeta({ id: 'tc-2', name: 'Amex' });

@@ -126,6 +126,12 @@ export function TransactionRow({
           {isCredit && tx.cyclePaymentDate && (
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--q25-text)', marginTop: 1 }}>
               se paga el {shortDate(tx.cyclePaymentDate)}
+              {/* El numero vive en su campo, no dentro del concepto: meter
+                  "Nevera 3/12" en el texto envenenaria el conceptIndex que
+                  alimenta el autocompletado del formulario. */}
+              {tx.installmentCount && tx.installmentCount > 1
+                ? ` · cuota ${tx.installmentNumber} de ${tx.installmentCount}`
+                : ''}
             </span>
           )}
         </span>

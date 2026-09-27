@@ -94,13 +94,20 @@ export interface TransactionRow {
   id: string; user_id: string; type: string; concept: string; amount: number; date: string;
   category_id: string | null; payment_method_id: string | null; status: string; notes: string | null;
   cycle_cutoff_date: string | null; cycle_payment_date: string | null; quincena_key: string | null;
-  recurring_rule_id: string | null; period_key: string | null; created_at: string; updated_at: string;
+  recurring_rule_id: string | null; period_key: string | null;
+  installment_group_id: string | null; installment_number: number | null;
+  installment_count: number | null; purchase_date: string | null;
+  created_at: string; updated_at: string;
 }
 export function transactionFromRow(row: TransactionRow): Transaction {
   return {
     id: row.id, type: row.type as Transaction['type'], concept: row.concept, amount: row.amount, date: row.date,
     categoryId: row.category_id, paymentMethodId: row.payment_method_id, status: row.status as Transaction['status'],
     notes: row.notes ?? undefined, cycleCutoffDate: row.cycle_cutoff_date ?? undefined,
+    installmentGroupId: row.installment_group_id ?? undefined,
+    installmentNumber: row.installment_number ?? undefined,
+    installmentCount: row.installment_count ?? undefined,
+    purchaseDate: row.purchase_date ?? undefined,
     cyclePaymentDate: row.cycle_payment_date ?? undefined, quincenaKey: row.quincena_key,
     recurringRuleId: row.recurring_rule_id ?? undefined, periodKey: row.period_key ?? undefined,
     createdAt: row.created_at, updatedAt: row.updated_at,
@@ -111,6 +118,10 @@ export function transactionToRow(userId: string, t: Transaction): TransactionRow
     id: t.id, user_id: userId, type: t.type, concept: t.concept, amount: t.amount, date: t.date,
     category_id: t.categoryId, payment_method_id: t.paymentMethodId, status: t.status,
     notes: t.notes ?? null, cycle_cutoff_date: t.cycleCutoffDate ?? null, cycle_payment_date: t.cyclePaymentDate ?? null,
+    installment_group_id: t.installmentGroupId ?? null,
+    installment_number: t.installmentNumber ?? null,
+    installment_count: t.installmentCount ?? null,
+    purchase_date: t.purchaseDate ?? null,
     quincena_key: t.quincenaKey, recurring_rule_id: t.recurringRuleId ?? null, period_key: t.periodKey ?? null,
     created_at: t.createdAt, updated_at: t.updatedAt,
   };

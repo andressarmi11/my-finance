@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { MonthNav, monthName } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
+import { borrarDiferido, crearDiferido } from '@/data/local/diferidos';
 import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { maybeScheduleReminder } from '@/features/notifications/scheduleReminder';
@@ -212,7 +213,13 @@ export function TransactionsScreen() {
     });
   }
 
-  async function handleSave(tx: Transaction) {
+  async function handleSave(tx: Transaction, diferido?: { cuotas: number; valorCuota?: number }) {
+    if (diferido && diferido.cuotas > 1) {
+      const metodo = tx.paymentMethodId ? paymentMethods.find((m) => m.id === tx.paymentMethodId) : undefined;
+      await crearDiferido(tx, diferido.cuotas, metodo, diferido.valorCuota);
+      closeForm();
+      return;
+    }
     await localRepository.saveTransaction(tx);
     void maybeScheduleReminder(tx, settings).catch((e: unknown) => {
       console.error('No se pudo programar el recordatorio en la nube:', e);
@@ -220,9 +227,11 @@ export function TransactionsScreen() {
     closeForm();
   }
 
+  /** Borrar una cuota borra el diferido entero: uno con un hueco en la
+   *  cuota 7 no significa nada, y descuadra el cupo en silencio. */
   async function handleDelete() {
     if (!editing) return;
-    await localRepository.deleteTransaction(editing.id);
+    await borrarDiferido(editing);
     closeForm();
   }
 

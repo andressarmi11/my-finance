@@ -49,7 +49,11 @@ function consumeCupo(tx: Transaction, tarjetaId: string, hoy: ISODate): boolean 
     tx.type === 'expense' &&
     tx.status !== 'paid' &&
     tx.status !== 'cancelled' &&
-    tx.date <= hoy
+    // purchaseDate y no date: una compra diferida bloquea el cupo entero
+    // el dia que la pasas, no cuota a cuota — es lo que hace el banco. La
+    // cuota 7 tiene fecha futura pero su compra ya ocurrio. El ?? deja
+    // intacto todo lo que no es diferido.
+    (tx.purchaseDate ?? tx.date) <= hoy
   );
 }
 
