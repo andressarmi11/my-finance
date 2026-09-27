@@ -8,7 +8,8 @@ const BASE = `http://localhost:${PORT}/step-up/`;
 // son alcanzables. Por eso corre contra el dev server, en su propio puerto.
 const PORT_DEV = 5173;
 const BASE_DEV = `http://localhost:${PORT_DEV}/step-up/`;
-const SOLO_AISLAMIENTO = /aislamiento-de-cuentas/;
+// Estos importan modulos FUENTE, asi que van contra el dev server.
+const SOLO_AISLAMIENTO = /aislamiento-de-cuentas|sync-ocurrencias-duplicadas/;
 
 export default defineConfig({
   testDir: './e2e',

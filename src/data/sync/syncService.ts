@@ -19,10 +19,11 @@ import { db } from '../db';
 import { supabaseRepository } from '../supabase/supabaseRepository';
 import { applyRemoteDeletions, listRemoteTombstones, saveRemoteTombstones } from '../supabase/deletions';
 import { listRemoteBudgets, saveRemoteBudgets } from '../supabase/budgets';
-import { deletedIdsOf, mergeTombstones, type Tombstone } from './tombstones';
+import { deletedIdsOf, makeTombstone, mergeTombstones, type Tombstone } from './tombstones';
 import { conciliarPresupuestos } from './presupuestos';
 import { recordatoriosASubir } from './recordatorios';
 import { masNuevo as newer } from './masNuevo';
+import { conciliarOcurrencias } from './ocurrenciasDuplicadas';
 import type { Settings, Transaction } from '@/domain/types';
 
 export interface SyncResult {
@@ -159,14 +160,31 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
   if (recordatoriosAGuardar.length > 0) await db.reminders.bulkPut(recordatoriosAGuardar);
 
   const localAll = await db.transactions.toArray();
+
+  // Una ocurrencia recurrente con dos ids es la MISMA ocurrencia, y el par
+  // (recurringRuleId, periodKey) es un indice unico en Dexie: dejar pasar
+  // las dos hacia bulkPut lanzaba ConstraintError y, como esta llamada es
+  // la ultima del pull, moria el ciclo entero. Ver ocurrenciasDuplicadas.ts.
+  const plan = conciliarOcurrencias(
+    remoteTx.filter((tx) => !borradoTx.has(tx.id)),
+    localAll,
+  );
+
+  if (plan.aBorrar.length > 0) {
+    const ahora = new Date().toISOString();
+    await db.transactions.bulkDelete(plan.aBorrar);
+    // Con lapida: sin ella el otro dispositivo, que todavia tiene la fila
+    // con el id viejo, la vuelve a subir y el choque regresa.
+    await db.deletions.bulkPut(plan.aBorrar.map((id) => makeTombstone('transactions', id, ahora)));
+  }
+
   const localById = new Map(localAll.map((t) => [t.id, t]));
   const toPut: Transaction[] = [];
-  for (const tx of remoteTx) {
-    if (borradoTx.has(tx.id)) continue;
+  for (const tx of plan.aGuardar) {
     const local = localById.get(tx.id);
     if (!local || newer(tx.updatedAt, local.updatedAt)) toPut.push(tx);
   }
-  if (toPut.length > 0) await db.transactions.bulkPut(toPut);
+  if (toPut.length > 0) await guardarTolerante(toPut);
 
   return {
     pushed: 0,
@@ -239,4 +257,34 @@ export async function syncBidirectional(): Promise<SyncResult> {
   const pull = await pullCloudToLocal();
   const push = await pushLocalToCloud();
   return { pushed: push.pushed, pulled: pull.pulled, deleted: pull.deleted };
+}
+
+/**
+ * Una fila mala no puede matar el ciclo de sync.
+ *
+ * bulkPut lanza si CUALQUIER fila viola un indice, y como el pull termina
+ * aca, un solo choque dejaba al usuario sin sincronizar nada —ni bajar ni
+ * subir— y repitiendo el mismo error en cada intento.
+ *
+ * conciliarOcurrencias ya quita el caso conocido; esto es el cinturon por
+ * si aparece otro. Mismo criterio que el bulkAdd de materialize.ts: se
+ * reintenta fila por fila y se registra lo que no entro, en vez de perder
+ * las 149 que si estaban bien.
+ */
+async function guardarTolerante(filas: Transaction[]): Promise<void> {
+  try {
+    await db.transactions.bulkPut(filas);
+  } catch {
+    let fallidas = 0;
+    for (const fila of filas) {
+      try {
+        await db.transactions.put(fila);
+      } catch {
+        fallidas += 1;
+      }
+    }
+    if (fallidas > 0) {
+      console.warn(`Sync: ${fallidas} de ${filas.length} movimientos no se pudieron guardar localmente.`);
+    }
+  }
 }
