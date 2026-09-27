@@ -1,3 +1,4 @@
+import { copyFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -6,6 +7,30 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // base debe coincidir con el nombre del repo en GitHub Pages:
 // https://<usuario>.github.io/step-up/
+/**
+ * GitHub Pages sirve archivos estaticos: /step-up/legal no es un archivo y
+ * devolvia 404 en visita fria. Afectaba a TODAS las rutas, no solo a
+ * legal — compartir un enlace a cualquier pantalla fallaba. La PWA lo
+ * tapaba una vez instalada, via el navigateFallback de Workbox, asi que
+ * solo lo veia quien llegaba por primera vez o por un enlace compartido.
+ *
+ * Pages usa 404.html para cualquier ruta desconocida. Siendo una copia de
+ * index.html, la app arranca igual y el router resuelve la URL.
+ *
+ * (El status sigue siendo 404 para los rastreadores. Para una app privada
+ * de finanzas eso da igual; si algun dia importa el SEO, la alternativa es
+ * el redirect de spa-github-pages.)
+ */
+function copiarIndexA404() {
+  return {
+    name: 'copiar-index-a-404',
+    closeBundle() {
+      const dist = fileURLToPath(new URL('./dist/', import.meta.url));
+      copyFileSync(`${dist}index.html`, `${dist}404.html`);
+    },
+  };
+}
+
 export default defineConfig({
   base: '/step-up/',
   plugins: [
@@ -47,6 +72,8 @@ export default defineConfig({
       },
       devOptions: { enabled: false },
     }),
+    // Despues de VitePWA: necesita el index.html ya procesado.
+    copiarIndexA404(),
   ],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
