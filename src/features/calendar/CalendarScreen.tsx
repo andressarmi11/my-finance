@@ -1,3 +1,6 @@
+import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
@@ -110,7 +113,11 @@ export function CalendarScreen() {
             const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
             return (
               <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
-                <span aria-hidden style={{ fontSize: 18 }}>{cat?.icon ?? '✳️'}</span>
+                <CategoryAvatar
+                  icon={cat?.icon ?? 'other'}
+                  color={cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA}
+                  size={32}
+                />
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
                 <span className="figures" style={{ fontWeight: 600, color: tx.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
                   {tx.type === 'income' ? '+' : ''}{formatMoney(tx.amount)}
@@ -120,7 +127,15 @@ export function CalendarScreen() {
           })}
           {dayPayments.map((tx) => (
             <div key={`pay-${tx.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
-              <span aria-hidden style={{ fontSize: 18 }}>💳</span>
+              <span
+                aria-hidden
+                style={{
+                  flex: 'none', width: 32, height: 32, borderRadius: 11, display: 'grid',
+                  placeItems: 'center', background: 'var(--q25-soft)', color: 'var(--q25-text)',
+                }}
+              >
+                <IconCreditCard size={17} stroke={1.75} />
+              </span>
               <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--q25-text)' }}>
                 Pago TC: {tx.concept}
               </span>

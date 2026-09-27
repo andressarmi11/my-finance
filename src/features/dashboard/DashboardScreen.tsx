@@ -298,7 +298,7 @@ export function DashboardScreen() {
 
       {upcoming.length === 0 ? (
         <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
-          Nada pendiente en {monthName(month).toLowerCase()}. 🎉
+          Nada pendiente en {monthName(month).toLowerCase()}.
         </p>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', overflow: 'hidden' }}>

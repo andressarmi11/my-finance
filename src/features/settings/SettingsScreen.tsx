@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
+import { useIdioma } from '@/i18n/idioma';
 import { exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
 import type { Backup } from '@/data/backup/schema';
 import type { Settings } from '@/domain/types';
@@ -20,6 +21,7 @@ const THEMES: Array<{ value: Settings['theme']; label: string }> = [
 
 export function SettingsScreen() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
+  const { idioma, setIdioma, t } = useIdioma();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<
@@ -91,6 +93,27 @@ export function SettingsScreen() {
             background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
           }}
         />
+      </section>
+
+      <section style={sectionStyle}>
+        <h2 style={sectionTitle}>{t('ajustes.idioma')}</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([['es', 'Español'], ['en', 'English']] as const).map(([codigo, nombre]) => (
+            <button
+              key={codigo}
+              type="button"
+              onClick={() => setIdioma(codigo)}
+              aria-pressed={idioma === codigo}
+              lang={codigo}
+              style={segmentStyle(idioma === codigo)}
+            >
+              {nombre}
+            </button>
+          ))}
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '8px 0 0' }}>
+          {t('ajustes.idiomaNota')}
+        </p>
       </section>
 
       <section style={sectionStyle}>
@@ -209,6 +232,7 @@ export function SettingsScreen() {
         <NavLink to="/ajustes/metodos" label="Métodos de pago" />
         <NavLink to="/ajustes/recurrentes" label="Recurrentes" />
         <NavLink to="/ajustes/presupuestos" label="Presupuestos" />
+        <NavLink to="/legal" label={t('ajustes.legal')} />
       </section>
 
       <CloudSection />

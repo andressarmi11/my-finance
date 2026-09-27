@@ -1,3 +1,4 @@
+import { IconBolt } from '@tabler/icons-react';
 import { useState } from 'react';
 import { InboxSheet } from './InboxSheet';
 import { useInbox } from './useInbox';
@@ -27,7 +28,7 @@ export function InboxBanner() {
           color: 'var(--text)', textAlign: 'left',
         }}
       >
-        <span aria-hidden style={{ fontSize: 18 }}>⚡️</span>
+        <IconBolt size={18} stroke={1.9} aria-hidden style={{ flex: 'none' }} />
         <span style={{ flex: 1, fontSize: 'var(--text-sm)' }}>
           <strong>{n} {n === 1 ? 'movimiento llegó solo' : 'movimientos llegaron solos'}</strong>
           {' '}— tócalo para revisarlo.

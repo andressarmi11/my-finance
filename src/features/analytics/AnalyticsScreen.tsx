@@ -1,3 +1,4 @@
+import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -16,6 +17,11 @@ import { filterByRange, hastaHoy, rangeBounds, rellenarHuecos, toMonthlyPoints, 
 import type { Transaction, Category } from '@/domain/types';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
+import { BudgetColumns } from './BudgetColumns';
+import { GestorDeGraficos } from './GestorDeGraficos';
+import {
+  guardarDisposicion, leerDisposicion, type Disposicion, type GraficoId,
+} from './disposicion';
 import { VACIO } from '@/lib/vacio';
 
 const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#FFCC00', '#5AC8FA', '#FF2D55'];
@@ -23,6 +29,9 @@ const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#F
 export function AnalyticsScreen() {
   const [range, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
+  const [disposicion, setDisposicion] = useState<Disposicion>(leerDisposicion);
+
+  const aplicar = (d: Disposicion) => { setDisposicion(d); guardarDisposicion(d); };
 
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
@@ -55,6 +64,10 @@ export function AnalyticsScreen() {
   // Filtrar transacciones por el rango seleccionado — TODAS las cards
   // (balance, pie, fijos/variables, débito/tarjeta) usan este filtro.
   const today = todayISO();
+  const budgets = useLiveQuery(
+    () => localRepository.listBudgets(Number(today.slice(0, 4)), Number(today.slice(5, 7))),
+    [today],
+  ) ?? VACIO;
   const rangedTransactions = useMemo(
     () => filterByRange(transactions, range, today, settings.diasDePago),
     [transactions, range, today, settings.diasDePago],
@@ -96,7 +109,7 @@ export function AnalyticsScreen() {
       return {
         id: c.categoryId ?? 'none',
         name: cat?.name ?? 'Sin categoría',
-        icon: cat?.icon ?? '✳️',
+        icon: cat?.icon ?? 'other',
         color: cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA,
         amount: c.amount,
         count: c.count,
@@ -105,26 +118,10 @@ export function AnalyticsScreen() {
     ...(spendOtherAmount > 0 ? [{ id: '__other__', name: 'Otros', icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
   ];
 
-  return (
-    <Screen title="Análisis" subtitle={rangeLabel}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
-          <button
-            key={r} type="button" onClick={() => setRange(r)} aria-pressed={range === r}
-            style={{
-              flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-              background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? '#fff' : 'var(--text)',
-              fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', fontSize: 'var(--text-sm)',
-              transition: 'all var(--dur-fast) var(--ease-spring-out)',
-            }}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
-
-      {/* Card: barras stacked por categoría — reemplaza el ChartCard viejo */}
-      <ChartCard title="Balance por categoría">
+  // Cada grafico, indexado por id. Se arma aqui y se PINTA segun el orden
+  // que el usuario haya elegido, en vez de estar cableado en el JSX.
+  const secciones: Record<GraficoId, { titulo: string; contenido: React.ReactNode }> = {
+    'balance-categoria': { titulo: 'Balance por categoría', contenido: (<>
         <StackedBar
           label="Ingresos"
           total={incomeTotal}
@@ -133,6 +130,7 @@ export function AnalyticsScreen() {
             return {
               id: c.categoryId ?? `income-${i}`,
               name: cat?.name ?? 'Sin categoría',
+              icon: cat?.icon ?? 'other',
               color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
               amount: c.amount,
             };
@@ -149,6 +147,7 @@ export function AnalyticsScreen() {
             return {
               id: c.categoryId ?? `spend-${i}`,
               name: cat?.name ?? 'Sin categoría',
+              icon: cat?.icon ?? 'other',
               color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
               amount: c.amount,
             };
@@ -162,10 +161,8 @@ export function AnalyticsScreen() {
             {incomeTotal - spendTotal >= 0 ? '+ ' : ''}{formatMoney(incomeTotal - spendTotal)}
           </span>
         </div>
-      </ChartCard>
-
-      {/* Card: pie clickable */}
-      <ChartCard title="Distribución de gastos">
+    </>) },
+    'distribucion': { titulo: 'Distribución de gastos', contenido: (<>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <ResponsiveContainer width={140} height={140}>
             <PieChart>
@@ -208,9 +205,9 @@ export function AnalyticsScreen() {
                     borderRadius: 6, fontSize: 'var(--text-sm)',
                   }}
                 >
-                  <span aria-hidden style={{ width: 10, height: 10, borderRadius: 5, background: entry.color, flex: 'none' }} />
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {entry.icon} {entry.name}
+                  <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
+                    <CategoryIcon icon={entry.icon} size={15} color={entry.color} />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</span>
                   </span>
                   <span className="figures" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{pct}%</span>
                 </button>
@@ -221,9 +218,8 @@ export function AnalyticsScreen() {
         <p style={{ margin: '10px 4px 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
           Toca una categoría para ver el detalle.
         </p>
-      </ChartCard>
-
-      <ChartCard title="Ingresos vs. gastos (hasta hoy)">
+    </>) },
+    'ingresos-gastos': { titulo: 'Ingresos vs. gastos (hasta hoy)', contenido: (<>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={points} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
@@ -234,23 +230,67 @@ export function AnalyticsScreen() {
             <Bar dataKey="expense" name="Gastos" fill="var(--danger)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </ChartCard>
-
-      <ChartCard title="Fijos vs. variables">
+    </>) },
+    'fijos-variables': { titulo: 'Fijos vs. variables', contenido: (<>
         <SplitBar
           a={{ label: 'Fijos', value: fixedVsVariable.fixed, color: 'var(--committed)' }}
           b={{ label: 'Variables', value: fixedVsVariable.variable, color: 'var(--q25-text)' }}
           total={totalFV}
         />
-      </ChartCard>
-
-      <ChartCard title="Débito vs. tarjeta de crédito">
+    </>) },
+    'debito-credito': { titulo: 'Débito vs. tarjeta de crédito', contenido: (<>
         <SplitBar
           a={{ label: 'Débito', value: debitVsCredit.debit, color: 'var(--q10-text)' }}
           b={{ label: 'Tarjeta', value: debitVsCredit.credit, color: 'var(--q25-text)' }}
           total={totalDC}
         />
-      </ChartCard>
+    </>) },
+    'presupuestos': {
+      titulo: 'Presupuestos del mes',
+      contenido: (
+        <BudgetColumns
+          categories={categories}
+          budgets={budgets}
+          transactions={transactions}
+          mesPrefijo={today.slice(0, 7)}
+        />
+      ),
+    },
+  };
+
+  return (
+    <Screen title="Análisis" subtitle={rangeLabel}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
+          <button
+            key={r} type="button" onClick={() => setRange(r)} aria-pressed={range === r}
+            style={{
+              flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
+              background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? '#fff' : 'var(--text)',
+              fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', fontSize: 'var(--text-sm)',
+              transition: 'all var(--dur-fast) var(--ease-spring-out)',
+            }}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+
+      {disposicion.orden
+        .filter((id) => !disposicion.ocultos.includes(id))
+        .map((id) => (
+          <ChartCard key={id} title={secciones[id].titulo}>
+            {secciones[id].contenido}
+          </ChartCard>
+        ))}
+
+      <GestorDeGraficos
+        disposicion={disposicion}
+        titulos={Object.fromEntries(
+          (Object.keys(secciones) as GraficoId[]).map((id) => [id, secciones[id].titulo]),
+        ) as Record<GraficoId, string>}
+        onCambiar={aplicar}
+      />
 
       {detailCategoryId !== undefined && (
         <CategoryDetailSheet
@@ -277,7 +317,7 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
 function StackedBar({ label, total, segments, amountColor, prefix }: {
   label: string;
   total: number;
-  segments: Array<{ id: string; name: string; color: string; amount: number }>;
+  segments: Array<{ id: string; name: string; color: string; amount: number; icon?: string }>;
   amountColor: string;
   prefix?: string;
 }) {
@@ -305,7 +345,9 @@ function StackedBar({ label, total, segments, amountColor, prefix }: {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {segments.map((s) => (
           <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-            <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: s.color }} />
+            {/* El icono ya lleva el color de la categoria, asi que el punto
+                de color seria decir lo mismo dos veces. */}
+            <CategoryIcon icon={s.icon} size={14} color={s.color} />
             {s.name} · <span className="figures">{Math.round((s.amount / (total || 1)) * 100)}%</span>
           </span>
         ))}
@@ -371,7 +413,11 @@ function CategoryDetailSheet({
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-          <span style={{ fontSize: 32 }}>{category?.icon ?? '✳️'}</span>
+          <CategoryAvatar
+            icon={category?.icon ?? 'other'}
+            color={category ? categoryColor(category) : COLOR_SIN_CATEGORIA}
+            size={44}
+          />
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{category?.name ?? 'Sin categoría'}</h2>
             <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>

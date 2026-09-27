@@ -1,3 +1,4 @@
+import { IconCheck } from '@tabler/icons-react';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
@@ -77,7 +78,7 @@ export function TransactionRow({
           transition: 'all var(--dur-fast) var(--ease-spring-out)',
         }}
       >
-        ✓
+        <IconCheck size={15} stroke={2.6} aria-hidden />
       </button>
 
       <button

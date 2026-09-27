@@ -1,3 +1,4 @@
+import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -278,7 +279,7 @@ export function TransactionForm({
               fontSize: 18, cursor: 'pointer',
             }}
           >
-            ✕
+            <IconX size={17} stroke={2.2} aria-hidden />
           </button>
           <span
             style={{

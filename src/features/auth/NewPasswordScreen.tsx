@@ -1,3 +1,4 @@
+import { IconKey } from '@tabler/icons-react';
 import { useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
 import { salirDeRecuperacion } from './recovery';
@@ -55,7 +56,9 @@ export function NewPasswordScreen() {
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--gap-l)' }}>
       <div style={{ width: '100%', maxWidth: 360 }}>
-        <p style={{ fontSize: 40, textAlign: 'center', margin: '0 0 8px' }}>🔑</p>
+        <p style={{ textAlign: 'center', margin: '0 0 10px', color: 'var(--q10)' }}>
+          <IconKey size={38} stroke={1.6} aria-hidden />
+        </p>
         <h1 style={{ textAlign: 'center', fontSize: 'var(--text-xl)', fontWeight: 700, margin: '0 0 4px' }}>
           Contraseña nueva
         </h1>

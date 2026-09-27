@@ -1,3 +1,4 @@
+import { IconX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category, Frequency, PaymentMethod, RecurringRule, TransactionType } from '@/domain/types';
@@ -72,7 +73,29 @@ export function RecurringRuleForm({
         onClick={(e) => e.stopPropagation()}
         style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)', maxHeight: '90vh', overflowY: 'auto' }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
+
+        {/* Cerrar VISIBLE. Antes solo se podia salir tocando el fondo o con
+            Escape: en un telefono no hay Escape, y el fondo visible es una
+            franja angosta arriba de una hoja que ocupa casi toda la
+            pantalla. Abrir esto por error era quedarse adentro. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Cancelar"
+            style={{
+              width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
+              placeItems: 'center', background: 'var(--surface-sunken)',
+              color: 'var(--text-muted)', cursor: 'pointer', flex: 'none',
+            }}
+          >
+            <IconX size={17} stroke={2.2} aria-hidden />
+          </button>
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>
+            {existing ? 'Editar recurrente' : 'Nuevo recurrente'}
+          </span>
+        </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
           {(['expense', 'income'] as const).map((t) => (

@@ -1,3 +1,5 @@
+import { IconBolt, IconMessage, IconMicrophone, type IconProps } from '@tabler/icons-react';
+import type { ComponentType } from 'react';
 import { useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -12,10 +14,10 @@ import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { VACIO } from '@/lib/vacio';
 
-const ICONO_ORIGEN: Record<string, string> = {
-  sms: '💬',
-  dictado: '🎙️',
-  atajo: '⚡️',
+const ICONO_ORIGEN: Record<string, ComponentType<IconProps>> = {
+  sms: IconMessage,
+  dictado: IconMicrophone,
+  atajo: IconBolt,
 };
 
 /**
@@ -129,7 +131,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
         </p>
 
         {entradas.length === 0 && (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>Nada pendiente. 🎉</p>
+          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>Nada pendiente.</p>
         )}
 
         {entradas.map((e) => {
@@ -145,7 +147,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
               }}
             >
               <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 6 }}>
-                <span aria-hidden>{ICONO_ORIGEN[e.origen] ?? '⚡️'}</span>
+                {(() => { const I = ICONO_ORIGEN[e.origen] ?? IconBolt; return <I size={17} stroke={1.75} aria-hidden />; })()}
                 <span style={{ flex: 1, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.resumen}</span>
               </div>
               {desc.falta && (

@@ -1,3 +1,4 @@
+import { IconMicrophone, IconPlayerStopFilled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -193,7 +194,9 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
                 animation: escuchando ? 'fadeIn 0.6s ease-in-out infinite alternate' : undefined,
               }}
             >
-              {escuchando ? '■' : '🎙️'}
+              {escuchando
+                ? <IconPlayerStopFilled size={26} aria-hidden />
+                : <IconMicrophone size={26} stroke={1.9} aria-hidden />}
             </button>
           )}
         </div>

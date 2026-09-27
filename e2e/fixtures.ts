@@ -18,10 +18,19 @@ export async function completarOnboarding(page: Page): Promise<void> {
   await nombre.waitFor({ state: 'visible', timeout: 15_000 });
 
   await nombre.fill('Tester');
-  await page.getByRole('button', { name: 'Siguiente' }).click(); // moneda
-  await page.getByRole('button', { name: 'Siguiente' }).click(); // quincenas
-  await page.getByRole('button', { name: 'Siguiente' }).click(); // categorias
-  await page.getByRole('button', { name: 'Empezar' }).click();
+
+  // Se avanza HASTA que aparezca "Empezar", en vez de disparar tres clics
+  // seguidos a ciegas. Aquello era una carrera: entre un clic y el
+  // siguiente React puede re-renderizar el paso, y el clic caia sobre un
+  // boton que ya no estaba montado. Con pocos tests casi nunca se veia;
+  // con un archivo de diez, en paralelo, fallaba ~1 de cada 8.
+  //
+  // De paso deja de depender de que los pasos sean exactamente cuatro.
+  const empezar = page.getByRole('button', { name: 'Empezar' });
+  for (let i = 0; i < 8 && !(await empezar.isVisible().catch(() => false)); i++) {
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+  }
+  await empezar.click();
   await expect(nombre).toBeHidden();
 }
 
