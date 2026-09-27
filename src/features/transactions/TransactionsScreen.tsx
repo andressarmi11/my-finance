@@ -1,29 +1,29 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useEffect, useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { MonthNav, monthName } from '@/components/ui/MonthNav';
+import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
-import { borrarDiferido, crearDiferido } from '@/data/local/diferidos';
+import { deleteInstallmentPlan, createInstallmentPlan } from '@/data/local/installmentPlans';
 import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { maybeScheduleReminder } from '@/features/notifications/scheduleReminder';
 import { formatMoney } from '@/domain/money/format';
-import { periodosDelMes } from '@/domain/periodo/periodo';
-import { conPeriodoResuelto } from '@/domain/periodo/resolve';
+import { periodsOfMonth } from '@/domain/period/period';
+import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { todayISO } from '@/lib/todayISO';
-import { interpretarTexto } from '@/domain/nlp/interpretar';
+import { interpretText } from '@/domain/nlp/interpret';
 import type { Transaction } from '@/domain/types';
-import { groupByPeriodo } from './groupByPeriodo';
-import { aplicarFiltros, type FiltroEstado, type FiltroTipo } from './filtros';
+import { groupByPeriod } from './groupByPeriod';
+import { applyFilters, type StatusFilter, type TypeFilter } from './filters';
 import { TransactionRow } from './TransactionRow';
 import { TransactionForm, type Prefill } from './TransactionForm';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 
 export function TransactionsScreen() {
@@ -33,12 +33,12 @@ export function TransactionsScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [prefill, setPrefill] = useState<Prefill | undefined>();
   const [query, setQuery] = useState('');
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
-  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos');
-  // null = no estamos seleccionando. Un Set vacio = modo seleccion, sin nada
-  // elegido todavia. modify
-  const [seleccion, setSeleccion] = useState<Set<string> | null>(null);
-  const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('todos');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
+  // null = we're not selecting. An empty Set = selection mode, with nothing
+  // chosen yet. modify
+  const [selection, setSelection] = useState<Set<string> | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [aplicando, setAplicando] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
 
@@ -47,76 +47,80 @@ export function TransactionsScreen() {
   const [cursor, setCursor] = useState({ y: todayYear, m: todayMonth });
   const isCurrentMonth = cursor.y === todayYear && cursor.m === todayMonth;
 
-  // Ver DashboardScreen: el mes que se mira tiene que tener sus
-  // instancias recurrentes creadas, aunque sea de dentro de dos años.
+  // See DashboardScreen: the month being viewed needs its recurring
+  // instances created, even if it's two years out.
   useEffect(() => { void ensureMonthMaterialized(cursor.y, cursor.m); }, [cursor]);
 
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
-  // Lo que la app aprendió: el enlace del Atajo también tiene que usarlo.
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
+  // What the app has learned: the Shortcut deep link has to use it too.
   //
-  // SIN `?? VACIO` a propósito, al revés que los de arriba. useLiveQuery
-  // devuelve undefined mientras carga y [] cuando cargó y no hay nada;
-  // colapsar los dos en [] hace imposible distinguir "todavía no sé lo que
-  // aprendí" de "no he aprendido nada". El efecto de abajo necesita esa
-  // diferencia: si corre antes de tiempo con [], propone la categoría de la
-  // tabla de palabras clave y se pierde justo lo aprendido.
+  // WITHOUT `?? VACIO` on purpose, unlike the ones above. useLiveQuery
+  // returns undefined while loading and [] once it loaded and there's
+  // nothing; collapsing both into [] makes it impossible to tell "I don't
+  // know yet what I've learned" apart from "I haven't learned anything".
+  // The effect below needs that distinction: if it runs too early with
+  // [], it proposes the category from the keyword table and exactly what
+  // was learned gets lost.
   const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []);
 
-  // Abrir el form desde una URL. Dos formas, ambas para Atajos de iOS:
+  // Open the form from a URL. Two forms, both for iOS Shortcuts:
   //
-  //   campo por campo:
+  //   field by field:
   //     /movimientos?nuevo=1&tipo=ingreso&monto=3000000&concepto=Sueldo
-  //   en español, que la app interpreta:
+  //   in Spanish, which the app interprets:
   //     /movimientos?texto=gasté 45 mil en el almuerzo
-  //     /movimientos?texto=<el SMS del banco entero>
+  //     /movimientos?texto=<the whole bank SMS>
   //
-  // La segunda existe porque armar la URL campo por campo obliga al Atajo
-  // a sacar el monto con una expresión regular, y el formato del SMS lo
-  // decide el banco. Mandando el texto crudo, quien interpreta es la app —
-  // que además ya sabe qué categoría le pusiste la última vez.
+  // The second exists because building the URL field by field forces the
+  // Shortcut to pull the amount out with a regular expression, and the
+  // SMS format is the bank's call. Sending the raw text, the app is the
+  // one that interprets it — and it already knows what category you
+  // assigned last time.
   useEffect(() => {
-    const texto = params.get('texto') ?? params.get('sms');
-    if (params.get('nuevo') !== '1' && !texto) return;
+    const text = params.get('texto') ?? params.get('sms');
+    if (params.get('nuevo') !== '1' && !text) return;
 
-    // Esperar a que Dexie devuelva los metodos de pago antes de consumir
-    // la URL. El efecto corre en el primer render, cuando useLiveQuery
-    // todavia no resolvio y `paymentMethods` es []; si borrabamos los
-    // params ahi, `metodoPorTipo` devolvia null y la segunda pasada —esta
-    // vez con los metodos cargados— ya no encontraba nada en la URL.
-    // Se notaba justo donde mas duele: un Atajo de iOS abriendo la app en
-    // frio dejaba el gasto sin metodo de pago, sin forma de recuperarlo.
+    // Wait for Dexie to return the payment methods before consuming the
+    // URL. The effect runs on the first render, when useLiveQuery hasn't
+    // resolved yet and `paymentMethods` is []; if we cleared the params
+    // right then, `metodoPorTipo` returned null and the second pass —
+    // this time with the methods loaded — no longer found anything in
+    // the URL. It showed up right where it hurts most: an iOS Shortcut
+    // opening the app cold left the expense with no payment method, with
+    // no way to recover it.
     if (paymentMethods.length === 0) return;
-    // Y esperar también a lo aprendido, por lo mismo: si el efecto corre
-    // antes de que Dexie conteste, el índice llega vacío y la categoría que
-    // el usuario ya había corregido se pierde en silencio. Se notaba como
-    // una intermitencia: a veces el Atajo acertaba y a veces no.
+    // And wait for what's been learned too, for the same reason: if the
+    // effect runs before Dexie answers, the index arrives empty and the
+    // category the user had already corrected gets silently lost. It
+    // showed up as flakiness: sometimes the Shortcut got it right and
+    // sometimes it didn't.
     if (conceptIndex === undefined) return;
 
-    let nuevo: Prefill;
-    if (texto) {
-      // Misma interpretación que la entrada rápida y la bandeja. Antes acá
-      // se usaba solo la tabla de palabras clave, así que lo que el usuario
-      // le había corregido a la app se ignoraba al entrar por el Atajo.
-      const { parsed: leido, categoryId, paymentMethodId } = interpretarTexto(texto, todayISO(), {
+    let next: Prefill;
+    if (text) {
+      // Same interpretation as quick entry and the inbox. This used to
+      // only use the keyword table, so whatever the user had corrected
+      // in the app got ignored when coming in through the Shortcut.
+      const { parsed: read, categoryId, paymentMethodId } = interpretText(text, todayISO(), {
         conceptIndex,
-        idsCategorias: categories.map((c) => c.id),
-        metodos: paymentMethods,
-        metodoPorDefecto: settings.defaultPaymentMethodId ?? null,
+        categoryIds: categories.map((c) => c.id),
+        methodRows: paymentMethods,
+        defaultMethodId: settings.defaultPaymentMethodId ?? null,
       });
-      nuevo = {
-        type: leido.type,
-        concept: leido.concept || undefined,
-        amountText: leido.amount != null ? String(leido.amount) : undefined,
-        date: leido.date,
+      next = {
+        type: read.type,
+        concept: read.concept || undefined,
+        amountText: read.amount != null ? String(read.amount) : undefined,
+        date: read.date,
         categoryId,
         paymentMethodId,
-        markPaidNow: leido.yaOcurrio,
+        markPaidNow: read.yaOcurrio,
       };
     } else {
-      nuevo = {
+      next = {
         type: params.get('tipo') === 'ingreso' ? 'income' : 'expense',
         concept: params.get('concepto') ?? undefined,
         amountText: (params.get('monto') ?? '').replace(/[^0-9]/g, '') || undefined,
@@ -126,83 +130,84 @@ export function TransactionsScreen() {
     }
 
     setEditing(null);
-    setPrefill(nuevo);
+    setPrefill(next);
     setFormOpen(true);
-    const next = new URLSearchParams(params);
-    for (const k of ['nuevo', 'tipo', 'monto', 'concepto', 'fecha', 'pagado', 'texto', 'sms']) next.delete(k);
-    setParams(next, { replace: true });
+    const cleaned = new URLSearchParams(params);
+    for (const k of ['nuevo', 'tipo', 'monto', 'concepto', 'fecha', 'pagado', 'texto', 'sms']) cleaned.delete(k);
+    setParams(cleaned, { replace: true });
   }, [params, setParams, paymentMethods, categories, conceptIndex, settings]);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const methodById = useMemo(() => new Map(paymentMethods.map((m) => [m.id, m])), [paymentMethods]);
 
-  // Buscar mira TODO el historial; sin búsqueda, la lista se acota al mes
-  // visible. Sin ese tope, los recurrentes materializados a +95 días
-  // aparecían arriba de todo y enterraban lo de esta semana.
+  // Searching looks at the WHOLE history; without a search, the list is
+  // scoped to the visible month. Without that cap, recurring
+  // transactions materialized +95 days out showed up above everything
+  // and buried this week's.
   const searching = query.trim().length > 0;
 
-  const visible = useMemo(() => {
-    const enVentana = searching
+  const visibleRows = useMemo(() => {
+    const inWindow = searching
       ? transactions.filter((t) => t.concept.toLowerCase().includes(query.trim().toLowerCase()))
-      // Tantas claves como periodos tenga el mes. Pedir Q1 y Q2 a mano dejaba
-      // fuera movimientos en cuanto los periodos no fueran exactamente dos.
-      : conPeriodoResuelto(transactions, settings.diasDePago)
-          .filter((t) => periodosDelMes(cursor.y, cursor.m, settings.diasDePago).includes(t.resolvedQuincenaKey));
-    return aplicarFiltros(enVentana, filtroTipo, filtroEstado);
-  }, [transactions, query, searching, cursor, settings.diasDePago, filtroTipo, filtroEstado]);
+      // As many keys as the month has periods. Asking for Q1 and Q2 by
+      // hand left out transactions as soon as the periods weren't exactly two.
+      : withResolvedPeriods(transactions, settings.payDays)
+          .filter((t) => periodsOfMonth(cursor.y, cursor.m, settings.payDays).includes(t.recordPeriodKey));
+    return applyFilters(inWindow, typeFilter, statusFilter);
+  }, [transactions, query, searching, cursor, settings.payDays, typeFilter, statusFilter]);
 
   const groups = useMemo(
-    () => groupByPeriodo(visible, settings.diasDePago, transactions),
-    [visible, settings.diasDePago, transactions],
+    () => groupByPeriod(visibleRows, settings.payDays, transactions),
+    [visibleRows, settings.payDays, transactions],
   );
 
   const monthTotal = useMemo(() => {
     let income = 0;
     let expense = 0;
-    for (const t of visible) {
+    for (const t of visibleRows) {
       if (t.status === 'cancelled') continue;
       if (t.type === 'income') income += t.amount;
       else expense += t.amount;
     }
-    return { income, expense, count: visible.length };
-  }, [visible]);
+    return { income, expense, count: visibleRows.length };
+  }, [visibleRows]);
 
-  const enSeleccion = seleccion !== null;
+  const inSelection = selection !== null;
 
-  function alternarSeleccion(id: string) {
-    setSeleccion((prev) => {
+  function toggleSelection(id: string) {
+    setSelection((prev) => {
       const next = new Set(prev ?? []);
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   }
 
-  /** Los movimientos elegidos, en el orden en que se ven. */
-  const elegidos = useMemo(
-    () => (seleccion ? visible.filter((t) => seleccion.has(t.id)) : []),
-    [seleccion, visible],
+  /** The chosen transactions, in the order they're shown. */
+  const selectedIds = useMemo(
+    () => (selection ? visibleRows.filter((t) => selection.has(t.id)) : []),
+    [selection, visibleRows],
   );
 
-  async function marcarElegidosPagados() {
+  async function markSelectedPaid() {
     setAplicando(true);
     try {
-      const ahora = new Date().toISOString();
-      for (const tx of elegidos) {
-        if (tx.status === 'paid') continue; // ya estaba; no le movemos la fecha
-        await localRepository.saveTransaction({ ...tx, status: 'paid', updatedAt: ahora });
+      const now = new Date().toISOString();
+      for (const tx of selectedIds) {
+        if (tx.status === 'paid') continue; // already was; don't move its date
+        await localRepository.saveTransaction({ ...tx, status: 'paid', updatedAt: now });
       }
-      setSeleccion(null);
+      setSelection(null);
     } finally {
       setAplicando(false);
     }
   }
 
-  async function borrarElegidos() {
+  async function deleteSelected() {
     setAplicando(true);
     try {
-      for (const tx of elegidos) await localRepository.deleteTransaction(tx.id);
-      setConfirmarBorrado(false);
-      setSeleccion(null);
+      for (const tx of selectedIds) await localRepository.deleteTransaction(tx.id);
+      setConfirmDelete(false);
+      setSelection(null);
     } finally {
       setAplicando(false);
     }
@@ -216,10 +221,10 @@ export function TransactionsScreen() {
     });
   }
 
-  async function handleSave(tx: Transaction, diferido?: { cuotas: number; valorCuota?: number }) {
-    if (diferido && diferido.cuotas > 1) {
-      const metodo = tx.paymentMethodId ? paymentMethods.find((m) => m.id === tx.paymentMethodId) : undefined;
-      await crearDiferido(tx, diferido.cuotas, metodo, diferido.valorCuota);
+  async function handleSave(tx: Transaction, installmentPlan?: { installments: number; installmentAmount?: number }) {
+    if (installmentPlan && installmentPlan.installments > 1) {
+      const method = tx.paymentMethodId ? paymentMethods.find((m) => m.id === tx.paymentMethodId) : undefined;
+      await createInstallmentPlan(tx, installmentPlan.installments, method, installmentPlan.installmentAmount);
       closeForm();
       return;
     }
@@ -230,11 +235,11 @@ export function TransactionsScreen() {
     closeForm();
   }
 
-  /** Borrar una cuota borra el diferido entero: uno con un hueco en la
-   *  cuota 7 no significa nada, y descuadra el cupo en silencio. */
+  /** Deleting one installment deletes the entire plan: one with a hole
+   *  at installment 7 means nothing, and silently throws off the limit. */
   async function handleDelete() {
     if (!editing) return;
-    await borrarDiferido(editing);
+    await deleteInstallmentPlan(editing);
     closeForm();
   }
 
@@ -270,25 +275,27 @@ export function TransactionsScreen() {
   const nav = (
     <MonthNav
       label={`${monthName(cursor.m).slice(0, 3)} ${cursor.y}`}
+      widthSample={widestMonthLabel(true)}
+      todayIsAhead={cursor.y * 12 + cursor.m < todayYear * 12 + todayMonth}
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
       onNext={() => setCursor((c) => shiftMonth(c.y, c.m, 1))}
       onToday={isCurrentMonth ? undefined : () => setCursor({ y: todayYear, m: todayMonth })}
     />
   );
 
-  const refDialogo = useDialogo(() => setConfirmarBorrado(false), confirmarBorrado);
+  const dialogRef = useDialogo(() => setConfirmDelete(false), confirmDelete);
   return (
     <Screen
-      title={enSeleccion ? `${elegidos.length} seleccionado${elegidos.length === 1 ? '' : 's'}` : 'Movimientos'}
-      right={enSeleccion ? (
-        <button type="button" onClick={() => setSeleccion(null)} style={botonTexto}>Cancelar</button>
+      title={inSelection ? `${selectedIds.length} seleccionado${selectedIds.length === 1 ? '' : 's'}` : 'Movimientos'}
+      right={inSelection ? (
+        <button type="button" onClick={() => setSelection(null)} style={buttonText}>Cancelar</button>
       ) : (searching ? undefined : nav)}
     >
       {transactions.length > 0 && (
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('movimientos.buscar')}
+          placeholder={t('transactions.search')}
           type="search"
           style={{
             width: '100%', minHeight: 'var(--tap)', padding: '0 14px', marginBottom: 'var(--gap-m)',
@@ -300,19 +307,20 @@ export function TransactionsScreen() {
 
       {transactions.length > 0 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--gap-m)', overflowX: 'auto', paddingBottom: 2 }}>
-          <Chip activo={filtroTipo === 'todos' && filtroEstado === 'todos'}
-            onClick={() => { setFiltroTipo('todos'); setFiltroEstado('todos'); }}>{t('filtro.todos')}</Chip>
-          <Chip activo={filtroTipo === 'expense'} onClick={() => setFiltroTipo(filtroTipo === 'expense' ? 'todos' : 'expense')}>{t('filtro.gastos')}</Chip>
-          <Chip activo={filtroTipo === 'income'} onClick={() => setFiltroTipo(filtroTipo === 'income' ? 'todos' : 'income')}>{t('filtro.ingresos')}</Chip>
-          <Chip activo={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado(filtroEstado === 'pendientes' ? 'todos' : 'pendientes')}>{t('filtro.pendientes')}</Chip>
-          <Chip activo={filtroEstado === 'pagados'} onClick={() => setFiltroEstado(filtroEstado === 'pagados' ? 'todos' : 'pagados')}>{t('filtro.pagados')}</Chip>
+          <Chip activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos'}
+            onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); }}>{t('filter.all')}</Chip>
+          <Chip activeRecognizer={typeFilter === 'expense'} onClick={() => setTypeFilter(typeFilter === 'expense' ? 'todos' : 'expense')}>{t('filter.expenses')}</Chip>
+          <Chip activeRecognizer={typeFilter === 'income'} onClick={() => setTypeFilter(typeFilter === 'income' ? 'todos' : 'income')}>{t('filter.income')}</Chip>
+          <Chip activeRecognizer={statusFilter === 'pendientes'} onClick={() => setStatusFilter(statusFilter === 'pendientes' ? 'todos' : 'pendientes')}>{t('filter.pending')}</Chip>
+          <Chip activeRecognizer={statusFilter === 'pagados'} onClick={() => setStatusFilter(statusFilter === 'pagados' ? 'todos' : 'pagados')}>{t('filter.paid')}</Chip>
         </div>
       )}
 
-      {/* Resumen del mes visible — contexto antes de la lista.
-          En dos lineas y no una: a lo ancho de un iPhone, el conteo, los dos
-          montos y el boton no caben juntos — "8 movimientos" se partia en
-          dos y los numeros quedaban apretados contra el borde. */}
+      {/* Summary of the visible month — context before the list.
+          In two lines, not one: at iPhone width, the count, the two
+          amounts and the button don't fit together — "8 transactions"
+          used to wrap into two lines and the numbers ended up cramped
+          against the edge. */}
       {!searching && transactions.length > 0 && (
         <div
           style={{
@@ -322,11 +330,11 @@ export function TransactionsScreen() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {monthTotal.count} {monthTotal.count === 1 ? t('movimientos.movimiento') : t('movimientos.movimientosPl')}
+              {monthTotal.count} {monthTotal.count === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
             </span>
-            {!enSeleccion && (
-              <button type="button" onClick={() => setSeleccion(new Set())} style={botonTexto}>
-                {t('accion.seleccionar')}
+            {!inSelection && (
+              <button type="button" onClick={() => setSelection(new Set())} style={buttonText}>
+                {t('action.select')}
               </button>
             )}
           </div>
@@ -345,20 +353,20 @@ export function TransactionsScreen() {
         />
       ) : groups.length === 0 ? (
         <EmptyState
-          title={searching ? t('movimientos.sinResultadosTitulo') : t('movimientos.vacio')}
+          title={searching ? t('transactions.noResultsTitle') : t('transactions.empty')}
           body={searching
-            ? `${t('movimientos.nadaCoincide')} "${query}".`
-            : `${t('movimientos.sinMovimientosMes')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
+            ? `${t('transactions.nothingMatches')} "${query}".`
+            : `${t('transactions.noTransactionsThisMonth')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
         />
       ) : (
         groups.map((group) => (
           <section key={group.key} style={{ marginBottom: 'var(--gap-l)' }}>
             <div
               style={{
-                // Superficie neutra, no un bloque teñido: el color de la
-                // quincena vive en el punto y la etiqueta. Tenir el area
-                // entera hacia que el fondo compitiera con los montos, que
-                // son lo que se viene a leer.
+                // Neutral surface, not a tinted block: the pay period's
+                // color lives in the dot and the label. Tinting the whole
+                // area made the background compete with the amounts,
+                // which are what you came here to read.
                 background: 'var(--surface)',
                 border: '1px solid var(--line)',
                 borderRadius: 'var(--radius-m)',
@@ -379,15 +387,15 @@ export function TransactionsScreen() {
                   paymentMethod={tx.paymentMethodId ? methodById.get(tx.paymentMethodId) : undefined}
                   onTogglePaid={() => togglePaid(tx)}
                   onOpen={() => { setEditing(tx); setFormOpen(true); }}
-                  seleccionado={seleccion?.has(tx.id)}
-                  onSeleccionar={enSeleccion ? () => alternarSeleccion(tx.id) : undefined}
+                  selected={selection?.has(tx.id)}
+                  onSeleccionar={inSelection ? () => toggleSelection(tx.id) : undefined}
                 />
               ))}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 8px' }}>
                 <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Restante</span>
-                <span className="figures" style={{ fontWeight: 700, color: group.balance.restante >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
-                  {formatMoney(group.balance.restante)}
+                <span className="figures" style={{ fontWeight: 700, color: group.balance.remainder >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
+                  {formatMoney(group.balance.remainder)}
                 </span>
               </div>
             </div>
@@ -395,13 +403,13 @@ export function TransactionsScreen() {
         ))
       )}
 
-      {enSeleccion && (
+      {inSelection && (
         <div
           role="toolbar"
           aria-label="Acciones sobre lo seleccionado"
           style={{
             position: 'fixed', left: 0, right: 0,
-            // Justo encima del tab bar (61px) y su safe area.
+            // Right above the tab bar (61px) and its safe area.
             bottom: 'calc(var(--safe-bottom) + 61px)',
             zIndex: 45, display: 'flex', gap: 8,
             padding: '10px 16px',
@@ -412,29 +420,29 @@ export function TransactionsScreen() {
         >
           <button
             type="button"
-            onClick={marcarElegidosPagados}
-            disabled={elegidos.length === 0 || aplicando}
-            style={accionStyle(elegidos.length > 0 && !aplicando, 'var(--positive)', 'var(--positive-text)')}
+            onClick={markSelectedPaid}
+            disabled={selectedIds.length === 0 || aplicando}
+            style={actionStyle(selectedIds.length > 0 && !aplicando, 'var(--positive)', 'var(--positive-text)')}
           >
             Marcar pagados
           </button>
           <button
             type="button"
-            onClick={() => setConfirmarBorrado(true)}
-            disabled={elegidos.length === 0 || aplicando}
-            style={accionStyle(elegidos.length > 0 && !aplicando, 'var(--danger)', 'var(--danger-text)')}
+            onClick={() => setConfirmDelete(true)}
+            disabled={selectedIds.length === 0 || aplicando}
+            style={actionStyle(selectedIds.length > 0 && !aplicando, 'var(--danger)', 'var(--danger-text)')}
           >
             Eliminar
           </button>
         </div>
       )}
 
-      {confirmarBorrado && (
+      {confirmDelete && (
         <div
-      ref={refDialogo}
+      ref={dialogRef}
           role="dialog"
           aria-label="Confirmar eliminación"
-          onClick={() => setConfirmarBorrado(false)}
+          onClick={() => setConfirmDelete(false)}
           style={{
             position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
             display: 'flex', alignItems: 'flex-end', zIndex: 70,
@@ -451,15 +459,15 @@ export function TransactionsScreen() {
           >
             <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
             <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              ¿Eliminar {elegidos.length} movimiento{elegidos.length === 1 ? '' : 's'}?
+              ¿Eliminar {selectedIds.length} movimiento{selectedIds.length === 1 ? '' : 's'}?
             </h2>
             <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>
-              Suman {formatMoney(elegidos.reduce((a, t) => a + t.amount, 0))}. Esto no se puede deshacer,
+              Suman {formatMoney(selectedIds.reduce((a, t) => a + t.amount, 0))}. Esto no se puede deshacer,
               y también desaparecen de tus otros dispositivos.
             </p>
             <button
               type="button"
-              onClick={borrarElegidos}
+              onClick={deleteSelected}
               disabled={aplicando}
               style={{
                 width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
@@ -471,7 +479,7 @@ export function TransactionsScreen() {
             </button>
             <button
               type="button"
-              onClick={() => setConfirmarBorrado(false)}
+              onClick={() => setConfirmDelete(false)}
               style={{
                 width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
                 background: 'var(--surface-sunken)', color: 'var(--text)', fontWeight: 600,
@@ -501,42 +509,42 @@ export function TransactionsScreen() {
   );
 }
 
-const botonTexto: React.CSSProperties = {
+const buttonText: React.CSSProperties = {
   border: 'none', background: 'none', color: 'var(--q10-text)',
   fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
   minHeight: 'var(--tap)', padding: '0 4px',
 };
 
 /**
- * El borde usa el color de identidad y el TEXTO su variante -text. No es
- * un capricho: el verde y el rojo de iOS sobre blanco dan 2.2:1 y 3.5:1,
- * por debajo del 4.5:1 que necesita un texto para leerse.
+ * The border uses the identity color and the TEXT its -text variant.
+ * It's not a whim: iOS green and red on white give 2.2:1 and 3.5:1,
+ * below the 4.5:1 that text needs to be readable.
  */
-function accionStyle(activo: boolean, borde: string, texto: string): React.CSSProperties {
+function actionStyle(activeRecognizer: boolean, borde: string, text: string): React.CSSProperties {
   return {
     flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)',
-    border: `1px solid ${activo ? borde : 'var(--line)'}`,
+    border: `1px solid ${activeRecognizer ? borde : 'var(--line)'}`,
     background: 'var(--surface)',
-    color: activo ? texto : 'var(--text-faint)',
+    color: activeRecognizer ? text : 'var(--text-faint)',
     fontWeight: 600, fontSize: 'var(--text-base)',
-    cursor: activo ? 'pointer' : 'not-allowed',
+    cursor: activeRecognizer ? 'pointer' : 'not-allowed',
   };
 }
 
-/** Chip de filtro. Alterna: volver a tocarlo lo apaga. */
-function Chip({ activo, onClick, children }: {
-  activo: boolean; onClick: () => void; children: React.ReactNode;
+/** Filter chip. Toggles: tapping it again turns it off. */
+function Chip({ activeRecognizer, onClick, children }: {
+  activeRecognizer: boolean; onClick: () => void; children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-pressed={activo}
+      aria-pressed={activeRecognizer}
       style={{
         flex: 'none', minHeight: 34, padding: '0 14px', borderRadius: 999,
-        border: `1px solid ${activo ? 'var(--q10)' : 'var(--line-strong)'}`,
-        background: activo ? 'var(--q10)' : 'var(--surface)',
-        color: activo ? '#fff' : 'var(--text)',
+        border: `1px solid ${activeRecognizer ? 'var(--q10)' : 'var(--line-strong)'}`,
+        background: activeRecognizer ? 'var(--q10)' : 'var(--surface)',
+        color: activeRecognizer ? '#fff' : 'var(--text)',
         fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}

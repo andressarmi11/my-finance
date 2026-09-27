@@ -3,15 +3,15 @@ import { useTheme } from './useTheme';
 import { LegalFooter } from '@/features/legal/LegalFooter';
 
 /**
- * Envoltura minima para las paginas legales.
+ * Minimal wrapper for the legal pages.
  *
- * No usa AppLayout porque AppLayout trae AuthGate y OnboardingGate, y estas
- * paginas tienen que ser legibles sin cuenta y sin haber terminado la
- * configuracion inicial. Tampoco lleva TabBar: no son parte de la app, son
- * documentos.
+ * Doesn't use AppLayout because AppLayout brings AuthGate and OnboardingGate,
+ * and these pages need to be readable without an account and without having
+ * finished the initial setup. It also doesn't carry a TabBar: they aren't
+ * part of the app, they're documents.
  *
- * Si conserva useTheme: un documento en modo claro cuando el telefono esta
- * en oscuro deslumbra de noche.
+ * It does keep useTheme: a document in light mode when the phone is
+ * in dark mode is blinding at night.
  */
 export function LegalLayout() {
   useTheme();

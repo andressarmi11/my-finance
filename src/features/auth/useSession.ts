@@ -4,7 +4,7 @@ import { getSupabase, isSupabaseConfigured } from '@/data/supabase/client';
 
 export type SessionState = { loading: boolean; session: Session | null };
 
-/** Si Supabase no esta configurado, se resuelve de una vez como "sin sesion, no cargando". */
+/** If Supabase isn't configured, it resolves right away as "no session, not loading". */
 export function useSession(): SessionState {
   const [state, setState] = useState<SessionState>({ loading: isSupabaseConfigured(), session: null });
 

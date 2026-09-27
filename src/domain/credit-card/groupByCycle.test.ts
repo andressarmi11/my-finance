@@ -11,7 +11,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('groupByCycle', () => {
-  it('agrupa por fecha de pago y suma el total del ciclo', () => {
+  it('groups by payment date and sums the cycle total', () => {
     const groups = groupByCycle([
       tx({ amount: 150_000, cyclePaymentDate: '2026-11-02' }),
       tx({ amount: 210_000, cyclePaymentDate: '2026-11-02' }),
@@ -23,7 +23,7 @@ describe('groupByCycle', () => {
     expect(nov.count).toBe(2);
   });
 
-  it('ordena los ciclos del mas proximo al mas lejano', () => {
+  it('orders cycles from soonest to furthest', () => {
     const groups = groupByCycle([
       tx({ cyclePaymentDate: '2027-01-02' }),
       tx({ cyclePaymentDate: '2026-11-02' }),
@@ -31,7 +31,7 @@ describe('groupByCycle', () => {
     expect(groups.map((g) => g.paymentDate)).toEqual(['2026-11-02', '2027-01-02']);
   });
 
-  it('ignora canceladas y las que no tienen fecha de pago (no son TC)', () => {
+  it('ignores cancelled ones and those with no payment date (not a card)', () => {
     const groups = groupByCycle([
       tx({ cyclePaymentDate: '2026-11-02', status: 'cancelled' }),
       tx({ cyclePaymentDate: undefined }),
@@ -49,14 +49,14 @@ describe('groupByCard', () => {
     id: 'tc-2', type: 'credit', name: 'Amex', isDefault: false,
     cutoffDay: 5, paymentDay: 20, updatedAt: '',
   };
-  const debito: PaymentMethod = {
+  const debit: PaymentMethod = {
     id: 'pm-debito', type: 'debit', name: 'Débito', isDefault: true, updatedAt: '',
   };
 
-  /* El caso que rompia la pantalla: dos tarjetas que pagan el MISMO dia.
-     groupByCycle a secas las sumaba en una fila, y cada tarjeta se paga
-     aparte. */
-  it('no mezcla dos tarjetas que caen en la misma fecha de pago', () => {
+  /* The case that used to break the screen: two cards paid on the SAME
+     day. Plain groupByCycle summed them into one row, and each card is
+     paid separately. */
+  it('does not mix two cards that fall on the same payment date', () => {
     const cards = groupByCard([visa, amex], [
       tx({ paymentMethodId: 'tc-1', amount: 100_000, cyclePaymentDate: '2026-11-02' }),
       tx({ paymentMethodId: 'tc-2', amount: 700_000, cyclePaymentDate: '2026-11-02' }),
@@ -67,23 +67,23 @@ describe('groupByCard', () => {
     expect(cards[1]!.cycles[0]!.total).toBe(700_000);
   });
 
-  it('trae el disponible de cada tarjeta, y null si no tiene cupo', () => {
+  it("brings back each card's available credit, and null if it has no limit", () => {
     const cards = groupByCard([visa, amex], [
       tx({ paymentMethodId: 'tc-1', amount: 500_000, date: '2026-09-20', cyclePaymentDate: '2026-11-02' }),
     ], '2026-09-26');
 
-    expect(cards[0]!.disponible).toEqual({ cupo: 3_000_000, usado: 500_000, disponible: 2_500_000 });
-    expect(cards[1]!.disponible).toBeNull();
+    expect(cards[0]!.available).toEqual({ cupo: 3_000_000, used: 500_000, available: 2_500_000 });
+    expect(cards[1]!.available).toBeNull();
   });
 
-  it('una tarjeta sin compras igual aparece: su cupo es informacion', () => {
+  it('a card with no purchases still shows up: its limit is information', () => {
     const cards = groupByCard([visa], [], '2026-09-26');
     expect(cards).toHaveLength(1);
     expect(cards[0]!.cycles).toEqual([]);
-    expect(cards[0]!.disponible!.disponible).toBe(3_000_000);
+    expect(cards[0]!.available!.available).toBe(3_000_000);
   });
 
-  it('ignora los metodos que no son de credito', () => {
-    expect(groupByCard([debito], [tx({ paymentMethodId: 'pm-debito' })], '2026-09-26')).toEqual([]);
+  it('ignores methods that are not credit', () => {
+    expect(groupByCard([debit], [tx({ paymentMethodId: 'pm-debito' })], '2026-09-26')).toEqual([]);
   });
 });

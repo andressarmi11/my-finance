@@ -1,16 +1,17 @@
 /**
- * Bandeja de entrada: lo que mandan las automatizaciones (Atajos de iOS)
- * y todavía nadie confirmó.
+ * Inbox: what the automations (iOS Shortcuts) send in and nobody has
+ * confirmed yet.
  *
- * Vive solo en la nube, no en Dexie: son pocas filas, efímeras, y sin
- * conexión no hay nada que recoger de todos modos. Duplicarlas localmente
- * sería inventar un problema de sincronización que no existe.
+ * Lives only in the cloud, not in Dexie: there are few rows, they're
+ * ephemeral, and without a connection there's nothing to pick up anyway.
+ * Duplicating them locally would be inventing a sync problem that
+ * doesn't exist.
  */
 import { getSupabase } from './client';
 
-export interface EntradaBandeja {
+export interface InboxEntry {
   id: string;
-  texto: string;
+  text: string;
   origen: string;
   createdAt: string;
 }
@@ -22,7 +23,7 @@ async function userId(): Promise<string> {
   return session.user.id;
 }
 
-export async function listarPendientes(): Promise<EntradaBandeja[]> {
+export async function listPending(): Promise<InboxEntry[]> {
   const supabase = await getSupabase();
   const { data, error } = await supabase
     .from('inbox')
@@ -31,36 +32,36 @@ export async function listarPendientes(): Promise<EntradaBandeja[]> {
     .order('created_at', { ascending: true });
   if (error) throw error;
   return (data as Array<{ id: string; texto: string; origen: string; created_at: string }>).map((r) => ({
-    id: r.id, texto: r.texto, origen: r.origen, createdAt: r.created_at,
+    id: r.id, text: r.texto, origen: r.origen, createdAt: r.created_at,
   }));
 }
 
-export async function cerrarEntrada(id: string, como: 'done' | 'discarded'): Promise<void> {
+export async function closeEntry(id: string, outcome: 'done' | 'discarded'): Promise<void> {
   const supabase = await getSupabase();
-  const { error } = await supabase.from('inbox').update({ status: como }).eq('id', id);
+  const { error } = await supabase.from('inbox').update({ status: outcome }).eq('id', id);
   if (error) throw error;
 }
 
-/* ─────────────── Token para los Atajos ─────────────── */
+/* ─────────────── Token for Shortcuts ─────────────── */
 
-async function hashHex(texto: string): Promise<string> {
-  const datos = new TextEncoder().encode(texto);
-  const hash = await crypto.subtle.digest('SHA-256', datos);
+async function hashHex(text: string): Promise<string> {
+  const data = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
- * Crea un token nuevo y devuelve el texto en claro UNA sola vez: en la
- * base queda el hash. Si el usuario lo pierde, genera otro; no hay forma
- * de recuperarlo, y eso es a propósito.
+ * Creates a new token and returns the plaintext ONCE: only the hash stays
+ * in the database. If the user loses it, they generate another one;
+ * there's no way to recover it, and that's on purpose.
  */
-export async function crearToken(): Promise<string> {
+export async function createToken(): Promise<string> {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   const token = `mf_${Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 
   const [supabase, uid] = await Promise.all([getSupabase(), userId()]);
-  // Uno solo por cuenta: generar otro reemplaza el anterior, así que un
-  // token viejo que se haya filtrado deja de servir.
+  // Only one per account: generating another replaces the previous one,
+  // so an old leaked token stops working.
   await supabase.from('ingest_tokens').delete().eq('user_id', uid);
   const { error } = await supabase
     .from('ingest_tokens')
@@ -69,7 +70,7 @@ export async function crearToken(): Promise<string> {
   return token;
 }
 
-export async function hayToken(): Promise<boolean> {
+export async function hasToken(): Promise<boolean> {
   const supabase = await getSupabase();
   const { count, error } = await supabase
     .from('ingest_tokens')
@@ -78,8 +79,8 @@ export async function hayToken(): Promise<boolean> {
   return (count ?? 0) > 0;
 }
 
-/** La URL de la función que el Atajo va a llamar. */
-export function urlIngesta(): string {
+/** The URL of the function the Shortcut is going to call. */
+export function ingestUrl(): string {
   const base = import.meta.env.VITE_SUPABASE_URL as string | undefined;
   return base ? `${base}/functions/v1/ingest` : '';
 }

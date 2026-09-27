@@ -1,11 +1,12 @@
 /**
- * Agrupa compras de TC por su fecha de pago (el ciclo al que pertenecen).
- * Es la mitad "agregada" de la vista hibrida que pediste: cada compra se
- * ve individual, pero tambien como parte de un total por ciclo — el
- * equivalente calculado de la fila "Pago compras TC" de tu Excel.
+ * Groups card purchases by their payment date (the cycle they belong to).
+ * This is the "aggregated" half of the hybrid view requested: each
+ * purchase shows up individually, but also as part of a cycle total —
+ * the computed equivalent of the "Card purchase payment" row in your
+ * spreadsheet.
  */
 import { compareISO } from '../dates';
-import { calcularDisponible, type Disponible } from './disponible';
+import { calculateAvailableCredit, type AvailableCredit } from './availableCredit';
 import type { ISODate, PaymentMethod, Transaction } from '../types';
 
 export interface CreditCycleGroup {
@@ -38,42 +39,42 @@ export function groupByCycle(creditTransactions: Transaction[]): CreditCycleGrou
 }
 
 export interface CardCycles {
-  tarjeta: PaymentMethod;
-  /** null si la tarjeta no tiene cupo configurado. */
-  disponible: Disponible | null;
+  card: PaymentMethod;
+  /** null if the card has no limit configured. */
+  available: AvailableCredit | null;
   cycles: CreditCycleGroup[];
 }
 
 /**
- * Lo mismo, pero partido POR TARJETA primero y ciclo adentro.
+ * Same thing, but split BY CARD first and cycle inside that.
  *
- * groupByCycle solo agrupa por fecha de pago, que alcanzaba cuando habia
- * una sola tarjeta. Con dos, dos compras distintas pueden caer el mismo
- * dia de pago y quedaban sumadas en una fila que no significa nada: cada
- * tarjeta se paga aparte.
+ * groupByCycle only groups by payment date, which was enough when there
+ * was a single card. With two, two different purchases can fall on the
+ * same payment date and ended up summed into a row that means nothing:
+ * each card is paid separately.
  *
- * Se devuelven TODAS las tarjetas, incluso sin compras, porque su cupo
- * disponible sigue siendo informacion que el usuario quiere ver.
+ * ALL cards are returned, even without purchases, because their
+ * available credit is still information the user wants to see.
  */
 export function groupByCard(
-  tarjetas: PaymentMethod[],
+  cards: PaymentMethod[],
   transacciones: Transaction[],
-  hoy: ISODate,
+  today: ISODate,
 ): CardCycles[] {
-  const credito = tarjetas.filter((t) => t.type === 'credit');
-  const porTarjeta = new Map<string, Transaction[]>(credito.map((t) => [t.id, []]));
+  const credit = cards.filter((t) => t.type === 'credit');
+  const byCard = new Map<string, Transaction[]>(credit.map((t) => [t.id, []]));
 
   for (const tx of transacciones) {
     if (!tx.paymentMethodId) continue;
-    porTarjeta.get(tx.paymentMethodId)?.push(tx);
+    byCard.get(tx.paymentMethodId)?.push(tx);
   }
 
-  return credito.map((tarjeta) => {
-    const suyas = porTarjeta.get(tarjeta.id) ?? [];
+  return credit.map((card) => {
+    const theirs = byCard.get(card.id) ?? [];
     return {
-      tarjeta,
-      disponible: calcularDisponible(tarjeta, suyas, hoy),
-      cycles: groupByCycle(suyas),
+      card,
+      available: calculateAvailableCredit(card, theirs, today),
+      cycles: groupByCycle(theirs),
     };
   });
 }

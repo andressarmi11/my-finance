@@ -1,11 +1,11 @@
 /**
- * Presupuestos en la nube, para sincronizar.
+ * Budgets in the cloud, for syncing.
  *
- * Va aparte de supabaseRepository por lo mismo que deletions.ts: la
- * interfaz Repository expone listBudgets(year, month), que es lo que
- * necesita la PANTALLA, pero sincronizar necesita todos. Meter un
- * "listAllBudgets" en la interfaz obligaria a LocalRepository a
- * implementar algo que ninguna pantalla usa.
+ * Kept separate from supabaseRepository for the same reason as
+ * deletions.ts: the Repository interface exposes listBudgets(year, month),
+ * which is what the SCREEN needs, but syncing needs all of them. Putting
+ * a "listAllBudgets" in the interface would force LocalRepository to
+ * implement something no screen uses.
  */
 import { getSupabase } from './client';
 import { budgetFromRow, budgetToRow, type BudgetRow } from './mappers';
@@ -28,8 +28,8 @@ export async function listRemoteBudgets(): Promise<Budget[]> {
 export async function saveRemoteBudgets(budgets: Budget[]): Promise<void> {
   if (budgets.length === 0) return;
   const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);
-  // En un solo upsert: son pocas filas (una por categoria y mes) y asi el
-  // sync no hace una peticion por presupuesto.
+  // In a single upsert: there are few rows (one per category and month)
+  // and this way sync doesn't make one request per budget.
   const { error } = await supabase
     .from('budgets')
     .upsert(budgets.map((b) => budgetToRow(userId, b)));

@@ -1,7 +1,7 @@
 /**
- * Conversion entre el modelo de dominio (camelCase) y las filas de
- * Postgres (snake_case). Funciones puras — sin esto no podriamos probar
- * nada del mapeo sin levantar una base de datos real.
+ * Conversion between the domain model (camelCase) and Postgres rows
+ * (snake_case). Pure functions — without this we couldn't test any of the
+ * mapping without spinning up a real database.
  */
 import type {
   Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction,
@@ -20,11 +20,11 @@ export function settingsFromRow(row: SettingsRow): Settings {
     onboardedAt: row.onboarded_at,
     currency: row.currency,
     locale: row.locale,
-    // Tal cual viene, sin forzar dos: la columna es smallint[] de largo
-    // variable, y ese largo ES el modo. Antes esto lo recortaba siempre a
-    // dos elementos, asi que al bajar de la nube el modo mensual se
-    // convertia en quincenal solo.
-    diasDePago: row.quincena_start_days.length > 0 ? [...row.quincena_start_days] : [10, 25],
+    // Taken as-is, without forcing two: the column is a variable-length
+    // smallint[], and that length IS the mode. This used to always trim
+    // it to two elements, so pulling down from the cloud would silently
+    // turn monthly mode into biweekly.
+    payDays: row.quincena_start_days.length > 0 ? [...row.quincena_start_days] : [10, 25],
     defaultPaymentMethodId: row.default_payment_method_id,
     reminderDefaultDaysBefore: row.reminder_default_days_before,
     theme: row.theme as Settings['theme'],
@@ -35,14 +35,14 @@ export function settingsToRow(userId: string, s: Settings): SettingsRow {
   return {
     user_id: userId, display_name: s.displayName, onboarded_at: s.onboardedAt,
     currency: s.currency, locale: s.locale,
-    // La columna conserva su nombre viejo: renombrarla pediria una
-    // migracion y no cambiaria nada de lo que guarda.
-    quincena_start_days: [...s.diasDePago],
+    // The column keeps its old name: renaming it would require a
+    // migration and wouldn't change anything about what it stores.
+    quincena_start_days: [...s.payDays],
     default_payment_method_id: s.defaultPaymentMethodId,
     reminder_default_days_before: s.reminderDefaultDaysBefore,
     theme: s.theme,
-    // Explicito: si no se manda, el default now() de Postgres pisa la
-    // fecha y lo remoto siempre parece mas nuevo que lo local.
+    // Explicit: if it's not sent, Postgres's now() default overwrites the
+    // date and the remote row always looks newer than the local one.
     updated_at: s.updatedAt || new Date().toISOString(),
   };
 }
@@ -62,8 +62,8 @@ export function categoryToRow(userId: string, c: Category): CategoryRow {
   return {
     id: c.id, user_id: userId, name: c.name, icon: c.icon, color: c.color,
     kind: c.kind, is_archived: c.isArchived, sort_order: c.sortOrder,
-    // Explicito: si no se manda, el default now() de Postgres pisa la
-    // fecha y lo remoto siempre parece mas nuevo que lo local.
+    // Explicit: if it's not sent, Postgres's now() default overwrites the
+    // date and the remote row always looks newer than the local one.
     updated_at: c.updatedAt || new Date().toISOString(),
   };
 }

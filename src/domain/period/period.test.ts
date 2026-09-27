@@ -1,18 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { calcularPeriodo, esMensual, normalizar, periodosDelMes, rangoDeClave } from './periodo';
+import { calculatePeriod, isMonthly, normalizePayDays, periodsOfMonth, rangeFromKey } from './period';
 import { addDays, clampDay, parseISO, shiftMonth, toISO } from '../dates';
 
 /**
- * El algoritmo de quincenas TAL COMO ERA antes de generalizarlo, copiado
- * aquí a propósito.
+ * The pay-period algorithm EXACTLY AS IT WAS before being generalized,
+ * copied here on purpose.
  *
- * Es la referencia contra la que se compara: si vive en el test y nadie lo
- * puede "arreglar" sin darse cuenta, entonces comparar contra él significa
- * algo. Importarlo del código de producción habría hecho que cualquier
- * cambio futuro moviera las dos cosas a la vez y el test dejara de proteger
- * nada.
+ * It's the reference to compare against: if it lives in the test and nobody
+ * can "fix" it without noticing, then comparing against it means something.
+ * Importing it from production code would have meant any future change
+ * moved both at once and the test stopped protecting anything.
  */
-function calculateQuincena(date: string, startDays: [number, number]) {
+function calculateLegacyQuincena(date: string, startDays: [number, number]) {
   const [a, b] = startDays[0] < startDays[1] ? startDays : [startDays[1], startDays[0]];
   const { y, m, d } = parseISO(date);
   const aThis = clampDay(y, m, a);
@@ -45,147 +44,148 @@ function calculateQuincena(date: string, startDays: [number, number]) {
   };
 }
 
-/** Todos los días entre dos fechas, para barrer un año entero. */
-function dias(desde: string, hasta: string): string[] {
-  const salida: string[] = [];
+/** Every day between two dates, to sweep a whole year. */
+function payDays(desde: string, hasta: string): string[] {
+  const output: string[] = [];
   let d = parseISO(desde);
-  const fin = parseISO(hasta);
-  while (toISO(d) <= toISO(fin)) {
-    salida.push(toISO(d));
+  const end = parseISO(hasta);
+  while (toISO(d) <= toISO(end)) {
+    output.push(toISO(d));
     d = addDays(d, 1);
   }
-  return salida;
+  return output;
 }
 
 /**
- * Lo primero y lo más importante: generalizar no puede cambiarle nada a
- * quien ya usa la app. Si con dos días de pago el resultado difiere del
- * cálculo viejo aunque sea un día, los movimientos se reagruparían solos.
+ * First and most important: generalizing must change nothing for anyone
+ * already using the app. If with two pay days the result differs from the
+ * old calculation by even one day, transactions would regroup themselves.
  */
-describe('con dos días de pago da EXACTAMENTE lo mismo que antes', () => {
-  for (const pago of [[10, 25], [1, 16], [5, 20], [15, 30]] as Array<[number, number]>) {
-    it(`días ${pago[0]} y ${pago[1]}: un año entero, día por día`, () => {
-      for (const fecha of dias('2026-01-01', '2026-12-31')) {
-        const viejo = calculateQuincena(fecha, pago);
-        const nuevo = calcularPeriodo(fecha, pago);
-        expect({ key: nuevo.key, start: nuevo.start, end: nuevo.end }, `difieren el ${fecha}`)
-          .toEqual({ key: viejo.key, start: viejo.start, end: viejo.end });
+describe('with two pay days it gives EXACTLY the same as before', () => {
+  for (const payment of [[10, 25], [1, 16], [5, 20], [15, 30]] as Array<[number, number]>) {
+    it(`días ${payment[0]} y ${payment[1]}: un año entero, día por día`, () => {
+      for (const date of payDays('2026-01-01', '2026-12-31')) {
+        const legacy = calculateLegacyQuincena(date, payment);
+        const fresh = calculatePeriod(date, payment);
+        expect({ key: fresh.key, start: fresh.start, end: fresh.end }, `difieren el ${date}`)
+          .toEqual({ key: legacy.key, start: legacy.start, end: legacy.end });
       }
     });
   }
 
-  it('también en febrero de un año bisiesto, que es donde se rompen los bordes', () => {
-    for (const fecha of dias('2024-02-01', '2024-03-05')) {
-      expect(calcularPeriodo(fecha, [15, 31]).key).toBe(calculateQuincena(fecha, [15, 31]).key);
+  it('also in a leap-year February, which is where the edges break', () => {
+    for (const date of payDays('2024-02-01', '2024-03-05')) {
+      expect(calculatePeriod(date, [15, 31]).key).toBe(calculateLegacyQuincena(date, [15, 31]).key);
     }
   });
 });
 
-describe('mensual — un solo día de pago', () => {
-  it('con el día 1 es el mes calendario', () => {
-    const p = calcularPeriodo('2026-09-20', [1]);
-    expect(p).toEqual({ key: '2026-09-Q1', start: '2026-09-01', end: '2026-09-30', indice: 1 });
+describe('monthly — a single pay day', () => {
+  it("with day 1 it's the calendar month", () => {
+    const p = calculatePeriod('2026-09-20', [1]);
+    expect(p).toEqual({ key: '2026-09-Q1', start: '2026-09-01', end: '2026-09-30', index: 1 });
   });
 
-  it('el último día del mes sigue siendo del mismo periodo', () => {
-    expect(calcularPeriodo('2026-09-30', [1]).key).toBe('2026-09-Q1');
-    expect(calcularPeriodo('2026-10-01', [1]).key).toBe('2026-10-Q1');
+  it('the last day of the month still belongs to the same period', () => {
+    expect(calculatePeriod('2026-09-30', [1]).key).toBe('2026-09-Q1');
+    expect(calculatePeriod('2026-10-01', [1]).key).toBe('2026-10-Q1');
   });
 
   /**
-   * El caso de quien cobra a fin de mes: su "mes" va del día de pago al
-   * anterior al siguiente pago, igual que la quincena del 25 cruzaba.
+   * The case of someone paid at the end of the month: their "month" runs
+   * from the pay day to the day before the next payment, the same way the
+   * 25th pay period crossed over.
    */
-  it('con el día 30, el periodo cruza el cambio de mes', () => {
-    const p = calcularPeriodo('2026-10-05', [30]);
-    expect(p).toEqual({ key: '2026-09-Q1', start: '2026-09-30', end: '2026-10-29', indice: 1 });
+  it('with day 30, the period crosses the month boundary', () => {
+    const p = calculatePeriod('2026-10-05', [30]);
+    expect(p).toEqual({ key: '2026-09-Q1', start: '2026-09-30', end: '2026-10-29', index: 1 });
   });
 
-  it('el día del pago abre periodo nuevo', () => {
-    expect(calcularPeriodo('2026-10-29', [30]).key).toBe('2026-09-Q1');
-    expect(calcularPeriodo('2026-10-30', [30]).key).toBe('2026-10-Q1');
+  it('the pay day opens a new period', () => {
+    expect(calculatePeriod('2026-10-29', [30]).key).toBe('2026-09-Q1');
+    expect(calculatePeriod('2026-10-30', [30]).key).toBe('2026-10-Q1');
   });
 
-  it('el día 31 se ajusta en los meses que no lo tienen', () => {
-    // Febrero de 2026 no tiene 31: el pago cae el 28.
-    const p = calcularPeriodo('2026-03-01', [31]);
+  it("day 31 clamps in months that don't have one", () => {
+    // February 2026 has no 31st: the payment lands on the 28th.
+    const p = calculatePeriod('2026-03-01', [31]);
     expect(p.start).toBe('2026-02-28');
     expect(p.key).toBe('2026-02-Q1');
   });
 
-  it('nunca hay un Q2 si solo hay un día de pago', () => {
-    for (const fecha of dias('2026-01-01', '2026-12-31')) {
-      expect(calcularPeriodo(fecha, [15]).key.endsWith('Q1')).toBe(true);
+  it("there is never a Q2 if there's only one pay day", () => {
+    for (const date of payDays('2026-01-01', '2026-12-31')) {
+      expect(calculatePeriod(date, [15]).key.endsWith('Q1')).toBe(true);
     }
   });
 });
 
-describe('esMensual', () => {
-  it('distingue por cuántos días de pago hay', () => {
-    expect(esMensual([1])).toBe(true);
-    expect(esMensual([30])).toBe(true);
-    expect(esMensual([10, 25])).toBe(false);
+describe('isMonthly', () => {
+  it('it tells them apart by how many pay days there are', () => {
+    expect(isMonthly([1])).toBe(true);
+    expect(isMonthly([30])).toBe(true);
+    expect(isMonthly([10, 25])).toBe(false);
   });
 
-  it('un día repetido es un solo día de pago', () => {
-    expect(esMensual([15, 15])).toBe(true);
-  });
-});
-
-describe('normalizar', () => {
-  it('ordena, quita repetidos y descarta lo imposible', () => {
-    expect(normalizar([25, 10])).toEqual([10, 25]);
-    expect(normalizar([10, 10, 25])).toEqual([10, 25]);
-    expect(normalizar([0, 10, 32, 25])).toEqual([10, 25]);
-    expect(normalizar([5.5, 10])).toEqual([10]);
-  });
-
-  it('una lista vacía cae en el valor por defecto en vez de reventar', () => {
-    // Sin esto, calcular un periodo con [] daría un índice fuera de rango.
-    expect(normalizar([])).toEqual([10, 25]);
-    expect(normalizar([0, 99])).toEqual([10, 25]);
+  it('a repeated day is a single pay day', () => {
+    expect(isMonthly([15, 15])).toBe(true);
   });
 });
 
-describe('rangoDeClave', () => {
-  it('reconstruye el rango sin tener una transacción en la mano', () => {
-    expect(rangoDeClave('2026-09-Q2', [10, 25])).toEqual(calcularPeriodo('2026-09-25', [10, 25]));
-    expect(rangoDeClave('2026-09-Q1', [1])).toEqual(calcularPeriodo('2026-09-01', [1]));
+describe('normalizePayDays', () => {
+  it('sorts, deduplicates and discards the impossible', () => {
+    expect(normalizePayDays([25, 10])).toEqual([10, 25]);
+    expect(normalizePayDays([10, 10, 25])).toEqual([10, 25]);
+    expect(normalizePayDays([0, 10, 32, 25])).toEqual([10, 25]);
+    expect(normalizePayDays([5.5, 10])).toEqual([10]);
+  });
+
+  it('an empty list falls back to the default instead of blowing up', () => {
+    // Without this, working out a period from [] would give an out-of-range index.
+    expect(normalizePayDays([])).toEqual([10, 25]);
+    expect(normalizePayDays([0, 99])).toEqual([10, 25]);
+  });
+});
+
+describe('rangeFromKey', () => {
+  it('rebuilds the range without a transaction in hand', () => {
+    expect(rangeFromKey('2026-09-Q2', [10, 25])).toEqual(calculatePeriod('2026-09-25', [10, 25]));
+    expect(rangeFromKey('2026-09-Q1', [1])).toEqual(calculatePeriod('2026-09-01', [1]));
   });
 
   /**
-   * Alguien que venía usando quincenas y se pasa a mensual tiene claves Q2
-   * guardadas. La pantalla no puede reventar por eso.
+   * Someone who was using biweekly periods and switches to monthly has Q2
+   * keys stored. The screen can't blow up because of that.
    */
-  it('una clave Q2 vieja no rompe a quien ahora cobra una vez al mes', () => {
-    expect(() => rangoDeClave('2026-09-Q2', [1])).not.toThrow();
-    expect(rangoDeClave('2026-09-Q2', [1]).key).toBe('2026-09-Q1');
+  it("an old Q2 key doesn't break someone now paid once a month", () => {
+    expect(() => rangeFromKey('2026-09-Q2', [1])).not.toThrow();
+    expect(rangeFromKey('2026-09-Q2', [1]).key).toBe('2026-09-Q1');
   });
 
-  it('una clave con basura sí falla, y lo dice', () => {
-    expect(() => rangoDeClave('septiembre', [10, 25])).toThrow(/Clave de periodo invalida/);
+  it('a garbage key does fail, and says so', () => {
+    expect(() => rangeFromKey('septiembre', [10, 25])).toThrow(/Invalid period key/);
   });
 });
 
-describe('periodosDelMes', () => {
-  it('devuelve tantas claves como días de pago', () => {
-    expect(periodosDelMes(2026, 9, [10, 25])).toEqual(['2026-09-Q1', '2026-09-Q2']);
-    expect(periodosDelMes(2026, 9, [1])).toEqual(['2026-09-Q1']);
+describe('periodsOfMonth', () => {
+  it('returns as many keys as there are pay days', () => {
+    expect(periodsOfMonth(2026, 9, [10, 25])).toEqual(['2026-09-Q1', '2026-09-Q2']);
+    expect(periodsOfMonth(2026, 9, [1])).toEqual(['2026-09-Q1']);
   });
 });
 
 /**
- * Ninguna fecha puede quedarse sin periodo ni caer en dos. Es la propiedad
- * que sostiene todos los totales de la app: si un día se contara dos veces,
- * los saldos mentirían.
+ * No date can be left without a period, or fall into two. It's the property
+ * holding up every total in the app: if a day were counted twice, the
+ * balances would lie.
  */
-describe('cobertura: cada día cae en exactamente un periodo', () => {
-  for (const pago of [[10, 25], [1], [30], [1, 16], [5, 15, 25]]) {
-    it(`días de pago ${JSON.stringify(pago)}`, () => {
-      for (const fecha of dias('2026-01-01', '2026-12-31')) {
-        const p = calcularPeriodo(fecha, pago);
-        expect(p.start <= fecha, `${fecha} cae antes de su periodo ${p.key}`).toBe(true);
-        expect(fecha <= p.end, `${fecha} cae después de su periodo ${p.key}`).toBe(true);
+describe('coverage: every day falls in exactly one period', () => {
+  for (const payment of [[10, 25], [1], [30], [1, 16], [5, 15, 25]]) {
+    it(`días de pago ${JSON.stringify(payment)}`, () => {
+      for (const date of payDays('2026-01-01', '2026-12-31')) {
+        const p = calculatePeriod(date, payment);
+        expect(p.start <= date, `${date} cae antes de su periodo ${p.key}`).toBe(true);
+        expect(date <= p.end, `${date} cae después de su periodo ${p.key}`).toBe(true);
       }
     });
   }

@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('crear un gasto con tarjeta de crédito', async ({ page }) => {
+test('creates an expense on a credit card', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
 
@@ -8,7 +8,7 @@ test('crear un gasto con tarjeta de crédito', async ({ page }) => {
   await dialog.getByPlaceholder('$ 0').fill('150000');
   await dialog.getByRole('button', { name: 'Tarjeta de crédito' }).click();
 
-  // El preview de "Se paga el ..." debe aparecer ANTES de guardar.
+  // The "Se paga el ..." preview has to appear BEFORE saving.
   await expect(dialog.getByText(/Se paga el/)).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Guardar' }).click();

@@ -11,7 +11,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('calculateSpendByCategory', () => {
-  it('suma por categoria y ordena de mayor a menor', () => {
+  it('adds up per category and sorts high to low', () => {
     const result = calculateSpendByCategory([
       tx({ categoryId: 'viajes', amount: 850_000 }),
       tx({ categoryId: 'alimentacion', amount: 600_000 }),
@@ -29,7 +29,7 @@ describe('calculateSpendByCategory', () => {
     expect(result).toEqual([{ categoryId: 'hogar', amount: 50_000, count: 1 }]);
   });
 
-  it('agrupa sin categoria bajo null', () => {
+  it('groups uncategorized under null', () => {
     const result = calculateSpendByCategory([tx({ categoryId: null, amount: 10_000 })]);
     expect(result[0]?.categoryId).toBeNull();
   });

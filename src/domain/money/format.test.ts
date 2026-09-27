@@ -2,44 +2,44 @@ import { describe, expect, it } from 'vitest';
 import { formatCompact, formatMoney, parseMoney } from './format';
 
 describe('formatMoney', () => {
-  it('usa formato colombiano con punto de miles', () => {
+  it('uses Colombian format with a dot as thousands separator', () => {
     expect(formatMoney(2_500_000)).toBe('$ 2.500.000');
   });
 
-  it('no muestra decimales', () => {
+  it('shows no decimals', () => {
     expect(formatMoney(9_900)).toBe('$ 9.900');
     expect(formatMoney(175_094)).toBe('$ 175.094');
   });
 
-  it('maneja cero y negativos', () => {
+  it('handles zero and negatives', () => {
     expect(formatMoney(0)).toBe('$ 0');
     expect(formatMoney(-48_000)).toBe('-$ 48.000');
   });
 });
 
 describe('parseMoney', () => {
-  it('acepta lo que el usuario realmente escribe', () => {
+  it('accepts what the user actually types', () => {
     expect(parseMoney('85000')).toBe(85_000);
     expect(parseMoney('85.000')).toBe(85_000);
     expect(parseMoney('$ 85.000')).toBe(85_000);
     expect(parseMoney('1.500.000')).toBe(1_500_000);
   });
 
-  it('devuelve null cuando no hay numero', () => {
+  it('returns null when there is no number', () => {
     expect(parseMoney('')).toBeNull();
     expect(parseMoney('abc')).toBeNull();
   });
 });
 
 describe('formatCompact', () => {
-  it('abrevia millones y miles', () => {
+  it('abbreviates millions and thousands', () => {
     expect(formatCompact(2_500_000)).toBe('$ 2,5 M');
     expect(formatCompact(85_000)).toBe('$ 85 k');
   });
 });
 
 describe('setMoneyLocale', () => {
-  it('cambia la moneda de todos los formatos sin tocar los call sites', async () => {
+  it('changes the currency for all formats without touching call sites', async () => {
     const { setMoneyLocale, currencySymbol } = await import('./format');
     try {
       setMoneyLocale('en-US', 'USD');
@@ -51,22 +51,22 @@ describe('setMoneyLocale', () => {
       expect(currencySymbol()).toBe('€');
       expect(formatCompact(2_500_000)).toBe('€ 2,5 M');
     } finally {
-      // Otros tests asumen COP: dejar el modulo como estaba.
+      // Other tests assume COP: leave the module as it was.
       setMoneyLocale('es-CO', 'COP');
     }
   });
 
-  it('vuelve a colombiano al restaurar', () => {
+  it('goes back to Colombian on restore', () => {
     expect(formatMoney(2_500_000)).toBe('$ 2.500.000');
   });
 });
 
 /**
- * La misma tabla vive en mobile/lib/domain/money/format.dart y su test
- * afirma exactamente estos valores. Si cambia uno, que falle el otro.
+ * The same table lives in mobile/lib/domain/money/format.dart and its
+ * test asserts exactly these values. If one changes, the other should fail.
  */
-describe('paridad con la app nativa', () => {
-  const CASOS: Array<[string, string, number, string]> = [
+describe('parity with the native app', () => {
+  const CASES: Array<[string, string, number, string]> = [
     ['es-CO', 'COP', 2_500_000, '$ 2.500.000'],
     ['es-MX', 'MXN', 2_500, '$2,500'],
     ['es-AR', 'ARS', 2_500, '$ 2.500'],
@@ -76,12 +76,12 @@ describe('paridad con la app nativa', () => {
     ['es-ES', 'EUR', 2_500, '2.500 €'],
   ];
 
-  it('escribe cada moneda igual que Flutter', async () => {
+  it('writes each currency the same as Flutter', async () => {
     const { setMoneyLocale } = await import('./format');
     try {
-      for (const [locale, currency, monto, esperado] of CASOS) {
+      for (const [locale, currency, amount, expected] of CASES) {
         setMoneyLocale(locale, currency);
-        expect(formatMoney(monto)).toBe(esperado);
+        expect(formatMoney(amount)).toBe(expected);
       }
     } finally {
       setMoneyLocale('es-CO', 'COP');

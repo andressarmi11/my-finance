@@ -1,62 +1,66 @@
 import { db } from '../db';
 
 /**
- * De quién son los datos que están guardados en ESTE dispositivo.
+ * Who owns the data stored on THIS device.
  *
- * La app es offline-first: Dexie es la fuente de verdad y la nube es una
- * copia. Eso abre un hueco que no existe en una app normal — cerrar sesión
- * borra el token de Supabase, pero no borra IndexedDB. Si después entra
- * otra cuenta en el mismo navegador, el push toma TODAS las filas locales
- * y las sube estampadas con el user_id de quien esté logueado ahora. No es
- * solo que la segunda persona vea los movimientos de la primera: quedan
- * copiados dentro de su cuenta, en la nube, para siempre.
+ * The app is offline-first: Dexie is the source of truth and the cloud is
+ * a copy. That opens a hole that doesn't exist in a normal app — signing
+ * out deletes the Supabase token, but doesn't delete IndexedDB. If
+ * another account then signs in on the same browser, push takes ALL the
+ * local rows and uploads them stamped with the user_id of whoever is
+ * logged in now. It's not just that the second person sees the first
+ * person's transactions: they end up copied into their account, in the
+ * cloud, forever.
  *
- * La marca vive en IndexedDB y no en localStorage a propósito: tiene que
- * morir junto con los datos que describe. En localStorage se puede limpiar
- * por separado, y una marca ausente frente a datos presentes se leería como
- * "nadie es dueño de esto" — justo el caso que abre la fuga.
+ * The marker lives in IndexedDB and not in localStorage on purpose: it
+ * has to die together with the data it describes. In localStorage it
+ * could be cleared separately, and a missing marker next to data that's
+ * still there would read as "nobody owns this" — exactly the case that
+ * opens the leak.
  *
- * Esta marca NO se sincroniza. Es una propiedad del dispositivo.
+ * This marker is NEVER synced. It's a property of the device.
  */
-const CLAVE_DUENO = 'dueno';
+const OWNER_KEY = 'owner';
 
-export interface MetaFila {
+export interface RowMeta {
   id: string;
-  valor: string;
+  value: string;
 }
 
 /**
- * ¿Hay que borrar lo local antes de dejar entrar a `entrante`?
+ * Does the local data need to be wiped before letting `entrante` in?
  *
- * - Sin marca previa: NO. Es alguien que usó la app sin cuenta y ahora se
- *   registra; sus propios datos tienen que sobrevivir al primer login.
- * - Misma persona: NO. Es el caso normal.
- * - Otra persona: SÍ. Lo de la cuenta anterior no puede entrar acá.
+ * - No previous marker: NO. It's someone who used the app without an
+ *   account and is now signing up; their own data has to survive the
+ *   first login.
+ * - Same person: NO. That's the normal case.
+ * - Another person: YES. Whatever belonged to the previous account can't
+ *   come in here.
  */
-export function debeLimpiar(previo: string | null, entrante: string): boolean {
-  return previo !== null && previo !== entrante;
+export function shouldWipe(previous: string | null, entrante: string): boolean {
+  return previous !== null && previous !== entrante;
 }
 
-export async function duenoLocal(): Promise<string | null> {
-  const fila = await db.meta.get(CLAVE_DUENO);
-  return fila?.valor ?? null;
+export async function localOwner(): Promise<string | null> {
+  const row = await db.meta.get(OWNER_KEY);
+  return row?.value ?? null;
 }
 
-/** Vacía todo rastro de la cuenta anterior, incluidas las lápidas. */
-export async function limpiarDatosLocales(): Promise<void> {
+/** Wipes every trace of the previous account, including tombstones. */
+export async function clearLocalData(): Promise<void> {
   await db.transaction('rw', db.tables, async () => {
     await Promise.all(db.tables.map((t) => t.clear()));
   });
 }
 
 /**
- * Se llama en cada login, ANTES de sincronizar. Devuelve true si hubo que
- * limpiar, para que quien llama sepa que la pantalla cambió bajo sus pies.
+ * Called on every login, BEFORE syncing. Returns true if a wipe was
+ * needed, so the caller knows the screen changed under its feet.
  */
-export async function asegurarDueno(entrante: string): Promise<boolean> {
-  const previo = await duenoLocal();
-  const limpiar = debeLimpiar(previo, entrante);
-  if (limpiar) await limpiarDatosLocales();
-  await db.meta.put({ id: CLAVE_DUENO, valor: entrante });
-  return limpiar;
+export async function ensureOwner(entrante: string): Promise<boolean> {
+  const previous = await localOwner();
+  const clear = shouldWipe(previous, entrante);
+  if (clear) await clearLocalData();
+  await db.meta.put({ id: OWNER_KEY, value: entrante });
+  return clear;
 }

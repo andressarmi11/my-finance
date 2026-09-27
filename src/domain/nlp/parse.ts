@@ -1,184 +1,186 @@
 /**
- * Entiende una frase en español y la convierte en un movimiento.
+ * Understands a phrase in Spanish and turns it into a transaction.
  *
- * La misma funcion sirve para las tres puertas de entrada:
- *   - dictado por voz  ("gasté 45 mil en el almuerzo con la tarjeta")
- *   - SMS del banco    ("Bancolombia: Compra por $145.000 en EXITO")
- *   - texto escrito    (la barra de "contale a la app")
+ * The same function serves all three entry points:
+ *   - voice dictation   ("gasté 45 mil en el almuerzo con la tarjeta")
+ *   - bank SMS          ("Bancolombia: Compra por $145.000 en EXITO")
+ *   - typed text        (the "tell the app" bar)
  *
- * Es deterministica y corre sin conexion: no hay modelo de lenguaje ni
- * llamada a ninguna API. Para plata eso importa — una interpretacion que
- * cambia sola entre dos ejecuciones no es lo que uno quiere en su cuenta
- * de gastos. Lo que aprende, lo aprende del historial del usuario
- * (domain/inference/conceptInference.ts), no de un modelo.
+ * It's deterministic and runs offline: no language model, no API call.
+ * For money that matters — an interpretation that changes on its own
+ * between two runs isn't what you want for your expense tracking.
+ * Whatever it learns, it learns from the user's own history
+ * (domain/inference/conceptInference.ts), not from a model.
  */
 import { addDays, clampDay, parseISO, toISO } from '../dates';
 import type { ISODate, PaymentMethodType, TransactionType } from '../types';
-import { adivinarCategoria } from './categories';
-import { buscarMonto, normalizarTexto } from './numbers';
+import { guessCategory } from './categories';
+import { findAmount, normalizeText } from './numbers';
 
 export interface Parsed {
   type: TransactionType;
-  /** null = no se encontro monto; la UI tiene que preguntarlo. */
+  /** null = no amount was found; the UI has to ask for it. */
   amount: number | null;
   concept: string;
   date: ISODate;
-  /** Que tipo de metodo de pago mencionó, si mencionó alguno. */
-  metodo: PaymentMethodType | null;
-  /** Sugerencia por palabras clave. El indice aprendido manda sobre esto. */
+  /** Which type of payment method it mentioned, if it mentioned one. */
+  method: PaymentMethodType | null;
+  /** Keyword-based suggestion. The learned index overrides this. */
   categoryIdSugerida: string | null;
-  /** Ya ocurrio (dijo "gasté", o es un SMS de una compra hecha). */
+  /** Already happened (said "gasté", or it's an SMS for a completed purchase). */
   yaOcurrio: boolean;
 }
 
-const VERBOS_INGRESO = [
+const INCOME_VERBS = [
   'me llego', 'me llegaron', 'recibi', 'me pagaron', 'cobre', 'me consignaron',
   'me transfirieron', 'me entro', 'entro', 'ingreso', 'me depositaron',
   'recibiste', 'abono', 'abonaron', 'te consignaron', 'nomina', 'salario',
 ];
 
-const VERBOS_GASTO = [
+const EXPENSE_VERBS = [
   'gaste', 'pague', 'compre', 'me costo', 'salio', 'gasto', 'pagaste',
   'compra', 'retiraste', 'retire', 'saque',
 ];
 
-const METODOS: Array<{ tipo: PaymentMethodType; claves: string[] }> = [
-  { tipo: 'credit', claves: ['tarjeta de credito', 'con la tarjeta', 'con tarjeta', 'tc', 'credito', 'visa', 'mastercard'] },
-  { tipo: 'cash', claves: ['efectivo', 'en efectivo', 'cash', 'billete'] },
-  { tipo: 'transfer', claves: ['transferencia', 'nequi', 'daviplata', 'pse', 'transfiri'] },
-  { tipo: 'debit', claves: ['debito', 'con la debito', 'tarjeta debito', 'ahorros'] },
+const METHOD_KEYWORDS: Array<{ type: PaymentMethodType; keywords: string[] }> = [
+  { type: 'credit', keywords: ['tarjeta de credito', 'con la tarjeta', 'con tarjeta', 'tc', 'credito', 'visa', 'mastercard'] },
+  { type: 'cash', keywords: ['efectivo', 'en efectivo', 'cash', 'billete'] },
+  { type: 'transfer', keywords: ['transferencia', 'nequi', 'daviplata', 'pse', 'transfiri'] },
+  { type: 'debit', keywords: ['debito', 'con la debito', 'tarjeta debito', 'ahorros'] },
 ];
 
-/** Palabras que sobran en el concepto una vez sacado todo lo demas. */
-const RELLENO = new Set([
+/** Words that are noise in the concept once everything else has been stripped out. */
+const FILL = new Set([
   'en', 'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas',
   'por', 'para', 'con', 'y', 'a', 'al', 'me', 'mi', 'pesos', 'peso', 'plata',
   'que', 'se', 'lo', 'le', 'su', 'fue', 'es', 'esta', 'hoy',
 ]);
 
-function contiene(texto: string, frases: string[]): string | null {
+function contains(text: string, frases: string[]): string | null {
   for (const f of frases) {
     const re = new RegExp(`(^|\\s)${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`);
-    if (re.test(texto)) return f;
+    if (re.test(text)) return f;
   }
   return null;
 }
 
-/** Fechas relativas habladas. Devuelve la fecha y el texto que la produjo. */
-function buscarFecha(texto: string, hoy: ISODate): { date: ISODate; texto: string | null } {
-  const h = parseISO(hoy);
+/** Spoken relative dates. Returns the date and the text that produced it. */
+function findDate(text: string, today: ISODate): { date: ISODate; text: string | null } {
+  const h = parseISO(today);
 
-  if (/(^|\s)anteayer(\s|$)/.test(texto)) return { date: toISO(addDays(h, -2)), texto: 'anteayer' };
-  if (/(^|\s)ayer(\s|$)/.test(texto)) return { date: toISO(addDays(h, -1)), texto: 'ayer' };
-  if (/(^|\s)manana(\s|$)/.test(texto)) return { date: toISO(addDays(h, 1)), texto: 'manana' };
+  if (/(^|\s)anteayer(\s|$)/.test(text)) return { date: toISO(addDays(h, -2)), text: 'anteayer' };
+  if (/(^|\s)ayer(\s|$)/.test(text)) return { date: toISO(addDays(h, -1)), text: 'ayer' };
+  if (/(^|\s)manana(\s|$)/.test(text)) return { date: toISO(addDays(h, 1)), text: 'manana' };
 
-  const hace = /hace\s+(\d+)\s+dias?/.exec(texto);
-  if (hace) return { date: toISO(addDays(h, -Number(hace[1]))), texto: hace[0] };
+  const ago = /hace\s+(\d+)\s+dias?/.exec(text);
+  if (ago) return { date: toISO(addDays(h, -Number(ago[1]))), text: ago[0] };
 
-  // "el 15" / "el 3" -> ese día del mes actual. Dos dígitos como máximo,
-  // para no confundirse con un monto.
-  const dia = /(^|\s)el\s+(\d{1,2})(\s|$)/.exec(texto);
-  if (dia) {
-    const d = Number(dia[2]);
-    if (d >= 1 && d <= 31) return { date: toISO({ y: h.y, m: h.m, d: clampDay(h.y, h.m, d) }), texto: dia[0].trim() };
+  // "el 15" / "el 3" -> that day of the current month. Two digits max,
+  // to avoid being confused with an amount.
+  const day = /(^|\s)el\s+(\d{1,2})(\s|$)/.exec(text);
+  if (day) {
+    const d = Number(day[2]);
+    if (d >= 1 && d <= 31) return { date: toISO({ y: h.y, m: h.m, d: clampDay(h.y, h.m, d) }), text: day[0].trim() };
   }
 
-  // Fecha explícita de SMS: 18/09/2026 o 18/09/26
-  const explicita = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.exec(texto);
-  if (explicita) {
-    const [, dd, mm, yy] = explicita;
+  // Explicit SMS date: 18/09/2026 or 18/09/26
+  const explicit = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.exec(text);
+  if (explicit) {
+    const [, dd, mm, yy] = explicit;
     const y = Number(yy!.length === 2 ? `20${yy}` : yy);
     const m = Number(mm);
     if (m >= 1 && m <= 12) {
-      return { date: toISO({ y, m, d: clampDay(y, m, Number(dd)) }), texto: explicita[0] };
+      return { date: toISO({ y, m, d: clampDay(y, m, Number(dd)) }), text: explicit[0] };
     }
   }
 
-  return { date: hoy, texto: null };
+  return { date: today, text: null };
 }
 
 /**
- * El concepto: lo que queda después de sacar monto, fecha, verbo y método.
- * Para SMS de banco, el comercio viene después de "en" o "a".
+ * The concept: what's left after stripping out amount, date, verb and
+ * method. For bank SMS, the merchant comes after "en" or "a".
  */
-function extraerConcepto(texto: string, aQuitar: Array<string | null>): string {
-  let t = texto;
-  for (const trozo of aQuitar) {
-    if (!trozo) continue;
-    t = t.replace(trozo, ' ');
+function extractConcept(text: string, aQuitar: Array<string | null>): string {
+  let t = text;
+  for (const chunk of aQuitar) {
+    if (!chunk) continue;
+    t = t.replace(chunk, ' ');
   }
-  // La hora del SMS ("18/09/2026 14:32"): la fecha ya se sacó arriba, pero
-  // la hora quedaba suelta y terminaba dentro del concepto — el primer SMS
-  // real que probé quedó como "Rappi 19 40".
+  // The SMS timestamp ("18/09/2026 14:32"): the date was already
+  // stripped above, but the time was left dangling and ended up inside
+  // the concept — the first real SMS I tested came out as "Rappi 19 40".
   t = t.replace(/\b\d{1,2}:\d{2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?)?/g, ' ');
-  // Restos de referencia que tampoco son el comercio.
-  // Varias palabras seguidas antes del numero: 'saldo disponible 1200000'
-  // dejaba 'saldo' suelto cuando el patron solo aceptaba una.
-  // La repeticion va ACOTADA a {1,5}. Con `+` sin cota, las alternativas
-  // que comparten prefijo (ref/referencia, aut/autorizacion) provocaban
-  // backtracking exponencial: 96 caracteres de 'ref ' repetido tardaban
-  // 859 ms, y ~150 colgaban el hilo por minutos. No era teorico — este
-  // texto llega de una funcion publica a la bandeja, asi que un mensaje
-  // corto congelaba el navegador de quien la abriera. En un SMS real
-  // nunca hay mas de dos o tres de estas palabras seguidas.
+  // Reference leftovers that also aren't the merchant.
+  // Several words in a row before the number: 'saldo disponible 1200000'
+  // left 'saldo' dangling when the pattern only accepted one.
+  // The repetition is BOUNDED to {1,5}. With an unbounded `+`, the
+  // alternatives sharing a prefix (ref/referencia, aut/autorizacion)
+  // caused exponential backtracking: 96 characters of 'ref ' repeated
+  // took 859 ms, and ~150 hung the thread for minutes. This wasn't
+  // theoretical — this text comes from a public function into the
+  // inbox, so a short message froze the browser of whoever opened it.
+  // In a real SMS there are never more than two or three of these words
+  // in a row.
   t = t.replace(/\b(?:(?:ref|referencia|autorizacion|aut|cupo|saldo|disponible|trans|tarjeta|terminada)\s*[:#]?\s*){1,5}\d+/g, ' ');
-  const palabras = t
+  const words = t
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
-    .filter((p) => p.length > 0 && !RELLENO.has(p));
+    .filter((p) => p.length > 0 && !FILL.has(p));
 
-  return palabras.join(' ').trim();
+  return words.join(' ').trim();
 }
 
-/** Capitaliza la primera letra; el resto se deja como vino. */
-function bonito(s: string): string {
+/** Capitalises the first letter; the rest is left as it came. */
+function pretty(s: string): string {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function parseUtterance(textoOriginal: string, hoy: ISODate): Parsed {
-  const texto = normalizarTexto(textoOriginal);
+export function parseUtterance(originalText: string, today: ISODate): Parsed {
+  const text = normalizeText(originalText);
 
-  const ingreso = contiene(texto, VERBOS_INGRESO);
-  const gasto = contiene(texto, VERBOS_GASTO);
-  // Si dice las dos cosas, gana la que aparece primero.
+  const income = contains(text, INCOME_VERBS);
+  const expense = contains(text, EXPENSE_VERBS);
+  // If it says both, whichever appears first wins.
   let type: TransactionType = 'expense';
-  if (ingreso && (!gasto || texto.indexOf(ingreso) < texto.indexOf(gasto))) type = 'income';
+  if (income && (!expense || text.indexOf(income) < text.indexOf(expense))) type = 'income';
 
-  const monto = buscarMonto(textoOriginal);
-  const fecha = buscarFecha(texto, hoy);
+  const amount = findAmount(originalText);
+  const date = findDate(text, today);
 
-  let metodo: PaymentMethodType | null = null;
-  let metodoTexto: string | null = null;
-  for (const { tipo, claves } of METODOS) {
-    const hit = contiene(texto, claves);
+  let method: PaymentMethodType | null = null;
+  let methodText: string | null = null;
+  for (const { type, keywords } of METHOD_KEYWORDS) {
+    const hit = contains(text, keywords);
     if (hit) {
-      metodo = tipo;
-      metodoTexto = hit;
+      method = type;
+      methodText = hit;
       break;
     }
   }
 
-  const concepto = extraerConcepto(texto, [
-    monto ? normalizarTexto(monto.texto) : null,
-    fecha.texto,
-    metodoTexto,
-    ingreso,
-    gasto,
-    // Ruido típico de SMS de banco.
+  const concept = extractConcept(text, [
+    amount ? normalizeText(amount.text) : null,
+    date.text,
+    methodText,
+    income,
+    expense,
+    // Typical bank SMS noise.
     'bancolombia', 'davivienda', 'nequi', 'daviplata', 'bbva', 'scotiabank',
     'le informa', 'te informa', 'informa', 'aprobada', 'aprobado', 'hora',
   ]);
 
   return {
     type,
-    amount: monto?.valor ?? null,
-    concept: bonito(concepto),
-    date: fecha.date,
-    metodo,
-    categoryIdSugerida: adivinarCategoria(concepto || texto),
-    // Un SMS de banco siempre reporta algo que ya pasó. En habla, "gasté"
-    // y "me llegó" también son pasado; "voy a pagar" no lo tratamos.
-    yaOcurrio: fecha.date <= hoy,
+    amount: amount?.value ?? null,
+    concept: pretty(concept),
+    date: date.date,
+    method,
+    categoryIdSugerida: guessCategory(concept || text),
+    // A bank SMS always reports something that already happened. In
+    // speech, "gasté" and "me llegó" are also past tense; "voy a pagar"
+    // isn't handled.
+    yaOcurrio: date.date <= today,
   };
 }

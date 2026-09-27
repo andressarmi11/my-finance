@@ -1,21 +1,21 @@
 /**
- * El color con el que se PINTA una categoria, que no es el mismo que el
- * que se GUARDA.
+ * The colour a category is PAINTED with, which isn't the same as the one
+ * that gets STORED.
  *
- * En la base se guarda un hex portable, porque esa fila viaja a Postgres y
- * la lee tambien la app nativa, que no entiende CSS. Pero un hex fijo no
- * se adapta al modo oscuro: los colores de categoria necesitan subir de
- * luminosidad sobre fondo negro para mantener contraste.
+ * The database stores a portable hex, because that row travels to Postgres
+ * and is also read by the native app, which doesn't understand CSS. But a
+ * fixed hex doesn't adapt to dark mode: category colours need to gain
+ * luminosity on a black background to keep their contrast.
  *
- * La salida: para las categorias que vienen por defecto se pinta con su
- * token (`var(--cat-hogar)`), que ya trae su variante clara y oscura; para
- * las que el usuario creo o personalizo se usa el hex guardado tal cual.
- * Asi el dato sigue siendo portable y la pantalla sigue siendo legible.
+ * The way out: categories that ship by default are painted with their token
+ * (`var(--cat-hogar)`), which already carries a light and a dark variant;
+ * ones the user created or customized use the stored hex as-is. That way
+ * the data stays portable and the screen stays readable.
  */
 import type { Category } from '../types';
 
-/** Ids de las categorias sembradas que tienen token propio. */
-const CON_TOKEN = new Set([
+/** Ids of the seeded categories that have a token of their own. */
+const WITH_TOKEN = new Set([
   'cat-hogar', 'cat-alimentacion', 'cat-transporte', 'cat-entretenimiento',
   'cat-viajes', 'cat-salud', 'cat-suscripciones', 'cat-compras',
   'cat-educacion', 'cat-servicios', 'cat-deudas', 'cat-ahorro',
@@ -24,9 +24,9 @@ const CON_TOKEN = new Set([
 /** 'cat-hogar' -> 'var(--cat-hogar)' */
 export function categoryColor(category: Pick<Category, 'id' | 'color'> | null | undefined): string {
   if (!category) return 'var(--text-faint)';
-  if (CON_TOKEN.has(category.id)) return `var(--${category.id.replace(/^cat-/, 'cat-')})`;
+  if (WITH_TOKEN.has(category.id)) return `var(--${category.id.replace(/^cat-/, 'cat-')})`;
   return category.color;
 }
 
-/** Para 'Otros' y 'Sin categoria', que no son una categoria real. */
-export const COLOR_SIN_CATEGORIA = 'var(--text-faint)';
+/** For 'Others' and 'No category', which aren't a real category. */
+export const UNCATEGORIZED_COLOR = 'var(--text-faint)';

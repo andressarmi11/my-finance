@@ -1,157 +1,159 @@
-# Step up — app nativa (Flutter)
+# Step up — native app (Flutter)
 
-Port nativo de la app web que vive en la raíz del repo. Comparten el mismo
-Supabase, el mismo esquema y la misma lógica de negocio.
+Native port of the web app that lives at the repo root. They share the
+same Supabase project, the same schema, and the same business logic.
 
-## Estado
+## Status
 
-| Capa | Estado |
+| Layer | Status |
 |---|---|
-| `lib/domain/` — fechas, quincenas, ciclo de TC, recurrentes, totales, plata | ✅ portada |
-| `lib/data/` — SQLite local, con lápidas de borrado | ✅ |
-| `lib/features/dashboard/` — pantalla de inicio | ✅ |
-| Movimientos, formulario de captura, configuración inicial | ⬜ siguiente |
-| Sync con Supabase | ⬜ después |
+| `lib/domain/` — dates, pay periods, card cycle, recurring items, totals, money | ported |
+| `lib/data/` — local SQLite, with deletion tombstones | done |
+| `lib/features/dashboard/` — home screen | done |
+| Transactions, entry form, initial setup | next |
+| Supabase sync | later |
 
-86 tests, `flutter analyze` limpio.
+86 tests, clean `flutter analyze`.
 
-## Correr los tests
+## Running the tests
 
 ```bash
 cd mobile
-flutter test       # 86 tests, no necesita Xcode ni simulador
-flutter analyze    # sin warnings
+flutter test       # 86 tests, needs neither Xcode nor a simulator
+flutter analyze    # no warnings
 ```
 
 ---
 
-## Correr en el simulador
+## Running on the simulator
 
 ```bash
 cd mobile
 flutter run
 ```
 
-Si hay varios destinos, elegí uno:
+If there are several targets, pick one:
 
 ```bash
 flutter devices                 # lista lo conectado
-flutter run -d "iPhone 18 Pro"  # o el id largo que imprime
+flutter run -d "iPhone 18 Pro"  # or the long id it prints
 ```
 
-Mientras corre: `r` recarga en caliente, `R` reinicia la app, `q` sale.
+While it's running: `r` hot-reloads, `R` restarts the app, `q` quits.
 
-**Para ver la ventana del simulador:** abrí Xcode y andá al menú
-**Xcode → Open Developer Tool → Simulator**. En esta máquina `open -a
-Simulator` no funciona: Xcode 27 no dejó el `Simulator.app` suelto donde
-solía estar, así que el menú de Xcode es el camino. `flutter run` anda
-igual aunque la ventana no esté abierta — arranca el simulador por debajo.
+**To see the simulator window:** open Xcode and go to the menu
+**Xcode → Open Developer Tool → Simulator**. On this machine `open -a
+Simulator` doesn't work: Xcode 27 no longer leaves `Simulator.app`
+loose where it used to be, so the Xcode menu is the way to go.
+`flutter run` still works even if the window isn't open — it starts
+the simulator in the background.
 
-Para capturar la pantalla sin abrir nada:
+To capture the screen without opening anything:
 
 ```bash
 xcrun simctl io booted screenshot captura.png
 ```
 
-### Si el simulador no aparece
+### If the simulator doesn't show up
 
 ```bash
-flutter doctor            # iOS tiene que estar en verde
-xcrun simctl list runtimes   # tiene que listar al menos un iOS
+flutter doctor            # iOS has to be green
+xcrun simctl list runtimes   # has to list at least one iOS
 ```
 
-Si no hay runtimes: `xcodebuild -downloadPlatform iOS` (son varios GB y
-tarda; no imprime nada mientras baja).
+If there are no runtimes: `xcodebuild -downloadPlatform iOS` (it's
+several GB and takes a while; it prints nothing while downloading).
 
 ---
 
-## Instalarla en tu iPhone
+## Installing it on your iPhone
 
-Se puede con un Apple ID normal y gratis, con una limitación importante
-que conviene saber antes de empezar: **la app deja de abrir a los 7 días**
-y hay que volver a instalarla. Es una regla de Apple para cuentas
-gratuitas, no algo del proyecto. Con el Apple Developer Program (US$99 al
-año) dura un año y además podés instalarla por TestFlight sin cable.
+You can do this with a regular, free Apple ID, with one important
+limitation worth knowing before you start: **the app stops opening
+after 7 days** and you have to reinstall it. That's an Apple rule for
+free accounts, not something about the project. With the Apple
+Developer Program (US$99/year) it lasts a year and you can also
+install it over TestFlight without a cable.
 
-### Una sola vez
+### One time only
 
-1. Abrí el proyecto en Xcode:
+1. Open the project in Xcode:
 
    ```bash
    open mobile/ios/Runner.xcworkspace
    ```
 
-   Ojo: el `.xcworkspace`, no el `.xcodeproj`.
+   Note: the `.xcworkspace`, not the `.xcodeproj`.
 
-2. **Xcode → Settings → Accounts → +** y agregá tu Apple ID.
+2. **Xcode → Settings → Accounts → +** and add your Apple ID.
 
-3. En el panel de la izquierda elegí **Runner**, pestaña
-   **Signing & Capabilities**:
-   - marcá **Automatically manage signing**
-   - en **Team** elegí tu nombre (*Personal Team*)
-   - si se queja del **Bundle Identifier**, cambiá `com.mrunknown.myFinance`
-     por otro: tiene que ser único en todo el mundo, así que agregale algo
-     tuyo.
+3. In the left panel choose **Runner**, **Signing & Capabilities** tab:
+   - check **Automatically manage signing**
+   - under **Team** choose your name (*Personal Team*)
+   - if it complains about the **Bundle Identifier**, change
+     `com.mrunknown.myFinance` to something else: it has to be unique
+     worldwide, so add something of your own to it.
 
-4. En el iPhone, activá el modo desarrollador:
-   **Ajustes → Privacidad y seguridad → Modo de desarrollador → activar**.
-   Pide reiniciar el teléfono.
+4. On the iPhone, turn on developer mode:
+   **Settings → Privacy & Security → Developer Mode → turn on**.
+   It asks you to restart the phone.
 
-### Cada vez que quieras instalarla
+### Every time you want to install it
 
-5. Conectá el iPhone por cable, desbloqueado. La primera vez el teléfono
-   pregunta si confiás en el computador: decí que sí.
+5. Connect the iPhone by cable, unlocked. The first time, the phone
+   asks whether you trust the computer: say yes.
 
 6. ```bash
    cd mobile
-   flutter devices          # ahora aparece tu iPhone
+   flutter devices          # your iPhone now shows up
    flutter run -d "<tu iPhone>"
    ```
 
-   (O el botón ▶ de Xcode, da lo mismo.)
+   (Or Xcode's ▶ button, same thing.)
 
-7. La primera vez el iPhone se niega a abrirla porque el certificado es
-   tuyo y no de la App Store. Andá a
-   **Ajustes → General → VPN y gestión de dispositivos**, tocá tu Apple ID
-   y **Confiar**.
+7. The first time, the iPhone refuses to open it because the
+   certificate is yours and not the App Store's. Go to
+   **Settings → General → VPN & Device Management**, tap your Apple ID
+   and **Trust**.
 
-Listo: queda en la pantalla de inicio como "Step up", y funciona sin
-cable y sin internet.
+Done: it ends up on the home screen as "Step up", and works without a
+cable and without internet.
 
-### Cuando deje de abrir (a los 7 días)
+### When it stops opening (after 7 days)
 
-Reconectá el cable y volvé a correr `flutter run -d "<tu iPhone>"`. Los
-datos **no se pierden**: siguen en la base de la app.
+Reconnect the cable and run `flutter run -d "<tu iPhone>"` again.
+The data **isn't lost**: it's still in the app's database.
 
 ---
 
-## Ojo: esta app todavía no sincroniza
+## Note: this app doesn't sync yet
 
-La nativa guarda todo en el teléfono y punto. Todavía no habla con
-Supabase, así que **no comparte datos con la app web**. Eso es lo
-siguiente en la lista. Mientras tanto, la que sincroniza entre
-dispositivos es la web (ver [docs/CUENTA.md](../docs/CUENTA.md)).
+The native one saves everything on the phone, period. It doesn't talk
+to Supabase yet, so **it doesn't share data with the web app**. That's
+next on the list. In the meantime, the one that syncs across devices
+is the web app (see [docs/CUENTA.md](../docs/CUENTA.md)).
 
-Y arranca con movimientos de ejemplo, porque el formulario para agregar
-todavía no existe.
+And it starts with sample transactions, because the form for adding
+new ones doesn't exist yet.
 
-## Por qué el dominio se portó primero
+## Why the domain layer was ported first
 
-Es lo único que se traduce casi literal y lo único que ya estaba probado:
-funciones puras sobre fechas y enteros, sin UI ni base de datos. Portarlo
-primero significa que cuando lleguen las pantallas, la parte que de verdad
-puede equivocarse con la plata de alguien ya tiene 75 tests encima.
+It's the only thing that translates almost literally and the only
+thing that was already tested: pure functions over dates and
+integers, with no UI and no database. Porting it first means that once
+the screens arrive, the part that can actually get someone's money
+wrong already has 75 tests behind it.
 
-## Paridad con la app web
+## Parity with the web app
 
-Hay un punto donde las dos apps podrían divergir en silencio: **el formato
-de la plata**. Los datos CLDR de Dart no son los mismos que los del
-navegador (es-PE agrupa distinto, es-CO pone el símbolo del otro lado,
-es-ES no agrupa 4 dígitos). Por eso ninguna de las dos usa el formateador
-de moneda de su plataforma: las dos tienen la misma tabla explícita, y las
-dos la verifican con los mismos siete casos.
+There's one place where the two apps could quietly diverge:
+**money formatting**. Dart's CLDR data isn't the same as the
+browser's (es-PE groups digits differently, es-CO puts the symbol on
+the other side, es-ES doesn't group 4-digit numbers). That's why
+neither app uses its platform's currency formatter: both have the same
+explicit table, and both verify it with the same seven test cases.
 
 - `mobile/lib/domain/money/format.dart`
 - `src/domain/money/format.ts`
 
-Si cambiás una, el test de la otra falla. Es a propósito.
+If you change one, the other one's test fails. That's on purpose.

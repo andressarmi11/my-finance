@@ -1,33 +1,33 @@
 /**
- * Las etiquetas de periodo, fuera de React.
+ * Period labels, outside React.
  *
- * "Quincena del 10" se arma en funciones puras —groupByPeriodo, y el
- * encabezado del dashboard— que no son componentes y no pueden usar un
- * hook. Se leen del mismo estado de modulo que los meses.
+ * "Quincena del 10" is built in pure functions —groupByPeriodo, and the
+ * dashboard header— which aren't components and can't use a
+ * hook. They're read from the same module state as the months.
  *
- * En ingles no se dice "fortnight": lo que nombra esto es el periodo entre
- * dos pagos de nomina, y "pay period" es como se llama. Traducirlo literal
- * habria sido correcto y a la vez incomprensible.
+ * In English you don't say "fortnight": what this names is the period between
+ * two payroll payments, and "pay period" is what it's called. Translating it
+ * literally would have been correct and incomprehensible at the same time.
  */
-let idiomaActual: 'es' | 'en' = 'es';
+let currentLanguage: 'es' | 'en' = 'es';
 
-export function setIdiomaDePeriodo(idioma: 'es' | 'en'): void {
-  idiomaActual = idioma;
+export function setPeriodLabelLanguage(language: 'es' | 'en'): void {
+  currentLanguage = language;
 }
 
 /**
- * "Quincena del" / "From the" — le sigue el dia.
+ * "Quincena del" / "From the" — followed by the day.
  *
- * En ingles se queda corto a proposito: "Pay period from the 10" se partia
- * en dos lineas en la tarjeta del dashboard y empujaba el monto fuera de
- * vista. En contexto —una tarjeta de periodo, un encabezado de grupo— "From
- * the 10" se entiende y cabe donde el español cabe.
+ * In English it's kept short on purpose: "Pay period from the 10" would wrap
+ * onto two lines on the dashboard card and push the amount out of
+ * view. In context —a period card, a group header— "From
+ * the 10" reads fine and fits wherever the Spanish fits.
  */
-export function etiquetaQuincena(): string {
-  return idiomaActual === 'en' ? 'From the' : 'Quincena del';
+export function payPeriodLabel(): string {
+  return currentLanguage === 'en' ? 'From the' : 'Quincena del';
 }
 
-/** Para quien cobra una vez al mes y no el día 1. */
-export function etiquetaMesDesde(): string {
-  return idiomaActual === 'en' ? 'Month from the' : 'Mes desde el';
+/** For someone who gets paid once a month and not on the 1st. */
+export function monthFromLabel(): string {
+  return currentLanguage === 'en' ? 'Month from the' : 'Mes desde el';
 }

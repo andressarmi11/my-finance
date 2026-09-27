@@ -1,66 +1,69 @@
-# Cuenta y sincronización
+# Account and sync
 
-Con una cuenta, tus datos dejan de vivir solo en el teléfono: entras con
-correo y contraseña en cualquier dispositivo y aparece todo.
+With an account, your data stops living only on the phone: you sign in
+with email and password on any device and everything shows up.
 
-Esto además resuelve dos cosas que sorprenden en iOS:
+This also fixes two things that are surprising on iOS:
 
-- **Instalar la app en la pantalla de inicio "borra" los datos.** No los
-  borra: en iOS la app instalada tiene su propio almacenamiento, separado
-  del de Safari. Lo que cargaste en la pestaña no cruza. Con cuenta, al
-  entrar en la app instalada se baja todo y quedan iguales.
-- **Los Atajos abren Safari, no la app instalada.** iOS no sabe meter una
-  URL dentro de una web app instalada. Sin cuenta, el gasto que registras
-  desde un Atajo se queda en Safari y no lo ves en la app. Con cuenta, los
-  dos lados sincronizan contra la misma nube.
-
----
-
-## Qué hace la app sola
-
-Una vez hay sesión, no hay que tocar ningún botón:
-
-| Cuándo | Qué pasa |
-|---|---|
-| Al iniciar sesión | Baja todo de la nube antes de mostrar nada |
-| Al volver a la app | Sincroniza (máximo una vez por minuto) |
-| Al dejar la app | Sube lo que agregaste |
-| Al recuperar internet | Reintenta |
-
-Sin internet la app funciona igual; lo pendiente sube en la siguiente
-oportunidad. En Ajustes → Tu cuenta hay un **Sincronizar ahora** para
-forzarlo.
-
-**Los borrados también viajan.** Cada borrado deja una "lápida"
-(`src/data/sync/tombstones.ts`) que se sincroniza como cualquier otro
-dato. Sin eso, el dispositivo que todavía tenía la fila la volvería a
-subir y lo borrado reaparecería.
+- **Installing the app on the home screen "erases" the data.** It
+  doesn't erase it: on iOS the installed app has its own storage,
+  separate from Safari's. What you loaded in the tab doesn't carry
+  over. With an account, opening the installed app downloads
+  everything and both sides end up in sync.
+- **Shortcuts open Safari, not the installed app.** iOS doesn't know
+  how to route a URL into an installed web app. Without an account,
+  the expense you log from a Shortcut stays in Safari and you don't
+  see it in the app. With an account, both sides sync against the
+  same cloud.
 
 ---
 
-## Estado actual del setup
+## What the app does on its own
 
-| Paso | Estado |
+Once there's a session, you don't have to touch any button:
+
+| When | What happens |
 |---|---|
-| Migraciones 0001, 0002, 0004, 0005 aplicadas | ✅ hecho |
-| `.env.local` con URL y anon key | ✅ hecho |
-| Secrets del repo en GitHub Actions | ✅ hecho |
-| **Confirm email / Redirect URLs en el dashboard** | ⚠️ falta — pasos 2 abajo |
+| On sign-in | Downloads everything from the cloud before showing anything |
+| On returning to the app | Syncs (at most once per minute) |
+| On leaving the app | Uploads what you added |
+| On getting internet back | Retries |
 
-Lo que falta necesita entrar al dashboard de Supabase: la Management API
-está detrás del keychain y el CLI no expone esa configuración.
+Without internet the app works the same; whatever's pending uploads
+the next chance it gets. In Settings → Your account there's a
+**Sync now** to force it.
 
-**Y ojo con la cuenta que ya existe:** `andressarmi11@hotmail.com` se creó
-con magic link, así que **no tiene contraseña**. Entrar con correo y
-contraseña le va a decir "Correo o contraseña incorrectos". Usa
-**¿Olvidaste tu contraseña?** una vez para ponerle una (necesita el paso 2
-de Redirect URLs hecho), o crea una cuenta nueva.
+**Deletions travel too.** Every deletion leaves a "tombstone"
+(`src/data/sync/tombstones.ts`) that syncs like any other piece of
+data. Without that, a device that still had the row would upload it
+again and the deleted item would reappear.
 
-## Setup (una sola vez)
+---
 
-### 1. Aplicar las migraciones
+## Current setup status
 
-En el SQL Editor del proyecto de Supabase, en orden:
+| Step | Status |
+|---|---|
+| Migrations 0001, 0002, 0004, 0005 applied | done |
+| `.env.local` with URL and anon key | done |
+| Repo secrets in GitHub Actions | done |
+| **Confirm email / Redirect URLs in the dashboard** | pending — steps below in step 2 |
+
+What's missing needs to be done in the Supabase dashboard: the
+Management API is behind the keychain and the CLI doesn't expose that
+setting.
+
+**And watch out for the account that already exists:**
+`andressarmi11@hotmail.com` was created with a magic link, so **it has
+no password**. Signing in with email and password will say "Incorrect
+email or password." Use **Forgot your password?** once to set one
+(needs step 2, Redirect URLs, done first), or create a new account.
+
+## Setup (one time only)
+
+### 1. Apply the migrations
+
+In the Supabase project's SQL Editor, in order:
 
 ```
 supabase/migrations/0001_init.sql
@@ -69,77 +72,78 @@ supabase/migrations/0004_text_ids_and_profile.sql
 supabase/migrations/0005_deletions.sql
 ```
 
-La **0004 es obligatoria**: sin ella sincronizar falla con
-`invalid input syntax for type uuid`. Las categorías que la app siembra
-usan ids como `cat-hogar`, y el esquema original las declaraba `uuid`.
-También agrega `display_name` y `onboarded_at`.
+**0004 is mandatory**: without it, sync fails with `invalid input
+syntax for type uuid`. The categories the app seeds use ids like
+`cat-hogar`, and the original schema declared them as `uuid`. It also
+adds `display_name` and `onboarded_at`.
 
-El cron de recordatorios ya no vive acá: tiene placeholders que hay que
-reemplazar a mano, así que está en `supabase/manual/` para que ningún
-`db push` lo aplique tal cual. Solo hace falta si vas a usar notificaciones.
+The reminder cron no longer lives here: it has placeholders that have
+to be replaced by hand, so it's in `supabase/manual/` so that no
+`db push` applies it as-is. It's only needed if you're going to use
+notifications.
 
-### 2. Activar correo + contraseña
+### 2. Enable email + password
 
 Dashboard → **Authentication** → **Sign In / Providers** → **Email**:
 
-- **Enable Email provider**: sí.
-- **Confirm email**: hoy está **encendido** (lo comprobé creando y borrando
-  una cuenta de prueba: el signup devuelve usuario pero sin sesión).
-  Decide tú:
-  - **Apagado** — entras apenas creas la cuenta. Más cómodo, y para una
-    app personal está bien.
-  - **Encendido** — hay que abrir un correo antes de la primera entrada.
-    La app lo maneja: muestra "Confirma el correo que te enviamos".
+- **Enable Email provider**: yes.
+- **Confirm email**: currently **on** (I checked by creating and
+  deleting a test account: signup returns a user but no session).
+  You decide:
+  - **Off** — you're signed in as soon as you create the account.
+    More convenient, and fine for a personal app.
+  - **On** — you have to open an email before the first sign-in. The
+    app handles it: it shows "Confirm the email we sent you."
 
-En **URL Configuration**, agrega a *Redirect URLs*:
+Under **URL Configuration**, add to *Redirect URLs*:
 
 ```
 https://<tu-usuario>.github.io/step-up/
 http://localhost:5173/step-up/
 ```
 
-Sin eso, el enlace de "olvidé mi contraseña" no vuelve a la app.
+Without that, the "forgot my password" link won't come back to the app.
 
-### 3. Las claves, en local y en GitHub
+### 3. The keys, locally and on GitHub
 
-En `.env.local` (no se sube, está en `.gitignore`):
+In `.env.local` (not committed, it's in `.gitignore`):
 
 ```
 VITE_SUPABASE_URL=https://<project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<la anon key del dashboard>
+VITE_SUPABASE_ANON_KEY=<the anon key from the dashboard>
 ```
 
-Y en GitHub → repo → **Settings** → **Secrets and variables** →
-**Actions** → *New repository secret*, los mismos dos nombres. El workflow
-de deploy ya los lee.
+And on GitHub → repo → **Settings** → **Secrets and variables** →
+**Actions** → *New repository secret*, the same two names. The deploy
+workflow already reads them.
 
-> La anon key es pública por diseño: va dentro del bundle que descarga el
-> navegador. Lo que protege los datos es **RLS** — cada fila lleva
-> `user_id` y las políticas solo dejan ver las propias
-> (`0001_init.sql`). Por eso la app exige sesión cuando Supabase está
-> configurado.
+> The anon key is public by design: it goes inside the bundle the
+> browser downloads. What protects the data is **RLS** — every row
+> carries a `user_id` and the policies only allow seeing your own
+> (`0001_init.sql`). That's why the app requires a session when
+> Supabase is configured.
 
-### 4. Comprobar
+### 4. Verify it
 
 ```bash
 npm run dev
 ```
 
-Debe aparecer la pantalla de **Entrar / Crear cuenta**. Crea la cuenta,
-completa la configuración inicial, agrega un gasto. Abre la misma URL en
-otro navegador, entra con el mismo correo: tiene que estar ahí.
+The **Sign in / Create account** screen should show up. Create the
+account, complete the initial setup, add an expense. Open the same URL
+in another browser, sign in with the same email: it has to be there.
 
 ---
 
-## Si algo falla
+## If something fails
 
-| Síntoma | Causa |
+| Symptom | Cause |
 |---|---|
-| No aparece la pantalla de login | Faltan las env vars; la app corre 100% local |
-| `invalid input syntax for type uuid` | Falta aplicar la migración 0004 |
-| `relation "public.deletions" does not exist` | Falta la 0005 |
-| "Falta confirmar el correo" | *Confirm email* está encendido en Supabase |
-| El enlace de contraseña no vuelve a la app | Falta la URL en *Redirect URLs* |
-| El enlace de contraseña entra directo sin dejar cambiarla | Era un bug nuestro, arreglado: el enlace abre sesión, y el gate mostraba la app antes de preguntar. Ver `src/features/auth/recovery.ts` |
-| Pide nombre y categorías en cada login | Era un bug nuestro, arreglado. Los Settings no tenían `updatedAt`, así que bajar de la nube pisaba lo local a ciegas; y la configuración se completa DESPUÉS del push del login, así que nunca subía. Ver `elegirSettings` en `src/data/sync/syncService.ts` y `pedirSync` en `useCloudSync.ts` |
-| Entro en otro dispositivo y no veo nada | Mira Ajustes → Tu cuenta → Sincronizar ahora; si da error, el mensaje dice cuál |
+| The login screen doesn't show up | The env vars are missing; the app runs 100% local |
+| `invalid input syntax for type uuid` | Migration 0004 hasn't been applied |
+| `relation "public.deletions" does not exist` | Missing 0005 |
+| "Need to confirm your email" | *Confirm email* is on in Supabase |
+| The password link doesn't come back to the app | Missing the URL in *Redirect URLs* |
+| The password link signs you in directly without letting you change it | Was a bug on our end, fixed: the link opens a session, and the gate showed the app before asking. See `src/features/auth/recovery.ts` |
+| Asks for name and categories on every login | Was a bug on our end, fixed. Settings had no `updatedAt`, so downloading from the cloud blindly overwrote the local data; and setup is completed AFTER the login's push, so it never got uploaded. See `elegirSettings` in `src/data/sync/syncService.ts` and `pedirSync` in `useCloudSync.ts` |
+| I sign in on another device and see nothing | Check Settings → Your account → Sync now; if it errors, the message says which one |

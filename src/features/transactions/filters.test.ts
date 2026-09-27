@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aplicarFiltros } from './filtros';
+import { applyFilters } from './filters';
 import type { Transaction, TransactionStatus, TransactionType } from '@/domain/types';
 
 function tx(type: TransactionType, status: TransactionStatus): Transaction {
@@ -9,40 +9,40 @@ function tx(type: TransactionType, status: TransactionStatus): Transaction {
   };
 }
 
-const TODOS = [
+const ALL = [
   tx('expense', 'paid'), tx('expense', 'pending'), tx('expense', 'scheduled'), tx('expense', 'cancelled'),
   tx('income', 'paid'), tx('income', 'pending'),
 ];
 
 describe('aplicarFiltros', () => {
-  it('sin filtros devuelve todo, incluidos los cancelados', () => {
-    expect(aplicarFiltros(TODOS, 'todos', 'todos')).toHaveLength(6);
+  it('with no filters returns everything, including cancelled', () => {
+    expect(applyFilters(ALL, 'todos', 'todos')).toHaveLength(6);
   });
 
-  it('por tipo deja solo ese tipo', () => {
-    expect(aplicarFiltros(TODOS, 'income', 'todos').map((t) => t.type)).toEqual(['income', 'income']);
+  it('by type keeps only that type', () => {
+    expect(applyFilters(ALL, 'income', 'todos').map((t) => t.type)).toEqual(['income', 'income']);
   });
 
-  /* La decision que el codigo tenia en dos versiones: porPagar.ts los
-     separa, upcoming.ts los funde. El filtro elige fundirlos. */
-  it('"pendientes" incluye los programados', () => {
-    const ids = aplicarFiltros(TODOS, 'todos', 'pendientes').map((t) => t.id);
+  /* The decision the code used to have in two versions: porPagar.ts keeps
+     them separate, upcoming.ts merges them. The filter chooses to merge. */
+  it('"pendientes" includes scheduled ones', () => {
+    const ids = applyFilters(ALL, 'todos', 'pendientes').map((t) => t.id);
     expect(ids).toContain('expense-pending');
     expect(ids).toContain('expense-scheduled');
   });
 
-  it('"pagados" es solo paid', () => {
-    expect(aplicarFiltros(TODOS, 'todos', 'pagados').every((t) => t.status === 'paid')).toBe(true);
+  it('"pagados" is paid only', () => {
+    expect(applyFilters(ALL, 'todos', 'pagados').every((t) => t.status === 'paid')).toBe(true);
   });
 
-  it('un cancelado no es ni pendiente ni pagado', () => {
-    for (const estado of ['pendientes', 'pagados'] as const) {
-      expect(aplicarFiltros(TODOS, 'todos', estado).map((t) => t.id)).not.toContain('expense-cancelled');
+  it('a cancelled one is neither pending nor paid', () => {
+    for (const status of ['pendientes', 'pagados'] as const) {
+      expect(applyFilters(ALL, 'todos', status).map((t) => t.id)).not.toContain('expense-cancelled');
     }
   });
 
-  it('tipo y estado se combinan', () => {
-    const r = aplicarFiltros(TODOS, 'expense', 'pendientes');
+  it('type and status combine', () => {
+    const r = applyFilters(ALL, 'expense', 'pendientes');
     expect(r.map((t) => t.id).sort()).toEqual(['expense-pending', 'expense-scheduled']);
   });
 });

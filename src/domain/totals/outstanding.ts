@@ -1,55 +1,55 @@
 /**
- * El desglose de lo que falta pagar, en conjuntos DISJUNTOS.
+ * The breakdown of what's left to pay, as DISJOINT sets.
  *
- * Existe porque el desglose se armaba en el componente con tres filtros
- * independientes, y un gasto pendiente pagado con tarjeta cumplía dos a la
- * vez. Consecuencias que se veían en pantalla:
- *   - el chip decía "7 · $500.000" cuando había 5 movimientos: el conteo
- *     sumaba duplicados al lado de un total que no los sumaba;
- *   - el sheet sumaba la plata TRES veces por separado, así que mostraba
- *     un total mayor que el del hero que lo abrió, y listaba el mismo
- *     movimiento dos veces.
+ * It exists because the breakdown used to be assembled in the component
+ * with three independent filters, and a pending expense paid by card
+ * matched two of them at once. What that looked like on screen:
+ *   - the chip said "7 · $500,000" when there were 5 transactions: the
+ *     count added duplicates next to a total that didn't;
+ *   - the sheet added the money up THREE separate times, so it showed a
+ *     total larger than the hero that opened it, and listed the same
+ *     transaction twice.
  *
- * La regla de desempate: un gasto con fecha de pago de tarjeta es "en
- * tarjeta" y no cuenta en los otros dos. Es la que le sirve al usuario —
- * lo que importa de una compra con tarjeta es cuándo sale la plata, no en
- * qué estado quedó la fila.
+ * The tie-breaker: an expense with a card payment date is "on card" and
+ * doesn't count in the other two. It's the rule that serves the user —
+ * what matters about a card purchase is when the money leaves, not what
+ * state the row was left in.
  */
 import type { Transaction } from '../types';
 
-export interface PorPagar {
-  /** Pendientes SIN tarjeta. */
-  pendientes: Transaction[];
-  /** Programados SIN tarjeta. */
-  programados: Transaction[];
-  /** Todo lo que se paga por tarjeta, pendiente o programado. */
-  enTarjeta: Transaction[];
-  /** Cuántos movimientos en total. Cada uno contado una sola vez. */
+export interface Outstanding {
+  /** Pending, NOT on a card. */
+  pending: Transaction[];
+  /** Scheduled, NOT on a card. */
+  scheduled: Transaction[];
+  /** Everything paid by card, pending or scheduled. */
+  onCard: Transaction[];
+  /** How many transactions in total. Each counted exactly once. */
   count: number;
-  /** Cuánta plata en total. Igual a MonthFlow.porPagar, por construcción. */
-  monto: number;
+  /** How much money in total. Equal to MonthFlow.toPay, by construction. */
+  amount: number;
 }
 
-export function calculatePorPagar(transactions: Transaction[]): PorPagar {
-  const pendientes: Transaction[] = [];
-  const programados: Transaction[] = [];
-  const enTarjeta: Transaction[] = [];
+export function calculateOutstanding(transactions: Transaction[]): Outstanding {
+  const pending: Transaction[] = [];
+  const scheduled: Transaction[] = [];
+  const onCard: Transaction[] = [];
 
   for (const tx of transactions) {
     if (tx.type !== 'expense') continue;
     if (tx.status === 'paid' || tx.status === 'cancelled') continue;
 
-    if (tx.cyclePaymentDate) enTarjeta.push(tx);
-    else if (tx.status === 'scheduled') programados.push(tx);
-    else pendientes.push(tx);
+    if (tx.cyclePaymentDate) onCard.push(tx);
+    else if (tx.status === 'scheduled') scheduled.push(tx);
+    else pending.push(tx);
   }
 
-  const todos = [...pendientes, ...programados, ...enTarjeta];
+  const all = [...pending, ...scheduled, ...onCard];
   return {
-    pendientes,
-    programados,
-    enTarjeta,
-    count: todos.length,
-    monto: todos.reduce((a, t) => a + t.amount, 0),
+    pending,
+    scheduled,
+    onCard,
+    count: all.length,
+    amount: all.reduce((a, t) => a + t.amount, 0),
   };
 }

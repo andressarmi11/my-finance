@@ -1,40 +1,40 @@
 import { test, expect } from './fixtures';
 
 /**
- * Reproduce en IndexedDB REAL el error de produccion:
+ * Reproduces the production error against a REAL IndexedDB:
  *
  *   transactions.bulkPut(): 13 of 150 operations failed.
  *   ConstraintError: Unable to add key to index '[recurringRuleId+periodKey]'
  *
- * La prueba unitaria cubre la decision (que fila gana, cual muere). Esta
- * cubre lo otro: que el indice unico de Dexie de verdad rechaza el par
- * repetido, que era el supuesto del que colgaba todo el diagnostico.
+ * The unit test covers the decision (which row wins, which one dies). This
+ * one covers the other half: that Dexie's unique index really does reject
+ * the repeated pair, which was the assumption the whole diagnosis hung on.
  */
-test('el indice unico rechaza dos ids para la misma ocurrencia, y el plan lo evita', async ({ page }) => {
+test('the unique index rejects two ids for the same occurrence, and the plan avoids it', async ({ page }) => {
   await page.goto('');
 
-  const resultado = await page.evaluate(async () => {
-    // Las rutas van en variables, no como literales: quien las resuelve es
-    // el NAVEGADOR contra el dev server. Como literales, TypeScript intenta
-    // resolverlas en disco y no existen con esa ruta (mismo truco que
-    // 13-aislamiento-de-cuentas).
+  const result = await page.evaluate(async () => {
+    // The paths are in variables, not literals: they're resolved by the
+    // BROWSER against the dev server. As literals, TypeScript would try to
+    // resolve them on disk and they don't exist at that path (same trick as
+    // 13-account-isolation).
     const rutaDb = '/step-up/src/data/db.ts';
-    const rutaPlan = '/step-up/src/data/sync/ocurrenciasDuplicadas.ts';
+    const rutaPlan = '/step-up/src/data/sync/duplicateOccurrences.ts';
     const { db } = (await import(rutaDb)) as {
       db: {
         transactions: {
           clear(): Promise<void>;
-          put(fila: unknown): Promise<unknown>;
-          bulkPut(filas: unknown[]): Promise<unknown>;
+          put(row: unknown): Promise<unknown>;
+          bulkPut(rows: unknown[]): Promise<unknown>;
           bulkDelete(ids: string[]): Promise<void>;
           toArray(): Promise<Array<{ id: string }>>;
         };
       };
     };
-    const { conciliarOcurrencias } = (await import(rutaPlan)) as {
-      conciliarOcurrencias: (
-        remotas: unknown[], locales: unknown[],
-      ) => { aGuardar: unknown[]; aBorrar: string[] };
+    const { reconcileOccurrences } = (await import(rutaPlan)) as {
+      reconcileOccurrences: (
+        remotas: unknown[], localRows: unknown[],
+      ) => { toSave: unknown[]; toDelete: string[] };
     };
 
     const base = {
@@ -44,39 +44,39 @@ test('el indice unico rechaza dos ids para la misma ocurrencia, y el plan lo evi
       createdAt: '', updatedAt: '2026-09-01T00:00:00.000Z',
     };
     const viejaDeLaNube = { ...base, id: 'uuid-viejo-aleatorio' };
-    const nuevaLocal = { ...base, id: 'regla-1:2026-09' };
+    const newLocal = { ...base, id: 'regla-1:2026-09' };
 
     await db.transactions.clear();
-    await db.transactions.put(nuevaLocal);
+    await db.transactions.put(newLocal);
 
-    // 1) Sin conciliar: el bulkPut del pull revienta. Ese ES el bug.
-    let mensajeCrudo = '';
+    // 1) Without reconciling: the pull's bulkPut blows up. That IS the bug.
+    let rawMessage = '';
     try {
       await db.transactions.bulkPut([viejaDeLaNube]);
     } catch (e) {
-      mensajeCrudo = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+      rawMessage = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     }
 
-    // 2) Con el plan: entra una sola fila, bajo el id determinista.
+    // 2) With the plan: a single row goes in, under the deterministic id.
     await db.transactions.clear();
-    await db.transactions.put(nuevaLocal);
-    const plan = conciliarOcurrencias([viejaDeLaNube], [nuevaLocal]);
-    await db.transactions.bulkDelete(plan.aBorrar);
-    await db.transactions.bulkPut(plan.aGuardar);
+    await db.transactions.put(newLocal);
+    const plan = reconcileOccurrences([viejaDeLaNube], [newLocal]);
+    await db.transactions.bulkDelete(plan.toDelete);
+    await db.transactions.bulkPut(plan.toSave);
 
     const quedaron = await db.transactions.toArray();
     return {
-      mensajeCrudo,
+      rawMessage,
       ids: quedaron.map((t) => t.id),
-      aBorrar: plan.aBorrar,
+      toDelete: plan.toDelete,
     };
   });
 
-  // El supuesto del diagnostico, confirmado contra Dexie de verdad.
-  expect(resultado.mensajeCrudo).toContain('ConstraintError');
-  expect(resultado.mensajeCrudo).toContain('recurringRuleId+periodKey');
+  // The diagnosis's assumption, confirmed against a real Dexie.
+  expect(result.rawMessage).toContain('ConstraintError');
+  expect(result.rawMessage).toContain('recurringRuleId+periodKey');
 
-  // Y el arreglo: una sola fila, con el id que materialize va a recrear.
-  expect(resultado.ids).toEqual(['regla-1:2026-09']);
-  expect(resultado.aBorrar).toEqual(['uuid-viejo-aleatorio']);
+  // And the fix: a single row, with the id materialize is going to recreate.
+  expect(result.ids).toEqual(['regla-1:2026-09']);
+  expect(result.toDelete).toEqual(['uuid-viejo-aleatorio']);
 });

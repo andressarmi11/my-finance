@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -7,12 +7,12 @@ import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
 import { haptic } from '@/lib/haptic';
 
 const TABS = [
-  // Se guarda la CLAVE, no el texto: el texto depende del idioma activo.
-  { to: '/', clave: 'nav.inicio', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
-  { to: '/movimientos', clave: 'nav.movimientos', icon: 'M4 7h16M4 12h16M4 17h10' },
-  { to: '/calendario', clave: 'nav.calendario', icon: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4' },
-  { to: '/analisis', clave: 'nav.analisis', icon: 'M5 20V10M12 20V4M19 20v-7' },
-  { to: '/ajustes', clave: 'nav.ajustes', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
+  // The KEY is stored, not the text: the text depends on the active language.
+  { to: '/', key: 'nav.home', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
+  { to: '/movimientos', key: 'nav.transactions', icon: 'M4 7h16M4 12h16M4 17h10' },
+  { to: '/calendario', key: 'nav.calendar', icon: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4' },
+  { to: '/analisis', key: 'nav.analytics', icon: 'M5 20V10M12 20V4M19 20v-7' },
+  { to: '/ajustes', key: 'nav.settings', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
 ] as const;
 
 export function TabBar() {
@@ -22,8 +22,8 @@ export function TabBar() {
   const [hablarOpen, setHablarOpen] = useState(false);
   const [fabHidden, setFabHidden] = useState(false);
 
-  // FAB se esconde al scrollear hacia abajo, aparece al scrollear hacia
-  // arriba. Umbral pequeño para evitar flicker con micro-scrolls.
+  // FAB hides when scrolling down, appears when scrolling back
+  // up. Small threshold to avoid flicker from micro-scrolls.
   useEffect(() => {
     let lastY = window.scrollY;
     let ticking = false;
@@ -33,8 +33,18 @@ export function TabBar() {
       requestAnimationFrame(() => {
         const y = window.scrollY;
         const delta = y - lastY;
+        // Only hide it when there is a real list to get out of the way
+        // of. The FAB hides so it stops covering content you are reading;
+        // on a page that barely scrolls there is nothing to uncover, and
+        // hiding it there only takes away the main action.
+        //
+        // This is not hypothetical: adding the legal footer made short
+        // screens scrollable by a couple of hundred pixels, and since a
+        // hidden FAB also sets pointer-events: none, the + button became
+        // unclickable after the smallest scroll.
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
         if (Math.abs(delta) > 6) {
-          if (delta > 0 && y > 40) setFabHidden(true);
+          if (delta > 0 && y > 40 && scrollable > 320) setFabHidden(true);
           else setFabHidden(false);
           lastY = y;
         }
@@ -56,10 +66,10 @@ export function TabBar() {
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
           alignItems: 'center',
-          // Opaca a proposito: con --material-thin (blanco 72%) el
-          // contenido se leia a traves de la barra y no se sabia donde
-          // empezaba. El blur solo se nota si hay soporte, pero el color
-          // de abajo ya es solido.
+          // Opaque on purpose: with --material-thin (72% white) the
+          // content showed through the bar and you couldn't tell where
+          // it started. The blur is only noticeable when supported, but the
+          // color underneath is already solid.
           background: 'var(--surface)',
           backdropFilter: 'saturate(180%) blur(20px)',
           WebkitBackdropFilter: 'saturate(180%) blur(20px)',
@@ -108,7 +118,7 @@ export function TabBar() {
                   strokeLinejoin="round"
                 />
               </svg>
-              {t(tab.clave)}
+              {t(tab.key)}
             </NavLink>
           </div>
         ))}
@@ -128,11 +138,11 @@ export function TabBar() {
       {hablarOpen && (
         <QuickEntrySheet
           onClose={() => setHablarOpen(false)}
-          onAjustar={(texto) => {
+          onAdjust={(text) => {
             setHablarOpen(false);
-            // El formulario completo lo vuelve a interpretar: una sola
-            // definición de qué significa la frase, no dos.
-            navigate(`/movimientos?texto=${encodeURIComponent(texto)}`);
+            // The full form re-interprets it: a single
+            // definition of what the phrase means, not two.
+            navigate(`/movimientos?texto=${encodeURIComponent(text)}`);
           }}
         />
       )}
@@ -141,11 +151,11 @@ export function TabBar() {
 }
 
 /**
- * El "+" no es una pestaña: es una acción. Flota SOBRE el tab bar, no
- * dentro — con bottom pequeño se comía la pestaña central (Calendario).
- * Va a la DERECHA, no centrado: centrado se le sentaba encima de la fila
- * del medio de la lista y tapaba concepto y monto.
- * Tap abre menú rápido con Gasto/Ingreso/Recurrente.
+ * The "+" isn't a tab: it's an action. It floats ABOVE the tab bar, not
+ * inside it — with a small bottom offset it ate into the middle tab (Calendar).
+ * It sits on the RIGHT, not centered: centered it sat right on top of the
+ * middle row of the list and covered the description and amount.
+ * Tap opens a quick menu with Expense/Income/Recurring.
  */
 function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean }) {
   const [pressed, setPressed] = useState(false);
@@ -153,11 +163,11 @@ function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean 
     <button
       type="button"
       aria-label="Agregar movimiento"
-      // La acción va en onClick, no en onPointerUp. Los eventos de puntero
-      // solo llegan con dedo o ratón: con el teclado (Enter/Espacio) y con
-      // VoiceOver —que activa mandando un click— este botón no hacía
-      // absolutamente nada, y es el botón principal de la app. Los pointer
-      // se quedan solo con el efecto visual de hundido.
+      // The action lives in onClick, not onPointerUp. Pointer events
+      // only arrive with a finger or mouse: with the keyboard (Enter/Space) and
+      // with VoiceOver —which activates by sending a click— this button did
+      // absolutely nothing, and it's the app's main button. The pointer
+      // handlers are left with just the visual pressed-down effect.
       onClick={onClick}
       onPointerDown={() => setPressed(true)}
       onPointerUp={() => setPressed(false)}
@@ -197,10 +207,10 @@ function QuickActionSheet({
   onSelect: (action: 'hablar' | 'gasto' | 'ingreso' | 'recurrente') => void;
 }) {
   const t = useT();
-  const refDialogo = useDialogo(onClose);
+  const dialogRef = useDialogo(onClose);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label="Acción rápida"
       onClick={onClose}
@@ -229,26 +239,26 @@ function QuickActionSheet({
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
         <ActionRow
           icono={IconMicrophone}
-          label={t('accion.contarle')}
-          sub={t('accion.contarleSub')}
+          label={t('action.tellIt')}
+          sub={t('action.tellItSub')}
           onClick={() => onSelect('hablar')}
         />
         <ActionRow
           icono={IconTrendingDown}
-          label={t('accion.nuevoGasto')}
-          sub={t('accion.nuevoGastoSub')}
+          label={t('action.newExpense')}
+          sub={t('action.newExpenseSub')}
           onClick={() => onSelect('gasto')}
         />
         <ActionRow
           icono={IconCurrencyDollar}
-          label={t('accion.nuevoIngreso')}
-          sub={t('accion.nuevoIngresoSub')}
+          label={t('action.newIncome')}
+          sub={t('action.newIncomeSub')}
           onClick={() => onSelect('ingreso')}
         />
         <ActionRow
           icono={IconRepeat}
-          label={t('accion.nuevoRecurrente')}
-          sub={t('accion.nuevoRecurrenteSub')}
+          label={t('action.newRecurring')}
+          sub={t('action.newRecurringSub')}
           onClick={() => onSelect('recurrente')}
         />
         <button

@@ -1,39 +1,41 @@
 /**
- * Filtros de la lista: tipo y estado.
+ * List filters: type and status.
  *
- * Son PRESENTACION, no dominio: acotan lo que se lista y no tocan el
- * balance del encabezado. Si el filtro cambiara ese numero, elegir "Gastos"
- * mostraria un restante negativo que no existe — el restante de una
- * quincena es el de la quincena, no el de lo que dejaste visible.
+ * They are PRESENTATION, not domain: they narrow what gets listed and
+ * don't touch the header's balance. If the filter changed that number,
+ * choosing "Expenses" would show a remaining amount that doesn't exist —
+ * a period's remaining amount is the period's, not whatever you left
+ * visible.
  */
 import type { Transaction } from '@/domain/types';
 
-export type FiltroTipo = 'todos' | 'expense' | 'income';
-export type FiltroEstado = 'todos' | 'pendientes' | 'pagados';
+export type TypeFilter = 'todos' | 'expense' | 'income';
+export type StatusFilter = 'todos' | 'pendientes' | 'pagados';
 
 /**
- * "Pendientes" incluye los PROGRAMADOS.
+ * "Pendientes" includes SCHEDULED ones.
  *
- * TransactionStatus tiene cuatro valores y el codigo los agrupaba de dos
- * formas distintas segun el archivo: porPagar.ts separa pending de
- * scheduled pero los suma juntos, upcoming.ts los funde, available.ts solo
- * mira si es paid. Un filtro obliga a elegir una, y se elige la que ya
- * usan dos de los tres y la que significa para el usuario: "lo que falta".
+ * TransactionStatus has four values and the code grouped them two
+ * different ways depending on the file: porPagar.ts keeps pending
+ * separate from scheduled but adds them together, upcoming.ts merges
+ * them, available.ts only looks at whether it's paid. A filter forces
+ * picking one, and the one picked is what two of the three already use
+ * and what it means to the user: "what's left".
  *
- * `cancelled` no aparece bajo NINGUN filtro: un movimiento cancelado no es
- * ni pendiente ni pagado.
+ * `cancelled` doesn't appear under ANY filter: a cancelled transaction is
+ * neither pending nor paid.
  */
-export function aplicarFiltros<T extends Transaction>(
+export function applyFilters<T extends Transaction>(
   transacciones: T[],
-  tipo: FiltroTipo,
-  estado: FiltroEstado,
+  type: TypeFilter,
+  status: StatusFilter,
 ): T[] {
-  if (tipo === 'todos' && estado === 'todos') return transacciones;
+  if (type === 'todos' && status === 'todos') return transacciones;
 
   return transacciones.filter((tx) => {
-    if (tipo !== 'todos' && tx.type !== tipo) return false;
-    if (estado === 'pagados') return tx.status === 'paid';
-    if (estado === 'pendientes') return tx.status === 'pending' || tx.status === 'scheduled';
+    if (type !== 'todos' && tx.type !== type) return false;
+    if (status === 'pagados') return tx.status === 'paid';
+    if (status === 'pendientes') return tx.status === 'pending' || tx.status === 'scheduled';
     return true;
   });
 }

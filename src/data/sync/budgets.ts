@@ -1,75 +1,77 @@
 /**
- * Conciliar los presupuestos de los dos lados.
+ * Reconciling budgets from both sides.
  *
- * Tiene reglas propias, distintas del resto de las entidades, por algo que
- * dice el propio esquema: la tabla de Postgres declara
- * `unique (user_id, category_id, year, month)`. O sea que la identidad de
- * un presupuesto NO es su id, sino de qué categoría y de qué mes es.
+ * It has its own rules, different from the rest of the entities, because
+ * of something the schema itself says: the Postgres table declares
+ * `unique (user_id, category_id, year, month)`. That means a budget's
+ * identity is NOT its id, but which category and which month it's for.
  *
- * Eso importa porque los ids se generan en el dispositivo. Dos teléfonos
- * que pongan presupuesto a "Hogar" en septiembre sin haber sincronizado
- * antes generan dos ids distintos para la MISMA fila; subir el segundo por
- * id no crearía otra fila, chocaría contra ese unique y el sync entero
- * fallaría con un error de Postgres.
+ * That matters because ids are generated on the device. Two phones that
+ * set a budget for "Hogar" in September without having synced before
+ * generate two different ids for the SAME row; uploading the second one
+ * by id wouldn't create another row, it would collide with that unique
+ * constraint and the entire sync would fail with a Postgres error.
  *
- * Por eso se empareja por clave natural y gana el más nuevo, pero el id
- * que sobrevive es siempre el de la nube: es el único con el que los dos
- * dispositivos pueden coincidir.
+ * That's why they're paired by natural key and the newest one wins, but
+ * the id that survives is always the cloud's: it's the only one both
+ * devices can agree on.
  *
- * No hay lápidas porque no hay forma de borrar un presupuesto en la app —
- * se edita el monto y ya. Si algún día se puede borrar, hará falta una.
+ * There are no tombstones because there's no way to delete a budget in
+ * the app — you just edit the amount. If deleting is ever added, one
+ * will be needed.
  */
 import type { Budget } from '@/domain/types';
-import { masNuevo } from './masNuevo';
+import { newest } from './newest';
 
-/** La identidad real de un presupuesto, según el unique de Postgres. */
-export function clavePresupuesto(b: Pick<Budget, 'categoryId' | 'year' | 'month'>): string {
+/** A budget's real identity, according to Postgres's unique constraint. */
+export function budgetKey(b: Pick<Budget, 'categoryId' | 'year' | 'month'>): string {
   return `${b.categoryId}|${b.year}|${b.month}`;
 }
 
-export interface PlanPresupuestos {
-  /** Filas a escribir en Dexie. */
-  guardarLocal: Budget[];
-  /** Filas a subir a Supabase. */
+export interface BudgetsPlan {
+  /** Rows to write into Dexie. */
+  saveLocal: Budget[];
+  /** Rows to upload to Supabase. */
   subir: Budget[];
-  /** Ids locales que quedaron huérfanos al adoptar el id de la nube. */
-  borrarLocal: string[];
+  /** Local ids that were orphaned by adopting the cloud's id. */
+  deleteLocal: string[];
 }
 
-export function conciliarPresupuestos(locales: Budget[], remotos: Budget[]): PlanPresupuestos {
-  const porClaveRemota = new Map(remotos.map((b) => [clavePresupuesto(b), b]));
-  const porClaveLocal = new Map(locales.map((b) => [clavePresupuesto(b), b]));
+export function reconcileBudgets(localRows: Budget[], remoteRows: Budget[]): BudgetsPlan {
+  const byRemoteKey = new Map(remoteRows.map((b) => [budgetKey(b), b]));
+  const byLocalKey = new Map(localRows.map((b) => [budgetKey(b), b]));
 
-  const plan: PlanPresupuestos = { guardarLocal: [], subir: [], borrarLocal: [] };
+  const plan: BudgetsPlan = { saveLocal: [], subir: [], deleteLocal: [] };
 
-  for (const [clave, remoto] of porClaveRemota) {
-    const local = porClaveLocal.get(clave);
+  for (const [key, remoteRow] of byRemoteKey) {
+    const local = byLocalKey.get(key);
 
     if (!local) {
-      plan.guardarLocal.push(remoto);
+      plan.saveLocal.push(remoteRow);
       continue;
     }
 
-    if (masNuevo(remoto.updatedAt, local.updatedAt)) {
-      plan.guardarLocal.push(remoto);
-      // El local pierde; si además tenía otro id, su fila sobra.
-      if (local.id !== remoto.id) plan.borrarLocal.push(local.id);
+    if (newest(remoteRow.updatedAt, local.updatedAt)) {
+      plan.saveLocal.push(remoteRow);
+      // The local one loses; if it also had a different id, its row is now extra.
+      if (local.id !== remoteRow.id) plan.deleteLocal.push(local.id);
       continue;
     }
 
-    // Gana el local, pero viaja con el id de la nube: subirlo con el suyo
-    // reventaría contra unique(user_id, category_id, year, month).
-    const ganador: Budget = { ...local, id: remoto.id };
-    plan.subir.push(ganador);
-    if (local.id !== remoto.id) {
-      plan.guardarLocal.push(ganador);
-      plan.borrarLocal.push(local.id);
+    // The local one wins, but it travels with the cloud's id: uploading
+    // it with its own would blow up against
+    // unique(user_id, category_id, year, month).
+    const winner: Budget = { ...local, id: remoteRow.id };
+    plan.subir.push(winner);
+    if (local.id !== remoteRow.id) {
+      plan.saveLocal.push(winner);
+      plan.deleteLocal.push(local.id);
     }
   }
 
-  // Lo que solo existe acá todavía no ha viajado nunca.
-  for (const [clave, local] of porClaveLocal) {
-    if (!porClaveRemota.has(clave)) plan.subir.push(local);
+  // What only exists here has never traveled yet.
+  for (const [key, local] of byLocalKey) {
+    if (!byRemoteKey.has(key)) plan.subir.push(local);
   }
 
   return plan;

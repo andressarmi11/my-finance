@@ -3,15 +3,16 @@ import { test, expect } from './fixtures';
 const FRASE = 'mercado 45 mil';
 
 /**
- * El enlace del Atajo tiene que aprender igual que el resto de la app.
+ * The Shortcut's link has to learn just like the rest of the app.
  *
- * Había tres caminos que interpretaban texto libre —la entrada rápida, la
- * bandeja y este enlace— y el enlace usaba SOLO la tabla de palabras clave.
- * Le corregías la categoría a la app, la aprendía, y al entrar por el Atajo
- * volvía a proponer la de siempre. Desde afuera parecía que no aprendía.
+ * There were three paths interpreting free text —quick entry, the inbox and
+ * this link— and the link used ONLY the keyword table. You corrected the
+ * category in the app, it learned, and coming in through the Shortcut it
+ * proposed the same old one again. From the outside it looked like it never
+ * learned.
  */
-test('el enlace del atajo respeta la categoría que le corregiste', async ({ page }) => {
-  // 1. La tabla de palabras clave manda "mercado" a Alimentación.
+test('the Shortcut link respects the category you corrected', async ({ page }) => {
+  // 1. The keyword table sends "mercado" to Alimentación.
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
@@ -19,24 +20,24 @@ test('el enlace del atajo respeta la categoría que le corregiste', async ({ pag
   await sheet.getByLabel('Qué pasó').fill(FRASE);
   await expect(sheet.getByText('Lo puse en Alimentación.')).toBeVisible();
 
-  // 2. El usuario la corrige a Hogar y guarda: ahí aprende.
+  // 2. The user corrects it to Hogar and saves: that's where it learns.
   await sheet.getByRole('button', { name: /Hogar/ }).click();
   await sheet.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(sheet.getByText(/Anotado/)).toBeVisible();
 
-  // Esperar la PRUEBA de que el aprendizaje quedó escrito, no un rato.
-  // "Anotado" confirma la transacción; el índice de conceptos se escribe
-  // aparte, y navegar antes de que termine dejaba el test a merced del
-  // reloj: fallaba solo cuando la suite corría en paralelo.
+  // Wait for PROOF that the learning was written, not for a while.
+  // "Anotado" confirms the transaction; the concept index is written
+  // separately, and navigating before it finished left the test at the
+  // mercy of the clock: it only failed when the suite ran in parallel.
   await sheet.getByLabel('Qué pasó').fill(FRASE);
   await expect(sheet.getByText('Lo puse en Hogar, como la última vez.')).toBeVisible();
 
-  // 3. La misma frase entrando por el enlace del Atajo.
+  // 3. The same phrase coming in through the Shortcut's link.
   await page.goto(`movimientos?texto=${encodeURIComponent(FRASE)}`);
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await expect(dialog).toBeVisible();
 
-  // Debe llegar con Hogar, no con lo que dice la tabla de palabras clave.
+  // It has to arrive with Hogar, not with what the keyword table says.
   await expect(dialog.getByRole('button', { name: /Hogar/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(dialog.getByRole('button', { name: /Alimentación/ })).toHaveAttribute('aria-pressed', 'false');
 });

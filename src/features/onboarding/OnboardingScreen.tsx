@@ -5,74 +5,74 @@ import { CURRENCIES, currencySample } from '@/domain/money/currencies';
 import { DEFAULT_CATEGORIES } from '@/domain/seed/defaultCategories';
 import { setMoneyLocale, formatMoney } from '@/domain/money/format';
 import { haptic } from '@/lib/haptic';
-import { pedirSync } from '@/data/sync/useCloudSync';
+import { requestSync } from '@/data/sync/useCloudSync';
 import type { Settings } from '@/domain/types';
 import { categoryColor } from '@/domain/seed/categoryColor';
 
-const PASOS = ['nombre', 'moneda', 'quincenas', 'categorias'] as const;
-type Paso = typeof PASOS[number];
+const STEPS = ['nombre', 'moneda', 'quincenas', 'categorias'] as const;
+type Step = typeof STEPS[number];
 
 /**
- * Configuracion inicial: cuatro preguntas, una por pantalla.
+ * Initial setup: four questions, one per screen.
  *
- * Solo pregunta lo que cambia como se ve la app desde el primer segundo
- * (nombre, moneda, dias de quincena, categorias). Todo lo demas tiene un
- * default razonable y se cambia despues en Ajustes — un cuestionario
- * largo antes de poder usar nada es la forma mas rapida de que alguien
- * cierre la app.
+ * It only asks what changes how the app looks from the first second
+ * (name, currency, pay-period days, categories). Everything else has a
+ * reasonable default and gets changed later in Settings — a long
+ * questionnaire before being able to use anything is the fastest way to
+ * make someone close the app.
  */
 export function OnboardingScreen({ settings }: { settings: Settings }) {
-  const [paso, setPaso] = useState(0);
-  const [nombre, setNombre] = useState(settings.displayName);
+  const [step, setPaso] = useState(0);
+  const [name, setNombre] = useState(settings.displayName);
   const [moneda, setMoneda] = useState(settings.currency);
-  // El LARGO de esta lista es el modo: uno = te pagan una vez al mes, dos =
-  // quincenal. No hay un campo aparte que pueda contradecirla.
-  const [dias, setDias] = useState<number[]>(settings.diasDePago);
-  const [elegidas, setElegidas] = useState<Set<string>>(() => new Set(DEFAULT_CATEGORIES.map((c) => c.id)));
-  const [guardando, setGuardando] = useState(false);
+  // The LENGTH of this list is the mode: one = you get paid once a month, two =
+  // biweekly. There's no separate field that could contradict it.
+  const [payDays, setDias] = useState<number[]>(settings.payDays);
+  const [chosen, setElegidas] = useState<Set<string>>(() => new Set(DEFAULT_CATEGORIES.map((c) => c.id)));
+  const [saving, setGuardando] = useState(false);
 
-  const actual: Paso = PASOS[paso] ?? 'nombre';
-  const monedaElegida = CURRENCIES.find((c) => c.code === moneda) ?? CURRENCIES[0]!;
+  const currentStep: Step = STEPS[step] ?? 'nombre';
+  const chosenCurrency = CURRENCIES.find((c) => c.code === moneda) ?? CURRENCIES[0]!;
 
-  const puedeSeguir =
-    actual === 'nombre' ? nombre.trim().length > 0
-    : actual === 'categorias' ? elegidas.size > 0
+  const canContinue =
+    currentStep === 'nombre' ? name.trim().length > 0
+    : currentStep === 'categorias' ? chosen.size > 0
     : true;
 
-  async function terminar() {
+  async function finish() {
     setGuardando(true);
     try {
       await localRepository.saveSettings({
         ...settings,
-        displayName: nombre.trim(),
-        currency: monedaElegida.code,
-        locale: monedaElegida.locale,
-        diasDePago: dias,
+        displayName: name.trim(),
+        currency: chosenCurrency.code,
+        locale: chosenCurrency.locale,
+        payDays: payDays,
         onboardedAt: new Date().toISOString(),
       });
-      // Las categorías ya están sembradas: se quitan las que no eligió.
-      // Por deleteCategory y no db.categories.delete, para que el borrado
-      // deje lápida y viaje a los otros dispositivos.
-      const todas = await db.categories.toArray();
-      for (const c of todas) {
-        if (!elegidas.has(c.id)) await localRepository.deleteCategory(c.id);
+      // Categories are already seeded: the ones not chosen get removed.
+      // Via deleteCategory and not db.categories.delete, so the deletion
+      // leaves a tombstone and travels to the other devices.
+      const all = await db.categories.toArray();
+      for (const c of all) {
+        if (!chosen.has(c.id)) await localRepository.deleteCategory(c.id);
       }
-      setMoneyLocale(monedaElegida.locale, monedaElegida.code);
+      setMoneyLocale(chosenCurrency.locale, chosenCurrency.code);
       haptic('medium');
-      // Subir YA. El sync automático ya hizo su push al entrar, o sea antes
-      // de que existiera esta configuración; si esperamos al próximo, con
-      // cerrar la pestaña alcanza para que nunca llegue a la nube y el
-      // siguiente dispositivo vuelva a preguntar todo.
-      pedirSync();
+      // Push NOW. Automatic sync already did its push on entry, i.e. before
+      // this settings object existed; if we wait for the next one, just
+      // closing the tab is enough for it to never reach the cloud and the
+      // next device to ask everything again.
+      requestSync();
     } finally {
       setGuardando(false);
     }
   }
 
-  function siguiente() {
+  function next() {
     haptic('light');
-    if (paso < PASOS.length - 1) setPaso(paso + 1);
-    else void terminar();
+    if (step < STEPS.length - 1) setPaso(step + 1);
+    else void finish();
   }
 
   return (
@@ -80,12 +80,12 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
       <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 28 }} aria-hidden>
-          {PASOS.map((p, i) => (
+          {STEPS.map((p, i) => (
             <span
               key={p}
               style={{
                 flex: 1, height: 4, borderRadius: 2,
-                background: i <= paso ? 'var(--q10)' : 'var(--line)',
+                background: i <= step ? 'var(--q10)' : 'var(--line)',
                 transition: 'background var(--dur-med) var(--ease-spring-out)',
               }}
             />
@@ -93,30 +93,30 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
         </div>
 
         <div style={{ flex: 1 }}>
-          {actual === 'nombre' && (
-            <Pregunta titulo="¿Cómo quieres que te llamemos?" ayuda="Aparece en el saludo del inicio. Nada más.">
+          {currentStep === 'nombre' && (
+            <Question title="¿Cómo quieres que te llamemos?" help="Aparece en el saludo del inicio. Nada más.">
               <input
-                autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)}
+                autoFocus value={name} onChange={(e) => setNombre(e.target.value)}
                 placeholder="Tu nombre" aria-label="Tu nombre" maxLength={40}
-                onKeyDown={(e) => { if (e.key === 'Enter' && puedeSeguir) siguiente(); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && canContinue) next(); }}
                 style={{
                   width: '100%', minHeight: 52, padding: '0 16px', borderRadius: 'var(--radius-m)',
                   border: '1px solid var(--line-strong)', background: 'var(--surface)',
                   color: 'var(--text)', fontSize: 18,
                 }}
               />
-            </Pregunta>
+            </Question>
           )}
 
-          {actual === 'moneda' && (
-            <Pregunta titulo="¿En qué moneda manejas tu plata?" ayuda="Cambia cómo se escribe cada cifra en toda la app.">
+          {currentStep === 'moneda' && (
+            <Question title="¿En qué moneda manejas tu plata?" help="Cambia cómo se escribe cada cifra en toda la app.">
               <div style={{ display: 'grid', gap: 8 }}>
                 {CURRENCIES.map((c) => (
                   <button
                     key={c.code} type="button"
                     onClick={() => { haptic('light'); setMoneda(c.code); }}
                     aria-pressed={moneda === c.code}
-                    style={opcionStyle(moneda === c.code)}
+                    style={optionStyle(moneda === c.code)}
                   >
                     <span style={{ flex: 1, textAlign: 'left' }}>
                       <span style={{ display: 'block', fontWeight: 600 }}>{c.label}</span>
@@ -126,62 +126,62 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
                   </button>
                 ))}
               </div>
-            </Pregunta>
+            </Question>
           )}
 
-          {actual === 'quincenas' && (
-            <Pregunta
-              titulo="¿Cada cuánto te entra la plata?"
-              ayuda="La app agrupa tus gastos entre un pago y el siguiente. Se puede cambiar después en Ajustes."
+          {currentStep === 'quincenas' && (
+            <Question
+              title="¿Cada cuánto te entra la plata?"
+              help="La app agrupa tus gastos entre un pago y el siguiente. Se puede cambiar después en Ajustes."
             >
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                <OpcionPago
-                  titulo="Dos veces al mes"
+                <PayOption
+                  title="Dos veces al mes"
                   detalle="Quincenal"
-                  activa={dias.length > 1}
+                  isActive={payDays.length > 1}
                   onClick={() => setDias((d) => (d.length > 1 ? d : [10, 25]))}
                 />
-                <OpcionPago
-                  titulo="Una vez al mes"
+                <PayOption
+                  title="Una vez al mes"
                   detalle="Mensual"
-                  activa={dias.length === 1}
-                  // Arranca en el día 1, el mes del calendario. Conservar el
-                  // primer día quincenal (el 10 por defecto) le movería el mes
-                  // sin que lo haya pedido: "una vez al mes" casi siempre
-                  // quiere decir "el mes normal". Si le pagan otro día, lo
-                  // cambia justo debajo.
+                  isActive={payDays.length === 1}
+                  // Starts on day 1, the calendar month. Keeping the
+                  // first pay-period day (10 by default) would shift the month
+                  // without the user having asked for it: "once a month" almost
+                  // always means "the normal month". If they get paid on another day, they
+                  // change it right below.
                   onClick={() => setDias((d) => (d.length === 1 ? d : [1]))}
                 />
               </div>
 
-              {dias.length > 1 ? (
+              {payDays.length > 1 ? (
                 <>
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <DiaInput label="Primer pago" valor={dias[0] ?? 10} onChange={(v) => setDias([v, dias[1] ?? 25])} />
-                    <DiaInput label="Segundo pago" valor={dias[1] ?? 25} onChange={(v) => setDias([dias[0] ?? 10, v])} />
+                    <DayInput label="Primer pago" value={payDays[0] ?? 10} onChange={(v) => setDias([v, payDays[1] ?? 25])} />
+                    <DayInput label="Segundo pago" value={payDays[1] ?? 25} onChange={(v) => setDias([payDays[0] ?? 10, v])} />
                   </div>
                   <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                    Quedaría: quincena del {Math.min(...dias)} y quincena del {Math.max(...dias)}.
+                    Quedaría: quincena del {Math.min(...payDays)} y quincena del {Math.max(...payDays)}.
                   </p>
                 </>
               ) : (
                 <>
-                  <DiaInput label="Día de pago" valor={dias[0] ?? 1} onChange={(v) => setDias([v])} />
+                  <DayInput label="Día de pago" value={payDays[0] ?? 1} onChange={(v) => setDias([v])} />
                   <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                    {dias[0] === 1
+                    {payDays[0] === 1
                       ? 'Tu mes va del 1 al último día, como el calendario.'
-                      : `Tu mes va del ${dias[0]} de un mes al ${(dias[0] ?? 1) - 1} del siguiente.`}
+                      : `Tu mes va del ${payDays[0]} de un mes al ${(payDays[0] ?? 1) - 1} del siguiente.`}
                   </p>
                 </>
               )}
-            </Pregunta>
+            </Question>
           )}
 
-          {actual === 'categorias' && (
-            <Pregunta titulo="¿Cuáles categorías usas?" ayuda="Quita las que no. Puedes agregar más después en Ajustes.">
+          {currentStep === 'categorias' && (
+            <Question title="¿Cuáles categorías usas?" help="Quita las que no. Puedes agregar más después en Ajustes.">
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {DEFAULT_CATEGORIES.map((c) => {
-                  const activa = elegidas.has(c.id);
+                  const isActive = chosen.has(c.id);
                   return (
                     <button
                       key={c.id} type="button"
@@ -193,13 +193,13 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
                           return next;
                         });
                       }}
-                      aria-pressed={activa}
+                      aria-pressed={isActive}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 6,
                         minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 999,
-                        border: `1.5px solid ${activa ? categoryColor(c) : 'var(--line)'}`,
-                        background: activa ? `color-mix(in srgb, ${categoryColor(c)} 16%, var(--surface))` : 'var(--surface)',
-                        color: activa ? categoryColor(c) : 'var(--text-faint)',
+                        border: `1.5px solid ${isActive ? categoryColor(c) : 'var(--line)'}`,
+                        background: isActive ? `color-mix(in srgb, ${categoryColor(c)} 16%, var(--surface))` : 'var(--surface)',
+                        color: isActive ? categoryColor(c) : 'var(--text-faint)',
                         fontSize: 'var(--text-base)', fontWeight: 600, cursor: 'pointer',
                       }}
                     >
@@ -209,20 +209,20 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
                 })}
               </div>
               <p style={{ marginTop: 14, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                {elegidas.size} seleccionadas · ejemplo: {formatMoney(125_000, monedaElegida.code)}
+                {chosen.size} selectedIds · ejemplo: {formatMoney(125_000, chosenCurrency.code)}
               </p>
-            </Pregunta>
+            </Question>
           )}
         </div>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
-          {paso > 0 && (
-            <button type="button" onClick={() => setPaso(paso - 1)} style={{ ...botonStyle, flex: 'none', width: 100, background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--line-strong)' }}>
+          {step > 0 && (
+            <button type="button" onClick={() => setPaso(step - 1)} style={{ ...buttonStyle, flex: 'none', width: 100, background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--line-strong)' }}>
               Atrás
             </button>
           )}
-          <button type="button" onClick={siguiente} disabled={!puedeSeguir || guardando} style={{ ...botonStyle, opacity: puedeSeguir ? 1 : 0.5 }}>
-            {guardando ? 'Guardando…' : paso === PASOS.length - 1 ? 'Empezar' : 'Siguiente'}
+          <button type="button" onClick={next} disabled={!canContinue || saving} style={{ ...buttonStyle, opacity: canContinue ? 1 : 0.5 }}>
+            {saving ? 'Guardando…' : step === STEPS.length - 1 ? 'Empezar' : 'Siguiente'}
           </button>
         </div>
       </div>
@@ -230,38 +230,38 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
   );
 }
 
-function Pregunta({ titulo, ayuda, children }: { titulo: string; ayuda: string; children: React.ReactNode }) {
+function Question({ title, help, children }: { title: string; help: string; children: React.ReactNode }) {
   return (
     <div>
-      <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.022em' }}>{titulo}</h1>
-      <p style={{ margin: '0 0 22px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>{ayuda}</p>
+      <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.022em' }}>{title}</h1>
+      <p style={{ margin: '0 0 22px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>{help}</p>
       {children}
     </div>
   );
 }
 
 /**
- * "Una vez al mes" o "dos veces al mes". Se pregunta asi, por como cobra la
- * persona, y no con las palabras "mensual" y "quincenal" sueltas: nadie
- * elige un modo de agrupacion, elige como le pagan.
+ * "Once a month" or "twice a month". It's asked this way, based on how the
+ * person gets paid, and not with the bare words "monthly" and "biweekly": nobody
+ * picks a grouping mode, they pick how they get paid.
  */
-function OpcionPago({ titulo, detalle, activa, onClick }: {
-  titulo: string; detalle: string; activa: boolean; onClick: () => void;
+function PayOption({ title, detalle, isActive, onClick }: {
+  title: string; detalle: string; isActive: boolean; onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={() => { haptic('light'); onClick(); }}
-      aria-pressed={activa}
+      aria-pressed={isActive}
       style={{
         flex: 1, minHeight: 'var(--tap)', padding: '12px 14px',
         borderRadius: 'var(--radius-s)',
-        border: `2px solid ${activa ? 'var(--q10)' : 'var(--line)'}`,
-        background: activa ? 'var(--q10-soft)' : 'var(--surface)',
+        border: `2px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
+        background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
         color: 'var(--text)', cursor: 'pointer', textAlign: 'left',
       }}
     >
-      <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-sm)' }}>{titulo}</span>
+      <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-sm)' }}>{title}</span>
       <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
         {detalle}
       </span>
@@ -269,14 +269,14 @@ function OpcionPago({ titulo, detalle, activa, onClick }: {
   );
 }
 
-function DiaInput({ label, valor, onChange }: { label: string; valor: number; onChange: (v: number) => void }) {
+function DayInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
     <label style={{ flex: 1 }}>
       <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 6, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
         {label}
       </span>
       <input
-        type="number" min={1} max={31} value={valor}
+        type="number" min={1} max={31} value={value}
         onChange={(e) => {
           const n = Number(e.target.value);
           if (Number.isFinite(n)) onChange(Math.min(31, Math.max(1, Math.trunc(n))));
@@ -292,18 +292,18 @@ function DiaInput({ label, valor, onChange }: { label: string; valor: number; on
   );
 }
 
-function opcionStyle(activa: boolean): React.CSSProperties {
+function optionStyle(isActive: boolean): React.CSSProperties {
   return {
     display: 'flex', alignItems: 'center', gap: 12, width: '100%',
     minHeight: 56, padding: '0 16px', borderRadius: 'var(--radius-m)',
-    border: `1.5px solid ${activa ? 'var(--q10)' : 'var(--line)'}`,
-    background: activa ? 'var(--q10-soft)' : 'var(--surface)',
+    border: `1.5px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
+    background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
     color: 'var(--text)', cursor: 'pointer', fontSize: 'var(--text-base)',
     transition: 'all var(--dur-fast) var(--ease-spring-out)',
   };
 }
 
-const botonStyle: React.CSSProperties = {
+const buttonStyle: React.CSSProperties = {
   flex: 1, minHeight: 52, borderRadius: 'var(--radius-m)', border: 'none',
   background: 'var(--q10)', color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer',
 };

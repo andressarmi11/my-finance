@@ -1,7 +1,7 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { IconCheck } from '@tabler/icons-react';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
-import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
+import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
 import { formatMoney } from '@/domain/money/format';
 import { formatShortDate } from '@/lib/formatShortDate';
@@ -12,42 +12,42 @@ function shortDate(iso: string): string {
 }
 
 /**
- * Fila de movimiento. El monto va en la MISMA linea que el concepto y el
- * estado debajo, a la derecha: antes el monto y el estado ocupaban una
- * columna propia y le robaban ancho al texto, asi que casi todos los
- * conceptos y subtitulos salian truncados ("Zapatos (…)", "Débi…").
+ * Transaction row. The amount goes on the SAME line as the concept, and
+ * the status below it, on the right: the amount and status used to have
+ * their own column and stole width from the text, so almost every
+ * concept and subtitle came out truncated ("Zapatos (…)", "Débi…").
  */
 export function TransactionRow({
-  tx, category, paymentMethod, onTogglePaid, onOpen, seleccionado, onSeleccionar,
+  tx, category, paymentMethod, onTogglePaid, onOpen, selected, onSeleccionar,
 }: {
   tx: Transaction;
   category: Category | undefined;
   paymentMethod: PaymentMethod | undefined;
   onTogglePaid: () => void;
   onOpen: () => void;
-  /** Con valor, la fila esta en modo seleccion: el circulo elige en vez de
-   *  marcar pagado, y tocar la fila tambien elige en vez de abrir el form. */
-  seleccionado?: boolean;
+  /** With a value, the row is in selection mode: the circle selects
+   *  instead of marking paid, and tapping the row also selects instead of opening the form. */
+  selected?: boolean;
   onSeleccionar?: () => void;
 }) {
   const t = useT();
-  const enSeleccion = onSeleccionar !== undefined;
+  const inSelection = onSeleccionar !== undefined;
   const isIncome = tx.type === 'income';
   const isPaid = tx.status === 'paid';
   const isCredit = paymentMethod?.type === 'credit';
 
-  // En seleccion el circulo es azul (elegir); fuera de seleccion, verde
-  // (ya esta pagado). Dos significados, dos colores.
-  const marcado = enSeleccion ? Boolean(seleccionado) : isPaid;
-  const colorMarca = enSeleccion ? 'var(--q10)' : 'var(--positive)';
+  // In selection mode the circle is blue (select); outside of it, green
+  // (already paid). Two meanings, two colors.
+  const marked = inSelection ? Boolean(selected) : isPaid;
+  const brandColor = inSelection ? 'var(--q10)' : 'var(--positive)';
 
   const meta = [category?.name, shortDate(tx.date), paymentMethod?.name].filter(Boolean).join(' · ');
 
   const statusLabel =
-    isPaid ? (isIncome ? t('estado.recibido') : t('estado.pagado'))
-    : tx.status === 'scheduled' ? t('estado.programado')
+    isPaid ? (isIncome ? t('status.received') : t('status.paid'))
+    : tx.status === 'scheduled' ? t('status.scheduled')
     : tx.status === 'cancelled' ? 'Cancelado'
-    : t('estado.pendiente');
+    : t('status.pending');
 
   const statusColor =
     isPaid ? 'var(--positive)'
@@ -59,23 +59,23 @@ export function TransactionRow({
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
       <button
         type="button"
-        onClick={enSeleccion ? onSeleccionar : onTogglePaid}
-        aria-pressed={enSeleccion ? Boolean(seleccionado) : isPaid}
-        aria-label={enSeleccion
-          ? (seleccionado ? `Quitar ${tx.concept} de la selección` : `Seleccionar ${tx.concept}`)
+        onClick={inSelection ? onSeleccionar : onTogglePaid}
+        aria-pressed={inSelection ? Boolean(selected) : isPaid}
+        aria-label={inSelection
+          ? (selected ? `Quitar ${tx.concept} de la selección` : `Seleccionar ${tx.concept}`)
           : isPaid
             ? `Marcar ${tx.concept} como ${isIncome ? 'no recibido' : 'pendiente'}`
-            // El concepto va dentro del rotulo a proposito: con veinte
-            // filas, veinte botones llamados "Marcar como pagado" no le
-            // dicen nada a quien navega con lector de pantalla.
+            // The concept is put inside the label on purpose: with twenty
+            // rows, twenty buttons named "Mark as paid" tell a screen
+            // reader user nothing.
             : `Marcar ${tx.concept} como ${isIncome ? 'recibido' : 'pagado'}`}
         style={{
           width: 26, height: 26, minWidth: 26, borderRadius: 13, flex: 'none',
-          // En seleccion el circulo es azul (elegir), fuera de seleccion es
-          // verde (ya esta pagado). Dos significados, dos colores.
-          border: `1.5px solid ${marcado ? colorMarca : 'var(--line-strong)'}`,
-          background: marcado ? colorMarca : 'transparent',
-          color: marcado ? '#fff' : 'transparent',
+          // In selection mode the circle is blue (select), outside of it it's
+          // green (already paid). Two meanings, two colors.
+          border: `1.5px solid ${marked ? brandColor : 'var(--line-strong)'}`,
+          background: marked ? brandColor : 'transparent',
+          color: marked ? '#fff' : 'transparent',
           display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14,
           transition: 'all var(--dur-fast) var(--ease-spring-out)',
         }}
@@ -85,7 +85,7 @@ export function TransactionRow({
 
       <button
         type="button"
-        onClick={enSeleccion ? onSeleccionar : onOpen}
+        onClick={inSelection ? onSeleccionar : onOpen}
         style={{
           flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
           padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
@@ -93,7 +93,7 @@ export function TransactionRow({
       >
         <CategoryAvatar
           icon={category?.icon ?? (isIncome ? 'salary' : 'other')}
-          color={category ? categoryColor(category) : COLOR_SIN_CATEGORIA}
+          color={category ? categoryColor(category) : UNCATEGORIZED_COLOR}
           size={36}
         />
 
@@ -133,9 +133,9 @@ export function TransactionRow({
           {isCredit && tx.cyclePaymentDate && (
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--q25-text)', marginTop: 1 }}>
               se paga el {shortDate(tx.cyclePaymentDate)}
-              {/* El numero vive en su campo, no dentro del concepto: meter
-                  "Nevera 3/12" en el texto envenenaria el conceptIndex que
-                  alimenta el autocompletado del formulario. */}
+              {/* The number lives in its own field, not inside the concept:
+                  putting "Nevera 3/12" in the text would poison the
+                  conceptIndex that feeds the form's autocomplete. */}
               {tx.installmentCount && tx.installmentCount > 1
                 ? ` · cuota ${tx.installmentNumber} de ${tx.installmentCount}`
                 : ''}

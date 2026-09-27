@@ -1,34 +1,33 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useState } from 'react';
 import {
   IconArrowDown, IconArrowUp, IconEye, IconEyeOff, IconLayoutGrid, IconX,
 } from '@tabler/icons-react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import {
-  alternarOculto, guardarDisposicion, mover, ORDEN_POR_DEFECTO,
-  type Disposicion, type GraficoId,
-} from './disposicion';
+  toggleHidden, saveChartLayout, move, DEFAULT_ORDER,
+  type ChartLayout, type ChartId,
+} from './chartLayout';
 
 /**
- * Elegir que graficos se ven y en que orden.
+ * Choosing which charts are shown and in what order.
  *
- * Flechas y no arrastrar: un drag-and-drop en una lista corta dentro de
- * una hoja modal en movil es fragil —compite con el scroll de la hoja y
- * con el gesto de cerrarla— y ademas no es alcanzable con teclado ni con
- * lector de pantalla. Dos botones por fila hacen lo mismo, funcionan en
- * cualquier entrada y no hay nada que se pueda soltar en el lugar
- * equivocado.
+ * Arrows rather than dragging: drag-and-drop in a short list inside a modal
+ * sheet on mobile is fragile —it competes with the sheet's scroll and with
+ * the gesture that closes it— and it's also unreachable by keyboard and by
+ * screen reader. Two buttons per row do the same job, work with any input,
+ * and there's nothing that can be dropped in the wrong place.
  */
-export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
-  disposicion: Disposicion;
-  titulos: Record<GraficoId, string>;
-  onCambiar: (d: Disposicion) => void;
+export function ChartManager({ layout, titles, onChange }: {
+  layout: ChartLayout;
+  titles: Record<ChartId, string>;
+  onChange: (d: ChartLayout) => void;
 }) {
   const t = useT();
   const [abierto, setAbierto] = useState(false);
-  const refDialogo = useDialogo(() => setAbierto(false), abierto);
+  const dialogRef = useDialogo(() => setAbierto(false), abierto);
 
-  const ocultosCount = disposicion.ocultos.length;
+  const hiddenCount = layout.hiddenIds.length;
 
   if (!abierto) {
     return (
@@ -44,9 +43,9 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
         }}
       >
         <IconLayoutGrid size={17} stroke={1.75} aria-hidden />
-        {t('analisis.organizar')}
-        {ocultosCount > 0 && (
-          <span style={{ color: 'var(--text-faint)' }}>· {ocultosCount} {ocultosCount === 1 ? t('analisis.oculto') : t('analisis.ocultos')}</span>
+        {t('analytics.organize')}
+        {hiddenCount > 0 && (
+          <span style={{ color: 'var(--text-faint)' }}>· {hiddenCount} {hiddenCount === 1 ? t('analytics.hidden') : t('analytics.hiddenPl')}</span>
         )}
       </button>
     );
@@ -54,9 +53,9 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
 
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
-      aria-label={t('analisis.organizar')}
+      aria-label={t('analytics.organize')}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
         display: 'flex', alignItems: 'flex-end', zIndex: 60,
@@ -77,7 +76,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
           <button
             type="button"
             onClick={() => setAbierto(false)}
-            aria-label={t('accion.cerrar')}
+            aria-label={t('action.close')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
               placeItems: 'center', background: 'var(--surface-sunken)',
@@ -86,43 +85,43 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
           >
             <IconX size={17} stroke={2.2} aria-hidden />
           </button>
-          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{t('analisis.organizar')}</span>
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{t('analytics.organize')}</span>
         </div>
 
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {disposicion.orden.map((id, i) => {
-            const oculto = disposicion.ocultos.includes(id);
+          {layout.order.map((id, i) => {
+            const hidden = layout.hiddenIds.includes(id);
             return (
               <li
                 key={id}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0',
-                  borderBottom: '1px solid var(--line)', opacity: oculto ? 0.55 : 1,
+                  borderBottom: '1px solid var(--line)', opacity: hidden ? 0.55 : 1,
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 'var(--text-base)' }}>
-                  {titulos[id]}
+                  {titles[id]}
                 </span>
 
                 <IconBtn
-                  label={`${t('analisis.subir')} ${titulos[id]}`}
+                  label={`${t('analytics.moveUp')} ${titles[id]}`}
                   disabled={i === 0}
-                  onClick={() => onCambiar({ ...disposicion, orden: mover(disposicion.orden, id, -1) })}
+                  onClick={() => onChange({ ...layout, order: move(layout.order, id, -1) })}
                 >
                   <IconArrowUp size={17} stroke={2} />
                 </IconBtn>
                 <IconBtn
-                  label={`${t('analisis.bajar')} ${titulos[id]}`}
-                  disabled={i === disposicion.orden.length - 1}
-                  onClick={() => onCambiar({ ...disposicion, orden: mover(disposicion.orden, id, 1) })}
+                  label={`${t('analytics.moveDown')} ${titles[id]}`}
+                  disabled={i === layout.order.length - 1}
+                  onClick={() => onChange({ ...layout, order: move(layout.order, id, 1) })}
                 >
                   <IconArrowDown size={17} stroke={2} />
                 </IconBtn>
                 <IconBtn
-                  label={`${oculto ? t('analisis.mostrar') : t('analisis.ocultar')} ${titulos[id]}`}
-                  onClick={() => onCambiar({ ...disposicion, ocultos: alternarOculto(disposicion.ocultos, id) })}
+                  label={`${hidden ? t('analytics.show') : t('analytics.hide')} ${titles[id]}`}
+                  onClick={() => onChange({ ...layout, hiddenIds: toggleHidden(layout.hiddenIds, id) })}
                 >
-                  {oculto
+                  {hidden
                     ? <IconEyeOff size={17} stroke={1.9} color="var(--text-faint)" />
                     : <IconEye size={17} stroke={1.9} />}
                 </IconBtn>
@@ -134,9 +133,9 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
         <button
           type="button"
           onClick={() => {
-            const base = { orden: ORDEN_POR_DEFECTO, ocultos: [] };
-            guardarDisposicion(base);
-            onCambiar(base);
+            const base = { order: DEFAULT_ORDER, hiddenIds: [] };
+            saveChartLayout(base);
+            onChange(base);
           }}
           style={{
             width: '100%', minHeight: 'var(--tap)', marginTop: 14,
@@ -145,7 +144,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
             fontWeight: 600, cursor: 'pointer',
           }}
         >
-          {t('analisis.ordenOriginal')}
+          {t('analytics.originalOrder')}
         </button>
       </div>
     </div>

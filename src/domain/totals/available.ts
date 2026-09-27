@@ -1,54 +1,54 @@
 /**
- * Flujo del mes: los cuatro numeros que el usuario realmente necesita.
+ * The month's flow: the four numbers the user actually needs.
  *
- * Antes existia "Disponible ahora" = pagados - comprometidos, que sobre un
- * mes suelto daba casi siempre negativo (los gastos se registran, el sueldo
- * del mes todavia no llego / no se marco recibido) y no significaba nada.
- * Se reemplaza por el desglose explicito: lo que ya entro, lo que falta
- * entrar, lo que ya salio, lo que falta salir. Ninguno de los cuatro puede
- * ser negativo, y el neto se muestra etiquetado, no como "disponible".
+ * There used to be an "Available now" = paid - committed, which over a
+ * single month came out negative almost always (expenses get recorded, the
+ * month's salary hasn't arrived yet / wasn't marked received) and meant
+ * nothing. It's replaced by the explicit breakdown: what came in, what's
+ * still to come in, what went out, what's still to go out. None of the four
+ * can be negative, and the net is shown labelled, not as "available".
  */
 import type { Transaction } from '../types';
 
 export interface MonthFlow {
-  /** Ingresos ya recibidos (status 'paid'). */
-  recibido: number;
-  /** Ingresos que aun esperas recibir (pendientes + programados). */
-  porRecibir: number;
-  /** Gastos ya pagados. */
-  pagado: number;
-  /** Gastos que aun esperas pagar (pendientes + programados). */
-  porPagar: number;
-  /** Lo que realmente se movio ya: recibido - pagado. Puede ser negativo. */
-  enCaja: number;
-  /** Como queda el mes si todo se cumple: (recibido+porRecibir) - (pagado+porPagar). */
-  proyectado: number;
+  /** Income already received (status 'paid'). */
+  received: number;
+  /** Income you're still waiting on (pending + scheduled). */
+  toReceive: number;
+  /** Expenses already paid. */
+  paid: number;
+  /** Expenses you still expect to pay (pending + scheduled). */
+  toPay: number;
+  /** What has actually moved already: received - paid. Can be negative. */
+  netSoFar: number;
+  /** How the month ends if everything happens: (received+toReceive) - (paid+toPay). */
+  projected: number;
 }
 
 export function calculateMonthFlow(transactions: Transaction[]): MonthFlow {
-  let recibido = 0;
-  let porRecibir = 0;
-  let pagado = 0;
-  let porPagar = 0;
+  let received = 0;
+  let toReceive = 0;
+  let paid = 0;
+  let toPay = 0;
 
   for (const tx of transactions) {
     if (tx.status === 'cancelled') continue;
-    const paid = tx.status === 'paid';
+    const isPaid = tx.status === 'paid';
     if (tx.type === 'income') {
-      if (paid) recibido += tx.amount;
-      else porRecibir += tx.amount;
+      if (isPaid) received += tx.amount;
+      else toReceive += tx.amount;
     } else {
-      if (paid) pagado += tx.amount;
-      else porPagar += tx.amount;
+      if (isPaid) paid += tx.amount;
+      else toPay += tx.amount;
     }
   }
 
   return {
-    recibido,
-    porRecibir,
-    pagado,
-    porPagar,
-    enCaja: recibido - pagado,
-    proyectado: recibido + porRecibir - (pagado + porPagar),
+    received,
+    toReceive,
+    paid,
+    toPay,
+    netSoFar: received - paid,
+    projected: received + toReceive - (paid + toPay),
   };
 }

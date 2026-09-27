@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -15,7 +15,7 @@ import { BudgetBar } from './BudgetBar';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { categoryColor } from '@/domain/seed/categoryColor';
 import { daysInMonth } from '@/domain/dates';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 export function BudgetsScreen() {
   const t = useT();
@@ -23,15 +23,16 @@ export function BudgetsScreen() {
   const today = todayISO();
   const [year, month] = today.split('-').map(Number) as [number, number];
 
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const budgets = useLiveQuery(() => localRepository.listBudgets(year, month), [year, month]) ?? VACIO;
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const budgets = useLiveQuery(() => localRepository.listBudgets(year, month), [year, month]) ?? EMPTY;
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const [editing, setEditing] = useState<Category | null>(null);
 
-  // Que tan avanzado va el mes: la marca de ritmo de la barra. Gastar el
-  // 60% es bueno el dia 25 y malo el dia 5, y sin esto la barra no lo dice.
-  const diaDeHoy = Number(today.split('-')[2]);
-  const progresoDelMes = diaDeHoy / daysInMonth(year, month);
+  // How far into the month we are: the bar's pace marker. Spending 60% is
+  // good on the 25th and bad on the 5th, and without this the bar doesn't
+  // say so.
+  const todayDay = Number(today.split('-')[2]);
+  const monthProgress = todayDay / daysInMonth(year, month);
 
   const monthPrefix = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
   const monthTransactions = useMemo(
@@ -56,16 +57,16 @@ export function BudgetsScreen() {
       year,
       month,
       amount,
-      // La fecha real la estampa localRepository.saveBudget.
+      // The real timestamp is stamped by localRepository.saveBudget.
       updatedAt: existing?.updatedAt ?? '',
     });
     setEditing(null);
   }
 
   return (
-    <Screen title={t('presupuestos.titulo')} subtitle={t('presupuestos.subtitulo')}>
+    <Screen title={t('budgets.title')} subtitle={t('budgets.subtitle')}>
       <button type="button" onClick={() => navigate(-1)} style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-        ← {t('nav.volverAjustes')}
+        ← {t('nav.backToSettings')}
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -82,7 +83,7 @@ export function BudgetsScreen() {
                 <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
                 <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-                  {spent > 0 ? `${formatMoney(spent)} gastado` : t('presupuestos.definir')}
+                  {spent > 0 ? `${formatMoney(spent)} gastado` : t('budgets.define')}
                 </span>
               </button>
             );
@@ -102,10 +103,10 @@ export function BudgetsScreen() {
                 </span>
               </div>
               <BudgetBar
-                gastado={spent}
-                presupuestado={budget.amount}
-                estado={status.state}
-                progresoDelMes={progresoDelMes}
+                spent={spent}
+                budgeted={budget.amount}
+                status={status.state}
+                monthProgress={monthProgress}
               />
             </button>
           );

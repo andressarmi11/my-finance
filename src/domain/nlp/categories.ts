@@ -1,73 +1,75 @@
 /**
- * Adivinanza de categoria por palabras clave.
+ * Category guess by keyword.
  *
- * Es el PISO, no el techo: solo se usa cuando el indice de conceptos
- * (domain/inference) todavia no aprendio nada de ese concepto. Apenas el
- * usuario guarda una vez "almuerzo" con otra categoria, el indice manda y
- * esta tabla deja de opinar. Por eso puede ser tosca sin hacer daño.
+ * This is the FLOOR, not the ceiling: it's only used while the concept
+ * index (domain/inference) hasn't learned anything about that concept
+ * yet. As soon as the user saves "almuerzo" once with a different
+ * category, the index takes over and this table stops having an
+ * opinion. That's why it can afford to be crude.
  *
- * Los ids son los de defaultCategories.ts. Si el usuario borro esa
- * categoria en la configuracion inicial, el caller lo detecta y no la usa.
+ * The ids are the ones from defaultCategories.ts. If the user deleted
+ * that category during onboarding, the caller detects it and doesn't
+ * use it.
  */
-import { normalizarTexto } from './numbers';
+import { normalizeText } from './numbers';
 
-const PALABRAS: Array<{ categoryId: string; claves: string[] }> = [
-  { categoryId: 'cat-alimentacion', claves: [
+const WORDS: Array<{ categoryId: string; keywords: string[] }> = [
+  { categoryId: 'cat-alimentacion', keywords: [
     'almuerzo', 'comida', 'mercado', 'restaurante', 'cafe', 'desayuno', 'cena',
     'domicilio', 'rappi', 'exito', 'd1', 'ara', 'olimpica', 'carulla', 'jumbo',
     'panaderia', 'supermercado', 'pizza', 'hamburguesa', 'almorzar', 'tienda',
   ] },
-  { categoryId: 'cat-transporte', claves: [
+  { categoryId: 'cat-transporte', keywords: [
     'uber', 'taxi', 'gasolina', 'bus', 'transmilenio', 'parqueadero', 'peaje',
     'didi', 'cabify', 'pasaje', 'metro', 'combustible', 'lavada', 'monteria',
   ] },
-  { categoryId: 'cat-suscripciones', claves: [
+  { categoryId: 'cat-suscripciones', keywords: [
     'netflix', 'spotify', 'disney', 'hbo', 'max', 'youtube', 'icloud', 'prime',
     'suscripcion', 'plan celular', 'chatgpt',
   ] },
-  { categoryId: 'cat-entretenimiento', claves: [
+  { categoryId: 'cat-entretenimiento', keywords: [
     'cine', 'bar', 'concierto', 'teatro', 'fiesta', 'salida', 'cerveza',
     'discoteca', 'juego', 'videojuego',
   ] },
-  { categoryId: 'cat-hogar', claves: [
+  { categoryId: 'cat-hogar', keywords: [
     'arriendo', 'administracion', 'internet', 'wifi', 'aseo', 'muebles',
     'ferreteria', 'homecenter', 'hogar',
   ] },
-  { categoryId: 'cat-servicios', claves: [
+  { categoryId: 'cat-servicios', keywords: [
     'luz', 'agua', 'gas', 'energia', 'celular', 'factura', 'recibo', 'epm',
     'acueducto', 'telefono', 'claro', 'movistar', 'tigo',
   ] },
-  { categoryId: 'cat-salud', claves: [
+  { categoryId: 'cat-salud', keywords: [
     'drogueria', 'farmacia', 'medico', 'eps', 'medicina', 'odontologo',
     'cruz verde', 'locatel', 'gimnasio', 'gym', 'consulta',
   ] },
-  { categoryId: 'cat-compras', claves: [
+  { categoryId: 'cat-compras', keywords: [
     'ropa', 'zapatos', 'amazon', 'mercadolibre', 'falabella', 'zara', 'regalo',
     'tecnologia', 'celular nuevo', 'compra',
   ] },
-  { categoryId: 'cat-educacion', claves: [
+  { categoryId: 'cat-educacion', keywords: [
     'curso', 'universidad', 'matricula', 'libro', 'semestre', 'colegio', 'clase',
   ] },
-  { categoryId: 'cat-deudas', claves: ['cuota', 'prestamo', 'credito', 'deuda'] },
-  { categoryId: 'cat-ahorro', claves: ['ahorro', 'ahorre', 'cdt', 'inversion'] },
+  { categoryId: 'cat-deudas', keywords: ['cuota', 'prestamo', 'credito', 'deuda'] },
+  { categoryId: 'cat-ahorro', keywords: ['ahorro', 'ahorre', 'cdt', 'inversion'] },
 ];
 
 /**
- * Categoria sugerida para un texto, o null si ninguna palabra pega.
- * Gana la coincidencia mas larga: "plan celular" antes que "celular".
+ * Suggested category for a text, or null if no word matches.
+ * The longest match wins: "plan celular" before "celular".
  */
-export function adivinarCategoria(texto: string): string | null {
-  const t = normalizarTexto(texto);
-  let mejor: { categoryId: string; largo: number } | null = null;
+export function guessCategory(text: string): string | null {
+  const t = normalizeText(text);
+  let best: { categoryId: string; length: number } | null = null;
 
-  for (const { categoryId, claves } of PALABRAS) {
-    for (const clave of claves) {
-      // Límite de palabra para que "max" no pegue dentro de "maxima".
-      const re = new RegExp(`(^|\\s)${clave.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`);
-      if (re.test(t) && (!mejor || clave.length > mejor.largo)) {
-        mejor = { categoryId, largo: clave.length };
+  for (const { categoryId, keywords } of WORDS) {
+    for (const key of keywords) {
+      // Word boundary so "max" doesn't match inside "maxima".
+      const re = new RegExp(`(^|\\s)${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`);
+      if (re.test(t) && (!best || key.length > best.length)) {
+        best = { categoryId, length: key.length };
       }
     }
   }
-  return mejor?.categoryId ?? null;
+  return best?.categoryId ?? null;
 }

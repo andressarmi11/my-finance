@@ -1,7 +1,8 @@
 /**
- * Lapidas en la nube. Va aparte de supabaseRepository a proposito: es una
- * operacion que solo tiene sentido sincronizando, y meterla en la interfaz
- * Repository obligaria a LocalRepository a implementar algo que no usa.
+ * Tombstones in the cloud. Kept separate from supabaseRepository on
+ * purpose: it's an operation that only makes sense while syncing, and
+ * putting it in the Repository interface would force LocalRepository to
+ * implement something it doesn't use.
  */
 import { getSupabase } from './client';
 import type { DeletableEntity, Tombstone } from '../sync/tombstones';
@@ -40,26 +41,26 @@ export async function saveRemoteTombstones(tombstones: Tombstone[]): Promise<voi
   if (error) throw error;
 }
 
-/** Borra de verdad las filas que tienen lapida. */
+/** Actually deletes the rows that have a tombstone. */
 export async function applyRemoteDeletions(tombstones: Tombstone[]): Promise<void> {
   if (tombstones.length === 0) return;
   const supabase = await getSupabase();
-  const tablaDe: Record<DeletableEntity, string> = {
+  const tableFor: Record<DeletableEntity, string> = {
     transactions: 'transactions',
     categories: 'categories',
     paymentMethods: 'payment_methods',
     recurringRules: 'recurring_rules',
   };
 
-  const porEntidad = new Map<DeletableEntity, string[]>();
+  const byEntity = new Map<DeletableEntity, string[]>();
   for (const t of tombstones) {
-    const lista = porEntidad.get(t.entity) ?? [];
-    lista.push(t.entityId);
-    porEntidad.set(t.entity, lista);
+    const list = byEntity.get(t.entity) ?? [];
+    list.push(t.entityId);
+    byEntity.set(t.entity, list);
   }
 
-  for (const [entidad, ids] of porEntidad) {
-    const { error } = await supabase.from(tablaDe[entidad]).delete().in('id', ids);
+  for (const [entity, ids] of byEntity) {
+    const { error } = await supabase.from(tableFor[entity]).delete().in('id', ids);
     if (error) throw error;
   }
 }

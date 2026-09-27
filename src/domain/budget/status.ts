@@ -1,7 +1,7 @@
 /**
- * Presupuesto: solo informa, nunca bloquea (requisito explicito).
- * 'warning' arranca en 80% para que el usuario alcance a reaccionar
- * antes de pasarse.
+ * Budget: only informs, never blocks (explicit requirement).
+ * 'warning' kicks in at 80% so the user still has time to react
+ * before going over.
  */
 export type BudgetState = 'ok' | 'warning' | 'exceeded';
 
@@ -9,7 +9,7 @@ export interface BudgetStatus {
   spent: number;
   budget: number;
   remaining: number;
-  /** 0 a 1+ (puede pasar de 1 si se excede). */
+  /** 0 to 1+ (can go past 1 if exceeded). */
   percentage: number;
   state: BudgetState;
 }

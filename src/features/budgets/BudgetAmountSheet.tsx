@@ -13,10 +13,10 @@ export function BudgetAmountSheet({ category, currentAmount, onSave, onCancel }:
   const amount = parseMoney(text);
   const canSave = amount !== null && amount >= 0;
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog" aria-label={`Presupuesto de ${category.name}`}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
       onClick={onCancel}

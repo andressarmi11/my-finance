@@ -1,133 +1,136 @@
 # Changelog
 
-## [0.2.0] — Fase 2: Lógica financiera + tests
+## [0.2.0] — Phase 2: financial logic + tests
 
-### Agregado
-- `domain/dates.ts`: kernel de fechas puro sobre epoch UTC (nunca `Date` local).
-  Todo el resto del dominio pasa por aquí para sumar/restar meses y días sin
-  bugs de zona horaria.
-- `calculateCreditCardCycle(purchaseDate, cutoffDay, paymentDay)`: corte y
-  pago de TC, genérico (no hardcodeado a 2026 ni a día 15/2). 15 tests,
-  incluyendo los 10 casos exactos del enunciado, cambio de año y clamps.
-- `calculateQuincena(date, startDays)`: quincena del 10 y del 25 (no mitades
-  del mes), con la Q2 cruzando el cambio de mes. 12 tests, incluyendo el
-  caso "Arriendo" (pagado el 1 de octubre, cae en la quincena del 25 de
-  septiembre).
-- `calculateQuincenaBalance` / `calculateMonthBalance`: restante por
-  quincena y sobrante del mes. **Verificado con los números reales de tu
-  Excel**: restante Q1 = $1.215.000, restante Q2 = $1.167.006, sobrante =
-  $2.382.006.
-- `calculateAvailableBalance`: disponible / comprometido / libre real.
-- `expandRecurringRule`: separa regla de instancia para gastos recurrentes
-  (mensual, semanal, quincenal, anual), con `periodKey` idempotente.
-- `calculateBudgetStatus`: informa (ok / warning / exceeded), nunca bloquea.
+### Added
+- `domain/dates.ts`: a pure date kernel over the UTC epoch (never a local
+  `Date`). Everything else in the domain goes through here to add/subtract
+  months and days without time-zone bugs.
+- `calculateCreditCardCycle(purchaseDate, cutoffDay, paymentDay)`: credit-card
+  cutoff and payment, generic (not hard-wired to 2026 or to day 15/2). 15
+  tests, including the 10 exact cases from the brief, the year boundary and
+  the clamps.
+- `calculateQuincena(date, startDays)`: the 10th and 25th pay periods (not
+  halves of the month), with Q2 crossing the month boundary. 12 tests,
+  including the "Rent" case (paid on October 1st, falls in September's 25th
+  pay period).
+- `calculateQuincenaBalance` / `calculateMonthBalance`: remainder per pay
+  period and the month's leftover. **Checked against the real numbers from
+  your spreadsheet**: Q1 remainder = $1,215,000, Q2 remainder = $1,167,006,
+  leftover = $2,382,006.
+- `calculateAvailableBalance`: available / committed / really free.
+- `expandRecurringRule`: separates rule from instance for recurring expenses
+  (monthly, weekly, biweekly, yearly), with an idempotent `periodKey`.
+- `calculateBudgetStatus`: informs (ok / warning / exceeded), never blocks.
 
-### Verificado en este entorno
-- `npm test` → 64/64 tests pasando.
-- `npm run typecheck` → sin errores.
-- `npm run lint` → sin errores.
-- `npm run build` → build de producción exitoso.
+### Verified in this environment
+- `npm test` → 64/64 tests passing.
+- `npm run typecheck` → no errors.
+- `npm run lint` → no errors.
+- `npm run build` → production build successful.
 
-### Corregido
-- Un bug en el TEST de `calculateCreditCardCycle` (no en la lógica): la
-  expectativa asumía que el pago cae en el mismo mes del corte; en realidad
-  cae el mes siguiente. Detectado al correr la suite de verdad.
-- Un error de tipos en `parseISO` bajo `noUncheckedIndexedAccess`.
+### Fixed
+- A bug in the TEST for `calculateCreditCardCycle` (not in the logic): the
+  expectation assumed the payment lands in the same month as the cutoff; it
+  actually lands the following month. Caught by running the suite for real.
+- A type error in `parseISO` under `noUncheckedIndexedAccess`.
 
-## [0.3.0] — Fases 3 a 12: MVP completo, local-first
+## [0.3.0] — Phases 3 to 12: complete local-first MVP
 
-### Fase 3 — Movimientos
-- CRUD completo de transacciones sobre IndexedDB (crear/editar/eliminar/duplicar).
-- Formulario rápido de 4 campos (concepto, valor, categoría, método de pago;
-  fecha=hoy por defecto), con preview de "se paga el X" al elegir tarjeta de
-  crédito, antes de guardar.
-- Lista agrupada por quincena (`groupByQuincena`), con toggle de
-  pagado/pendiente de un toque.
-- Datos de ejemplo cargables desde el estado vacío (montos ficticios,
-  nunca los reales del usuario).
+### Phase 3 — Transactions
+- Full CRUD over IndexedDB (create/edit/delete/duplicate).
+- A quick 4-field form (concept, amount, category, payment method;
+  date=today by default), with a "paid on X" preview when a credit card is
+  chosen, before saving.
+- List grouped by pay period (`groupByQuincena`), with a one-tap
+  paid/pending toggle.
+- Sample data loadable from the empty state (made-up amounts, never the
+  user's real ones).
 
-### Fase 4 — Dashboard
-- Libre real / Disponible / Comprometido, las dos quincenas, sobrante del
-  mes, chips de pendientes/programados/TC, y próximos pagos — todo desde
-  `domain/`, sin cálculos en los componentes.
+### Phase 4 — Dashboard
+- Really free / Available / Committed, both pay periods, the month's
+  leftover, chips for pending/scheduled/card, and upcoming payments — all
+  from `domain/`, with no calculations in the components.
 
-### Fase 5 — Categorías
-- CRUD con ícono y color, gasto por categoría del mes visible en la lista.
+### Phase 5 — Categories
+- CRUD with icon and colour, and the visible month's spend per category in
+  the list.
 
-### Fase 6 — Ingresos
-- Cubierto por el toggle Gasto/Ingreso del formulario de la Fase 3; los
-  recurrentes se resuelven en la Fase 7.
+### Phase 6 — Income
+- Covered by the Expense/Income toggle on the Phase 3 form; recurring income
+  is handled in Phase 7.
 
-### Fase 7 — Recurrentes
-- CRUD de reglas (gastos fijos e ingresos recurrentes) separadas de sus
-  instancias. `materializeRecurringRules` genera las instancias futuras al
-  abrir la app y al guardar una regla, sin duplicar nunca (protegido por el
-  índice único de la Fase 1).
+### Phase 7 — Recurring
+- CRUD for rules (fixed expenses and recurring income) kept separate from
+  their instances. `materializeRecurringRules` generates the future
+  instances when the app opens and when a rule is saved, never duplicating
+  (protected by the unique index from Phase 1).
 
-### Fase 8 — Tarjeta de crédito híbrida
-- Cada compra individual, con su propio día de pago, y el total agregado
-  por ciclo (`groupByCycle`) — el equivalente calculado de "Pago compras TC".
+### Phase 8 — Hybrid credit card
+- Each individual purchase, with its own payment day, and the total
+  aggregated per cycle (`groupByCycle`) — the computed equivalent of "card
+  purchase payment".
 
-### Fase 9 — Calendario
-- Grilla mensual con indicadores de ingreso/gasto/pago de TC por día,
-  detalle del día seleccionado.
+### Phase 9 — Calendar
+- Monthly grid with per-day income/expense/card-payment indicators, and the
+  selected day's detail.
 
-### Fase 10 — Presupuestos
-- Por categoría y mes. Solo informa (ok/warning/exceeded), nunca bloquea.
+### Phase 10 — Budgets
+- Per category and month. It only informs (ok/warning/exceeded), never
+  blocks.
 
-### Fase 11 — Análisis
-- Ingresos vs. gastos (mes/trimestre/año), gasto por categoría, fijos vs.
-  variables, débito vs. TC. Recharts separado en su propio chunk
-  (`React.lazy`) para no inflar la carga inicial.
+### Phase 11 — Analytics
+- Income vs. expenses (month/quarter/year), spend per category, fixed vs.
+  variable, debit vs. card. Recharts split into its own chunk
+  (`React.lazy`) so it doesn't inflate the initial load.
 
-### Fase 12 — PWA + iPhone + datos
-- Manifest, service worker (`vite-plugin-pwa`), íconos generados (192,
-  512, maskable, apple-touch-icon), meta tags de iOS.
-- Banner que detecta Safari/iOS sin instalar y explica cómo agregarla a
-  inicio (necesario para que las notificaciones de la Fase 14 puedan
-  funcionar).
-- Exportar JSON completo y CSV de movimientos. Importar backup con
-  validación Zod + pantalla de confirmación antes de reemplazar datos.
-- Ajustes completamente editable: moneda, formato, quincenas, corte/pago
-  de TC, días de recordatorio.
+### Phase 12 — PWA + iPhone + data
+- Manifest, service worker (`vite-plugin-pwa`), generated icons (192, 512,
+  maskable, apple-touch-icon), iOS meta tags.
+- A banner that detects Safari/iOS without the app installed and explains
+  how to add it to the home screen (needed for the Phase 14 notifications to
+  work at all).
+- Export the full JSON and a CSV of transactions. Import a backup with Zod
+  validation and a confirmation screen before replacing data.
+- Fully editable Settings: currency, format, pay periods, card
+  cutoff/payment, reminder days.
 
-### Verificado en este entorno
-- 91/91 tests, typecheck limpio, lint limpio, build de producción exitoso
-  (con code-splitting: bundle inicial ~150kB gzip, Análisis aparte).
+### Verified in this environment
+- 91/91 tests, clean typecheck, clean lint, production build successful
+  (with code-splitting: initial bundle ~150kB gzip, Analytics separate).
 
-## [0.4.0] — Fases 15 a 17: E2E, deployment y documentación final
+## [0.4.0] — Phases 15 to 17: E2E, deployment and final documentation
 
-### Fase 15 — Testing E2E
-- 8 flujos con Playwright (crear/editar/eliminar gasto, gasto con TC +
-  ver su fecha de pago, gasto recurrente, ingreso, dashboard), corriendo
-  en Chromium y en emulación de iPhone Safari — 16 tests en total.
-- `tsconfig.e2e.json` propio: `playwright test --list` no hace typecheck
-  real: sin este archivo, `e2e/` nunca pasaba por TypeScript en modo
-  estricto.
-- Cableado a CI (`.github/workflows/ci.yml`): instala Chromium y corre
-  los E2E contra un build de producción real en cada push.
-- **Limitación honesta de este entorno de desarrollo:** no pude ejecutar
-  estos tests yo mismo — el binario de Chromium se descarga desde
-  `cdn.playwright.dev`, fuera de la lista blanca de red del sandbox.
-  Quedaron verificados por typecheck real y por `--list`, y correrán de
-  verdad en GitHub Actions.
+### Phase 15 — E2E testing
+- 8 flows with Playwright (create/edit/delete an expense, a card expense +
+  seeing its payment date, a recurring expense, income, the dashboard),
+  running on Chromium and on iPhone Safari emulation — 16 tests in total.
+- Its own `tsconfig.e2e.json`: `playwright test --list` doesn't really
+  typecheck, and without this file `e2e/` never went through TypeScript in
+  strict mode.
+- Wired into CI (`.github/workflows/ci.yml`): it installs Chromium and runs
+  the E2E suite against a real production build on every push.
+- **An honest limitation of this development environment:** I couldn't run
+  these tests myself — the Chromium binary downloads from
+  `cdn.playwright.dev`, outside the sandbox's network allowlist. They were
+  verified by a real typecheck and by `--list`, and will run for real on
+  GitHub Actions.
 
-### Fase 16 — Deployment
-- `DEPLOYMENT.md`: guía completa de cero — clonar, subir a GitHub,
-  activar Pages, configurar Supabase (opcional), instalar en iPhone,
-  actualizar, solución de problemas comunes.
+### Phase 16 — Deployment
+- `DEPLOYMENT.md`: a complete guide from zero — clone, push to GitHub,
+  enable Pages, configure Supabase (optional), install on an iPhone, update,
+  and troubleshoot the common problems.
 
-### Fase 17 — Documentación final
-- `docs/USER_MANUAL.md`, `docs/FINANCIAL_LOGIC.md`,
-  `docs/NOTIFICATIONS.md`, `docs/TESTING.md`, `CONTRIBUTING.md` — todos
-  nuevos. `docs/ARCHITECTURE.md` y `README.md` reescritos con el estado
-  final del proyecto.
-- Comando de generación de llaves VAPID (`npx web-push
-  generate-vapid-keys`) verificado corriendo de verdad en este entorno,
-  no solo documentado de memoria.
+### Phase 17 — Final documentation
+- `docs/USER_MANUAL.md`, `docs/FINANCIAL_LOGIC.md`, `docs/NOTIFICATIONS.md`,
+  `docs/TESTING.md`, `CONTRIBUTING.md` — all new. `docs/ARCHITECTURE.md` and
+  `README.md` rewritten with the project's final state.
+- The VAPID key generation command (`npx web-push generate-vapid-keys`)
+  verified by actually running it in this environment, not just documented
+  from memory.
 
-### Verificado en este entorno (estado final)
-- 104/104 tests unitarios, typecheck limpio (`src/` y `e2e/` por
-  separado), lint limpio, build de producción exitoso.
-- Bundle inicial para un usuario 100% local: ~59kB gzip (Recharts y
-  Supabase-js code-split, cargados solo si se usan).
+### Verified in this environment (final state)
+- 104/104 unit tests, clean typecheck (`src/` and `e2e/` separately), clean
+  lint, production build successful.
+- Initial bundle for a fully local user: ~59kB gzip (Recharts and
+  Supabase-js code-split, loaded only if used).

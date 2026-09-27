@@ -5,60 +5,60 @@ import { OnboardingScreen } from './OnboardingScreen';
 import { Logo } from '@/components/ui/Logo';
 
 /**
- * Muestra la configuracion inicial la primera vez y nunca mas.
+ * Shows the initial setup the first time, and never again.
  *
- * `esperando` lo pone AppShell mientras baja los datos de la cuenta: sin
- * eso, un dispositivo nuevo preguntaria nombre y moneda otra vez durante
- * el segundo que tarda el primer sync.
+ * `esperando` is set by AppShell while it pulls the account data down: without
+ * it, a new device would ask for name and currency again during
+ * the second the first sync takes.
  */
 export function OnboardingGate({ esperando, children }: { esperando: boolean; children: ReactNode }) {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
 
   /**
-   * Se conserva la ultima configuracion conocida.
+   * The last known settings are kept around.
    *
-   * useLiveQuery devuelve undefined mientras vuelve a consultar, y eso pasa
-   * ante CUALQUIER escritura en Dexie — por ejemplo la materializacion de
-   * recurrentes que corre al arrancar. Sin esto, ese instante renderizaba
-   * <Cargando/>, desmontaba OnboardingScreen y con ella su estado local:
-   * estabas en el paso 3 y volvias al 1, con el nombre ya escrito.
+   * useLiveQuery returns undefined while it re-queries, and that happens
+   * on ANY write to Dexie — for example the recurring-rule materialization
+   * that runs on startup. Without this, that instant would render
+   * <Cargando/>, unmounting OnboardingScreen and with it its local state:
+   * you'd be on step 3 and go back to step 1, with the name already typed.
    *
-   * Solo cubre el hueco entre consultas; la primera vez `settings` si es
-   * undefined de verdad y la pantalla de carga aparece como debe.
+   * It only covers the gap between queries; the first time `settings` really
+   * is undefined and the loading screen shows up as it should.
    */
-  // Ajuste de estado DURANTE el render, no en un useEffect: el efecto
-  // corre despues de pintar, asi que llegaba un render tarde y el hueco
-  // —justo el que hay que tapar— seguia desmontando la pantalla. React
-  // soporta llamar al setter del propio componente en render: reintenta
-  // antes de confirmar nada.
-  const [ultimaConocida, setUltimaConocida] = useState(settings);
-  if (settings && settings !== ultimaConocida) setUltimaConocida(settings);
-  const vigente = settings ?? ultimaConocida;
+  // State adjustment DURING render, not in a useEffect: the effect
+  // runs after painting, so it would arrive a render late and the gap
+  // —exactly the one that needs covering— would still unmount the screen. React
+  // supports calling a component's own setter during render: it retries
+  // before committing anything.
+  const [lastKnown, setUltimaConocida] = useState(settings);
+  if (settings && settings !== lastKnown) setUltimaConocida(settings);
+  const currentPlan = settings ?? lastKnown;
 
   /**
-   * Una vez que la configuracion inicial esta EN PANTALLA, ya no se quita.
+   * Once the initial setup is ON SCREEN, it never gets removed.
    *
-   * `esperando` se vuelve true cada vez que arranca un ciclo de sync, no
-   * solo el primero. Sin este cerrojo, un sync disparado a mitad del
-   * proceso —al volver a la pestaña, por ejemplo— mostraba <Cargando/>,
-   * desmontaba OnboardingScreen y con ella el paso en que ibas: volvias al
-   * primero con el nombre ya escrito.
+   * `esperando` turns true every time a sync cycle starts, not
+   * just the first one. Without this lock, a sync triggered mid
+   * process —coming back to the tab, for example— would show <Cargando/>,
+   * unmount OnboardingScreen and with it the step you were on: you'd be back at
+   * the first one with the name already typed.
    *
-   * Lo que `esperando` si protege se conserva: en un dispositivo nuevo,
-   * ANTES de mostrar nada, se espera a que baje la cuenta para no volver a
-   * preguntar nombre y moneda.
+   * What `esperando` does protect is preserved: on a new device,
+   * BEFORE showing anything, it waits for the account to come down so it doesn't
+   * ask for name and currency again.
    */
-  const faltaConfigurar = !!vigente && vigente.onboardedAt === null;
+  const needsSetup = !!currentPlan && currentPlan.onboardedAt === null;
   const [yaSeMostro, setYaSeMostro] = useState(false);
-  if (faltaConfigurar && !yaSeMostro) setYaSeMostro(true);
+  if (needsSetup && !yaSeMostro) setYaSeMostro(true);
 
-  if (!vigente) return <Cargando />;
-  if (esperando && !yaSeMostro) return <Cargando />;
-  if (faltaConfigurar) return <OnboardingScreen settings={vigente} />;
+  if (!currentPlan) return <Loading />;
+  if (esperando && !yaSeMostro) return <Loading />;
+  if (needsSetup) return <OnboardingScreen settings={currentPlan} />;
   return <>{children}</>;
 }
 
-function Cargando() {
+function Loading() {
   return (
     <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)' }}>
       <div style={{ textAlign: 'center' }}>

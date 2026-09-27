@@ -1,14 +1,14 @@
 import { test, expect } from './fixtures';
 
 /**
- * Un gasto fijo que borras tiene que quedarse borrado.
+ * A fixed expense you delete has to stay deleted.
  *
- * Materializar leía solo las transacciones VIVAS para saber qué ocurrencias
- * ya existían. La que borrabas dejaba de estar entre las vivas, así que en
- * el siguiente arranque —o al navegar de mes— volvía a nacer. Desde fuera
- * se veía como si la app ignorara el borrado.
+ * Materializing read only the LIVE transactions to know which occurrences
+ * already existed. The one you deleted stopped being among the live ones,
+ * so on the next start-up —or when navigating between months— it was reborn.
+ * From the outside it looked as if the app ignored the deletion.
  */
-test('un movimiento recurrente borrado no vuelve al recargar', async ({ page }) => {
+test('a deleted recurring transaction does not come back on reload', async ({ page }) => {
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
 
@@ -23,7 +23,7 @@ test('un movimiento recurrente borrado no vuelve al recargar', async ({ page }) 
   await page.goto('movimientos');
   await expect(page.getByText('Gimnasio Zombi').first()).toBeVisible();
 
-  // Borrarlo desde la selección múltiple.
+  // Delete it from multi-select.
   await page.getByRole('button', { name: 'Seleccionar' }).click();
   await page.getByRole('button', { name: /^Seleccionar Gimnasio Zombi$/ }).click();
   await page.getByRole('button', { name: 'Eliminar' }).click();
@@ -31,12 +31,12 @@ test('un movimiento recurrente borrado no vuelve al recargar', async ({ page }) 
   await confirmar.getByRole('button', { name: 'Sí, eliminar' }).click();
   await expect(page.getByText('Gimnasio Zombi')).toBeHidden();
 
-  // Recargar corre materializeRecurringRules() otra vez: acá resucitaba.
+  // Reloading runs materializeRecurringRules() again: this is where it came back.
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
   await expect(page.getByText('Gimnasio Zombi')).toBeHidden();
 
-  // Y tampoco revive al salir y volver al mes (ensureMonthMaterialized).
+  // And it doesn't come back when leaving and re-entering the month either (ensureMonthMaterialized).
   await page.getByRole('button', { name: /mes siguiente|siguiente/i }).first().click();
   await page.getByRole('button', { name: /mes anterior|anterior/i }).first().click();
   await expect(page.getByText('Gimnasio Zombi')).toBeHidden();

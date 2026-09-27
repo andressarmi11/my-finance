@@ -1,18 +1,18 @@
-import { useT } from '@/i18n/idioma';
-import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
+import { useT } from '@/i18n/language';
+import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
-import { MonthNav, monthName } from '@/components/ui/MonthNav';
+import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
 import { buildCalendarGrid, shiftMonthISO } from './calendarGrid';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 const WEEKDAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
@@ -23,8 +23,8 @@ export function CalendarScreen() {
   const [view, setView] = useState({ year, month });
   const [selected, setSelected] = useState(today);
 
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const markersByDate = useMemo(() => {
@@ -44,25 +44,27 @@ export function CalendarScreen() {
   }, [transactions]);
 
   const cells = useMemo(() => buildCalendarGrid(view.year, view.month), [view]);
-  const enMesActual = view.year === year && view.month === month;
+  const inCurrentMonth = view.year === year && view.month === month;
 
   const dayTransactions = transactions.filter((t) => t.date === selected);
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
 
   return (
-    <Screen title={t('calendario.titulo')} subtitle={t('calendario.subtitulo')}>
-      {/* MonthNav y no una copia local: esta pantalla tenia su propia
-          navegacion inline, y por eso se quedo sin el boton Hoy cuando el
-          componente compartido lo gano. */}
+    <Screen title={t('calendar.title')} subtitle={t('calendar.subtitle')}>
+      {/* MonthNav and not a local copy: this screen used to have its own
+          inline navigation, and that's why it was left without the Today button when the
+          shared component gained one. */}
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
         <MonthNav
           label={`${monthName(view.month)} ${view.year}`}
+          widthSample={widestMonthLabel()}
+          todayIsAhead={view.year * 12 + view.month < year * 12 + month}
           onPrev={() => setView((v) => shiftMonthISO(v.year, v.month, -1))}
           onNext={() => setView((v) => shiftMonthISO(v.year, v.month, 1))}
-          onToday={enMesActual ? undefined : () => {
+          onToday={inCurrentMonth ? undefined : () => {
             setView({ year, month });
-            // Tambien se elige hoy: volver al mes y quedar parado en un dia
-            // cualquiera del mes pasado seria volver a medias.
+            // Today also gets selected: going back to the month and staying
+            // parked on some day from the past month would be a half-hearted return.
             setSelected(today);
           }}
         />
@@ -117,7 +119,7 @@ export function CalendarScreen() {
               <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
                 <CategoryAvatar
                   icon={cat?.icon ?? 'other'}
-                  color={cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA}
+                  color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
                   size={32}
                 />
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>

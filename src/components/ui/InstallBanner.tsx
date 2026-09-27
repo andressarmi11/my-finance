@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { IconDeviceMobileShare } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { isIOS, isStandalone } from '@/lib/platform';
@@ -6,32 +6,33 @@ import { isIOS, isStandalone } from '@/lib/platform';
 const DISMISS_KEY = 'myfinance:install-banner-dismissed';
 
 /**
- * iOS no dispara "beforeinstallprompt" ni permite programar notificaciones
- * si la pagina esta abierta en una pestaña normal de Safari — hay que
- * estar instalado en la pantalla de inicio. Este banner explica como,
- * en vez de mostrar un boton de "activar notificaciones" que no haria nada.
+ * iOS doesn't fire "beforeinstallprompt" nor does it allow scheduling
+ * notifications if the page is open in a regular Safari tab — it has to
+ * be installed on the home screen. This banner explains how,
+ * instead of showing an "enable notifications" button that would do nothing.
  *
- * Y avisa lo que nadie espera: en iOS la app instalada tiene su PROPIO
- * almacenamiento, separado del de Safari. Lo cargado en la pestaña no
- * aparece en la app instalada. Lo unico que cruza es la cuenta: al entrar
- * con el mismo correo, useCloudSync baja todo. Sin ese aviso la gente
- * instala, ve la app vacia y cree que perdio sus datos.
+ * And it warns about what nobody expects: on iOS the installed app has its
+ * OWN storage, separate from Safari's. What was loaded in the tab doesn't
+ * show up in the installed app. The only thing that carries over is the
+ * account: signing in with the same email, useCloudSync pulls everything
+ * down. Without this notice people install, see the app empty and think
+ * they lost their data.
  */
 export function InstallBanner() {
   const t = useT();
-  const [visible, setVisible] = useState(false);
+  const [visibleRows, setVisible] = useState(false);
 
   useEffect(() => {
     if (!isIOS() || isStandalone()) return;
     try {
       if (localStorage.getItem(DISMISS_KEY) === '1') return;
     } catch {
-      // Si localStorage no esta disponible, igual mostramos el banner.
+      // If localStorage isn't available, we still show the banner.
     }
     setVisible(true);
   }, []);
 
-  if (!visible) return null;
+  if (!visibleRows) return null;
 
   function dismiss() {
     setVisible(false);
@@ -42,7 +43,7 @@ export function InstallBanner() {
     <div
       role="note"
       style={{
-        // Compacto: ocupaba un tercio de la pantalla en iPhone.
+        // Compact: it used to take up a third of the screen on iPhone.
         margin: '0 var(--gap-l) var(--gap-m)', padding: '8px 12px', borderRadius: 'var(--radius-s)',
         maxWidth: 560, marginInline: 'auto',
         background: 'var(--q10-soft)', border: '1px solid var(--q10)', display: 'flex', gap: 8, alignItems: 'center',
@@ -50,11 +51,11 @@ export function InstallBanner() {
     >
       <IconDeviceMobileShare size={18} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
       <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text)', flex: 1, lineHeight: 1.35 }}>
-        {t('instalar.como')} <strong>{t('instalar.compartir')}</strong> → <strong>{t('instalar.agregar')}</strong>.
-        {' '}{t('instalar.detalle')}
+        {t('install.how')} <strong>{t('install.share')}</strong> → <strong>{t('install.add')}</strong>.
+        {' '}{t('install.detail')}
       </p>
       <button
-        type="button" onClick={dismiss} aria-label={t('accion.cerrar')}
+        type="button" onClick={dismiss} aria-label={t('action.close')}
         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer', padding: 0, lineHeight: 1 }}
       >
         ×

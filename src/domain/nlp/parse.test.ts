@@ -1,75 +1,75 @@
 import { describe, expect, it } from 'vitest';
 import { parseUtterance } from './parse';
 
-const HOY = '2026-09-18';
-const p = (t: string) => parseUtterance(t, HOY);
+const TODAY = '2026-09-18';
+const p = (t: string) => parseUtterance(t, TODAY);
 
-describe('hablado — gastos', () => {
-  it('la frase típica', () => {
+describe('spoken — expenses', () => {
+  it('the typical phrase', () => {
     const r = p('gasté 45 mil en el almuerzo');
     expect(r.type).toBe('expense');
     expect(r.amount).toBe(45_000);
     expect(r.concept).toBe('Almuerzo');
-    expect(r.date).toBe(HOY);
+    expect(r.date).toBe(TODAY);
     expect(r.categoryIdSugerida).toBe('cat-alimentacion');
   });
 
-  it('con método de pago', () => {
+  it('with a payment method', () => {
     const r = p('pagué 120 mil de mercado con la tarjeta');
     expect(r.amount).toBe(120_000);
-    expect(r.metodo).toBe('credit');
+    expect(r.method).toBe('credit');
     expect(r.concept).toBe('Mercado');
     expect(r.categoryIdSugerida).toBe('cat-alimentacion');
   });
 
-  it('en efectivo', () => {
-    expect(p('gasté 20 mil en taxi en efectivo').metodo).toBe('cash');
+  it('in cash', () => {
+    expect(p('gasté 20 mil en taxi en efectivo').method).toBe('cash');
   });
 
-  it('por Nequi', () => {
-    expect(p('pagué 35 mil por nequi').metodo).toBe('transfer');
+  it('via Nequi', () => {
+    expect(p('pagué 35 mil por nequi').method).toBe('transfer');
   });
 
-  it('con débito', () => {
-    expect(p('gasté 15000 en gasolina con la débito').metodo).toBe('debit');
+  it('with debit', () => {
+    expect(p('gasté 15000 en gasolina con la débito').method).toBe('debit');
   });
 
-  it('monto en palabras', () => {
+  it('amount in words', () => {
     const r = p('gasté cuarenta y cinco mil en cine');
     expect(r.amount).toBe(45_000);
     expect(r.categoryIdSugerida).toBe('cat-entretenimiento');
   });
 });
 
-describe('hablado — ingresos', () => {
-  it('reconoce que entra plata', () => {
+describe('spoken — income', () => {
+  it('recognises that money is coming in', () => {
     const r = p('me llegaron dos millones y medio de nómina');
     expect(r.type).toBe('income');
     expect(r.amount).toBe(2_500_000);
   });
 
-  it('"recibí" también', () => {
+  it('"recibí" too', () => {
     expect(p('recibí 700 mil de un freelance').type).toBe('income');
   });
 
-  it('sin verbo asume gasto, que es lo que más se registra', () => {
+  it('with no verb it assumes an expense, since that is what gets logged most', () => {
     expect(p('45 mil almuerzo').type).toBe('expense');
   });
 });
 
-describe('fechas habladas', () => {
-  it('ayer', () => expect(p('gasté 10 mil ayer en café').date).toBe('2026-09-17'));
-  it('anteayer', () => expect(p('gasté 10 mil anteayer').date).toBe('2026-09-16'));
-  it('hace 3 días', () => expect(p('pagué 50 mil hace 3 dias').date).toBe('2026-09-15'));
-  it('"el 5" es día del mes actual', () => expect(p('pagué 50 mil el 5').date).toBe('2026-09-05'));
-  it('sin fecha es hoy', () => expect(p('gasté 10 mil en pan').date).toBe(HOY));
-  it('la fecha no se cuela en el concepto', () => {
+describe('spoken dates', () => {
+  it('yesterday', () => expect(p('gasté 10 mil ayer en café').date).toBe('2026-09-17'));
+  it('the day before yesterday', () => expect(p('gasté 10 mil anteayer').date).toBe('2026-09-16'));
+  it('3 days ago', () => expect(p('pagué 50 mil hace 3 dias').date).toBe('2026-09-15'));
+  it('"el 5" is a day of the current month', () => expect(p('pagué 50 mil el 5').date).toBe('2026-09-05'));
+  it('with no date it is today', () => expect(p('gasté 10 mil en pan').date).toBe(TODAY));
+  it('the date does not leak into the concept', () => {
     expect(p('gasté 10 mil ayer en café').concept.toLowerCase()).not.toContain('ayer');
   });
 });
 
-describe('SMS de banco', () => {
-  it('Bancolombia — compra', () => {
+describe('bank SMS', () => {
+  it('Bancolombia — purchase', () => {
     const r = p('Bancolombia le informa Compra por $145.000 en EXITO 18/09/2026 14:32');
     expect(r.type).toBe('expense');
     expect(r.amount).toBe(145_000);
@@ -78,50 +78,50 @@ describe('SMS de banco', () => {
     expect(r.date).toBe('2026-09-18');
   });
 
-  it('Nequi — pago', () => {
+  it('Nequi — payment', () => {
     const r = p('Nequi: Pagaste $12.500 a RAPPI');
     expect(r.type).toBe('expense');
     expect(r.amount).toBe(12_500);
     expect(r.concept.toLowerCase()).toContain('rappi');
   });
 
-  it('abono reconocido como ingreso', () => {
+  it('deposit recognised as income', () => {
     const r = p('Bancolombia: Recibiste $2.800.000 por NOMINA');
     expect(r.type).toBe('income');
     expect(r.amount).toBe(2_800_000);
   });
 
-  it('el nombre del banco no queda como concepto', () => {
+  it('the bank name does not end up as the concept', () => {
     const r = p('Bancolombia le informa Compra por $89.900 en NETFLIX');
     expect(r.concept.toLowerCase()).not.toContain('bancolombia');
     expect(r.categoryIdSugerida).toBe('cat-suscripciones');
   });
 
-  it('la fecha del SMS manda sobre hoy', () => {
+  it('the SMS date overrides today', () => {
     expect(p('Compra por $10.000 en D1 15/09/2026').date).toBe('2026-09-15');
   });
 });
 
-describe('cuando no alcanza', () => {
-  it('sin monto lo dice, no inventa', () => {
+describe('when it is not enough', () => {
+  it('with no amount it says so, does not make one up', () => {
     const r = p('gasté en el almuerzo');
     expect(r.amount).toBeNull();
     expect(r.concept).toBe('Almuerzo');
   });
 
-  it('texto vacío no explota', () => {
+  it('empty text does not blow up', () => {
     const r = p('');
     expect(r.amount).toBeNull();
     expect(r.concept).toBe('');
   });
 
-  it('sin palabra conocida no sugiere categoría', () => {
+  it('with no known word it does not suggest a category', () => {
     expect(p('gasté 10 mil en zzzz').categoryIdSugerida).toBeNull();
   });
 });
 
-describe('categorías por palabra clave', () => {
-  const casos: Array<[string, string]> = [
+describe('categories by keyword', () => {
+  const testCases: Array<[string, string]> = [
     ['gasté 20 mil en uber', 'cat-transporte'],
     ['pagué 89 mil de netflix', 'cat-suscripciones'],
     ['pagué 1.800.000 de arriendo', 'cat-hogar'],
@@ -130,29 +130,29 @@ describe('categorías por palabra clave', () => {
     ['gasté 200 mil en ropa', 'cat-compras'],
     ['pagué 500 mil del curso', 'cat-educacion'],
   ];
-  for (const [frase, esperada] of casos) {
+  for (const [frase, esperada] of testCases) {
     it(frase, () => expect(p(frase).categoryIdSugerida).toBe(esperada));
   }
 });
 
-describe('ruido de los SMS que no es el comercio', () => {
-  it('la hora no se cuela en el concepto', () => {
-    // Caso real: el primer SMS que probé quedó como "Rappi 19 40".
+describe('SMS noise that is not the merchant', () => {
+  it('the time does not leak into the concept', () => {
+    // Real case: the first SMS I tested came out as "Rappi 19 40".
     const r = p('Bancolombia le informa Compra por $38.500 en RAPPI 18/09/2026 19:40');
     expect(r.concept.toLowerCase()).toBe('rappi');
     expect(r.amount).toBe(38_500);
   });
 
-  it('la hora con am/pm tampoco', () => {
+  it('nor does the time with am/pm', () => {
     expect(p('Compra por $10.000 en D1 15/09/2026 08:05 a.m.').concept.toLowerCase()).toBe('d1');
   });
 
-  it('el número de autorización tampoco', () => {
+  it('nor does the authorisation number', () => {
     const r = p('Davivienda: Compra aprobada por $89.900 en NETFLIX Aut 123456');
     expect(r.concept.toLowerCase()).toBe('netflix');
   });
 
-  it('el saldo que reporta el banco no se confunde con el comercio', () => {
+  it('the balance the bank reports is not confused with the merchant', () => {
     const r = p('Bancolombia Compra por $45.000 en EXITO. Saldo disponible 1200000');
     expect(r.amount).toBe(45_000);
     expect(r.concept.toLowerCase()).toBe('exito');

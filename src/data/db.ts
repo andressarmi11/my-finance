@@ -4,12 +4,12 @@ import type {
 } from '@/domain/types';
 import type { ConceptIndexEntry } from '@/domain/inference/conceptInference';
 import type { Tombstone } from './sync/tombstones';
-import type { MetaFila } from './sync/dueno';
+import type { RowMeta } from './sync/owner';
 
 /**
- * Nombre con prefijo propio: en GitHub Pages todos los proyectos de
- * <usuario>.github.io comparten origen, asi que la DB no puede llamarse
- * algo generico o chocaria con otro proyecto.
+ * Name with its own prefix: on GitHub Pages all projects under
+ * <user>.github.io share an origin, so the DB can't be called something
+ * generic or it would collide with another project.
  */
 export const DB_NAME = 'myfinance_v1';
 
@@ -23,8 +23,8 @@ export class MyFinanceDB extends Dexie {
   reminders!: EntityTable<Reminder, 'id'>;
   conceptIndex!: EntityTable<ConceptIndexEntry, 'id'>;
   deletions!: EntityTable<Tombstone, 'id'>;
-  /** Datos del dispositivo, nunca sincronizados. Ver sync/dueno.ts. */
-  meta!: EntityTable<MetaFila, 'id'>;
+  /** Device-local data, never synced. See sync/owner.ts. */
+  meta!: EntityTable<RowMeta, 'id'>;
 
   constructor() {
     super(DB_NAME);
@@ -32,27 +32,27 @@ export class MyFinanceDB extends Dexie {
       settings: 'id',
       categories: 'id, sortOrder',
       paymentMethods: 'id, type',
-      // El indice compuesto [recurringRuleId+periodKey] es UNICO: es lo que
-      // hace imposible duplicar "Arriendo septiembre 2026".
+      // The composite index [recurringRuleId+periodKey] is UNIQUE: that's
+      // what makes it impossible to duplicate "Rent, September 2026".
       transactions:
         'id, date, type, status, categoryId, paymentMethodId, quincenaKey, cyclePaymentDate, &[recurringRuleId+periodKey]',
       recurringRules: 'id, frequency',
       budgets: 'id, [year+month], categoryId',
       reminders: 'id, remindAt, status, transactionId',
     });
-    // v2: conceptIndex — memoria del form de gasto/ingreso para autofill.
-    // Cada save de tx upsertea aquí, y el form al abrir consulta.
+    // v2: conceptIndex — memory for the expense/income form's autofill.
+    // Every tx save upserts here, and the form queries it on open.
     this.version(2).stores({
       conceptIndex: 'id, lastUsedAt, count',
     });
-    // v3: lapidas de borrado. Sin ellas, sincronizar resucita lo borrado
-    // (ver data/sync/tombstones.ts).
+    // v3: deletion tombstones. Without them, syncing resurrects what was
+    // deleted (see data/sync/tombstones.ts).
     this.version(3).stores({
       deletions: 'id, entity, deletedAt',
     });
-    // v4: de quién son estos datos. Sin esto, cerrar sesión y entrar con
-    // otra cuenta en el mismo navegador subía los movimientos de la
-    // primera persona a la cuenta de la segunda (ver sync/dueno.ts).
+    // v4: who this data belongs to. Without this, signing out and signing
+    // in with another account on the same browser would upload the first
+    // person's transactions to the second person's account (see sync/owner.ts).
     this.version(4).stores({
       meta: 'id',
     });

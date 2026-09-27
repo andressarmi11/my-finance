@@ -1,27 +1,27 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { IconChevronRight } from '@tabler/icons-react';
 import { Screen } from '@/components/ui/Screen';
-import { useIdioma } from '@/i18n/idioma';
-import { useT } from '@/i18n/idioma';
-import { ACTUALIZADO, documentosDe, SLUGS, type SlugLegal } from './documentos';
+import { useLanguage } from '@/i18n/language';
+import { useT } from '@/i18n/language';
+import { UPDATED, documentsFor, SLUGS, type LegalSlug } from './documents';
 
-const CLAVE_TITULO: Record<SlugLegal, 'legal.aviso' | 'legal.privacidad' | 'legal.terminos' | 'legal.cookies' | 'legal.propiedad'> = {
-  aviso: 'legal.aviso',
-  privacidad: 'legal.privacidad',
-  terminos: 'legal.terminos',
+const TITLE_KEY: Record<LegalSlug, 'legal.notice' | 'legal.privacy' | 'legal.terms' | 'legal.cookies' | 'legal.property'> = {
+  aviso: 'legal.notice',
+  privacidad: 'legal.privacy',
+  terminos: 'legal.terms',
   cookies: 'legal.cookies',
-  propiedad: 'legal.propiedad',
+  propiedad: 'legal.property',
 };
 
-/** El índice: los cinco documentos. */
+/** The index: the five documents. */
 export function LegalIndexScreen() {
   const navigate = useNavigate();
-  const { idioma, t } = useIdioma();
-  const docs = documentosDe(idioma);
+  const { language, t } = useLanguage();
+  const docs = documentsFor(language);
 
   return (
-    <Screen title={t('legal.titulo')} subtitle={t('legal.subtitulo')}>
-      <Volver onClick={() => navigate(-1)} texto={t('nav.volverAjustes')} />
+    <Screen title={t('legal.title')} subtitle={t('legal.subtitle')}>
+      <BackLink onClick={() => navigate(-1)} text={t('nav.backToSettings')} />
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '2px 14px' }}>
         {SLUGS.map((slug, i) => (
@@ -37,7 +37,7 @@ export function LegalIndexScreen() {
             }}
           >
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600 }}>{t(CLAVE_TITULO[slug])}</span>
+              <span style={{ display: 'block', fontWeight: 600 }}>{t(TITLE_KEY[slug])}</span>
               <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
                 {docs[slug].entrada}
               </span>
@@ -48,43 +48,43 @@ export function LegalIndexScreen() {
       </div>
 
       <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-        {t('legal.actualizado')}: {ACTUALIZADO}
+        {t('legal.updated')}: {UPDATED}
       </p>
     </Screen>
   );
 }
 
-/** Un documento. */
+/** A single document. */
 export function LegalDocScreen() {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
-  const { idioma, t } = useIdioma();
+  const { language, t } = useLanguage();
 
-  const esValido = (s: string | undefined): s is SlugLegal =>
+  const isValid = (s: string | undefined): s is LegalSlug =>
     !!s && (SLUGS as string[]).includes(s);
 
-  if (!esValido(slug)) {
+  if (!isValid(slug)) {
     return (
-      <Screen title={t('legal.titulo')}>
-        <Volver onClick={() => navigate('/legal')} texto={t('legal.titulo')} />
-        <p style={{ color: 'var(--text-muted)' }}>{t('legal.noEncontrado')}</p>
+      <Screen title={t('legal.title')}>
+        <BackLink onClick={() => navigate('/legal')} text={t('legal.title')} />
+        <p style={{ color: 'var(--text-muted)' }}>{t('legal.notFound')}</p>
       </Screen>
     );
   }
 
-  const doc = documentosDe(idioma)[slug];
+  const doc = documentsFor(language)[slug];
 
   return (
-    <Screen title={doc.titulo}>
-      <Volver onClick={() => navigate('/legal')} texto={t('legal.titulo')} />
+    <Screen title={doc.title}>
+      <BackLink onClick={() => navigate('/legal')} text={t('legal.title')} />
 
       <p style={{ margin: '0 0 20px', color: 'var(--text-muted)', fontSize: 'var(--text-md)' }}>
         {doc.entrada}
       </p>
 
-      {/* Ancho de lectura acotado: un texto legal a 100% del ancho en un
-          telefono es legible, pero en tablet pasa de 80 caracteres por
-          linea y se vuelve cansado de seguir. */}
+      {/* Capped reading width: a legal text at 100% width on a phone is
+          readable, but on a tablet it goes past 80 characters per line and
+          becomes tiring to follow. */}
       <article style={{ maxWidth: '62ch' }}>
         {doc.bloques.map((bloque, i) => (
           <section key={i} style={{ marginBottom: 24 }}>
@@ -119,13 +119,13 @@ export function LegalDocScreen() {
       </article>
 
       <p style={{ marginTop: 4, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-        {t('legal.actualizado')}: {ACTUALIZADO}
+        {t('legal.updated')}: {UPDATED}
       </p>
     </Screen>
   );
 }
 
-function Volver({ onClick, texto }: { onClick: () => void; texto: string }) {
+function BackLink({ onClick, text }: { onClick: () => void; text: string }) {
   const t = useT();
   return (
     <button
@@ -136,7 +136,7 @@ function Volver({ onClick, texto }: { onClick: () => void; texto: string }) {
         color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0,
       }}
     >
-      ← {texto || t('nav.volver')}
+      ← {text || t('nav.back')}
     </button>
   );
 }

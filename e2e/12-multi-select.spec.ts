@@ -1,25 +1,25 @@
 import { test, expect } from './fixtures';
 
-/** Siembra los datos de ejemplo DESDE Movimientos y espera a que se vean. */
+/** Seeds the sample data FROM Transactions and waits for it to show. */
 async function conDatos(page: import('@playwright/test').Page) {
   await page.goto('movimientos');
-  // waitFor y no isVisible(): isVisible() pregunta en ese instante, y la
-  // app todavía está montando justo después de la configuración inicial.
+  // waitFor, not isVisible(): isVisible() asks at that instant, and the app
+  // is still mounting right after the initial setup.
   const demo = page.getByRole('button', { name: 'Cargar datos de ejemplo' });
   await demo.waitFor({ state: 'visible', timeout: 15_000 });
   await demo.click();
-  // Sembrar es asíncrono: esperar a que la lista exista de verdad.
+  // Seeding is async: wait for the list to actually exist.
   await page.getByText('Mercado').first().waitFor({ state: 'visible', timeout: 15_000 });
 }
 
-/** Deja la lista con datos y entra al modo selección. */
-async function entrarEnSeleccion(page: import('@playwright/test').Page) {
+/** Leaves the list populated and enters selection mode. */
+async function enterSelectionMode(page: import('@playwright/test').Page) {
   await conDatos(page);
   await page.getByRole('button', { name: 'Seleccionar' }).click();
 }
 
-test('marcar varios como pagados de una vez', async ({ page }) => {
-  await entrarEnSeleccion(page);
+test('marks several as paid at once', async ({ page }) => {
+  await enterSelectionMode(page);
 
   await page.getByRole('button', { name: /^Seleccionar Mercado$/ }).click();
   await page.getByRole('button', { name: /^Seleccionar Cine$/ }).click();
@@ -27,14 +27,14 @@ test('marcar varios como pagados de una vez', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Marcar pagados' }).click();
 
-  // Sale del modo selección y los dos quedan pagados.
+  // It leaves selection mode and both end up paid.
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Marcar Mercado como pendiente' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Marcar Cine como pendiente' })).toBeVisible();
 });
 
-test('eliminar varios pide confirmación y dice cuánta plata suman', async ({ page }) => {
-  await entrarEnSeleccion(page);
+test('deleting several asks for confirmation and says how much money they add up to', async ({ page }) => {
+  await enterSelectionMode(page);
 
   await page.getByRole('button', { name: /^Seleccionar Mercado$/ }).click();
   await page.getByRole('button', { name: 'Eliminar' }).click();
@@ -48,8 +48,8 @@ test('eliminar varios pide confirmación y dice cuánta plata suman', async ({ p
   await expect(page.getByText('Mercado')).toBeHidden();
 });
 
-test('se puede cancelar sin tocar nada', async ({ page }) => {
-  await entrarEnSeleccion(page);
+test('can be cancelled without touching anything', async ({ page }) => {
+  await enterSelectionMode(page);
   await page.getByRole('button', { name: /^Seleccionar Mercado$/ }).click();
 
   await page.getByRole('button', { name: 'Eliminar' }).click();
@@ -59,22 +59,22 @@ test('se puede cancelar sin tocar nada', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Cancelar' }).click();
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
-  // Y el círculo vuelve a servir para marcar pagado, no para seleccionar.
+  // And the circle goes back to marking paid, not selecting.
   await expect(page.getByRole('button', { name: 'Marcar Mercado como pagado' })).toBeVisible();
 });
 
-test('sin nada elegido, las acciones están bloqueadas', async ({ page }) => {
-  await entrarEnSeleccion(page);
+test('with nothing selected, the actions are disabled', async ({ page }) => {
+  await enterSelectionMode(page);
   await expect(page.getByRole('button', { name: 'Marcar pagados' })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Eliminar' })).toBeDisabled();
 });
 
-test('la quincena del 10 se lee antes que la del 25', async ({ page }) => {
+test('the 10th pay period reads before the 25th', async ({ page }) => {
   await conDatos(page);
-  const titulos = await page.getByText(/^Quincena del \d+$/).allInnerTexts();
-  expect(titulos.length).toBeGreaterThan(0);
-  if (titulos.length > 1) {
-    const dias = titulos.map((t) => Number(t.replace(/\D/g, '')));
-    expect(dias).toEqual([...dias].sort((a, b) => a - b));
+  const titles = await page.getByText(/^Quincena del \d+$/).allInnerTexts();
+  expect(titles.length).toBeGreaterThan(0);
+  if (titles.length > 1) {
+    const payDays = titles.map((t) => Number(t.replace(/\D/g, '')));
+    expect(payDays).toEqual([...payDays].sort((a, b) => a - b));
   }
 });

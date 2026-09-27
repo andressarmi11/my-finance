@@ -20,14 +20,14 @@ function rule(overrides: Partial<RecurringRule>): RecurringRule {
 }
 
 describe('expandRecurringRule — mensual', () => {
-  it('genera una instancia por mes con periodKey YYYY-MM', () => {
+  it('generates one instance per month with periodKey YYYY-MM', () => {
     const occ = expandRecurringRule(rule({}), { from: '2026-01-01', to: '2026-12-31' });
     expect(occ).toHaveLength(12);
     expect(occ[0]).toEqual({ periodKey: '2026-01', date: '2026-01-01' });
     expect(occ[11]).toEqual({ periodKey: '2026-12', date: '2026-12-01' });
   });
 
-  it('clampea dayOfMonth en meses cortos (31 -> 28/30 segun el mes)', () => {
+  it('clamps dayOfMonth in short months (31 -> 28/30 depending on the month)', () => {
     const occ = expandRecurringRule(
       rule({ dayOfMonth: 31, startDate: '2026-01-01' }),
       { from: '2026-01-01', to: '2026-04-30' },
@@ -37,7 +37,7 @@ describe('expandRecurringRule — mensual', () => {
     ]);
   });
 
-  it('respeta endDate: no genera instancias despues de que la regla termino', () => {
+  it('respects endDate: it generates no instances after the rule ended', () => {
     const occ = expandRecurringRule(
       rule({ dayOfMonth: 1, endDate: '2026-03-15' }),
       { from: '2026-01-01', to: '2026-06-30' },
@@ -45,18 +45,18 @@ describe('expandRecurringRule — mensual', () => {
     expect(occ.map((o) => o.periodKey)).toEqual(['2026-01', '2026-02', '2026-03']);
   });
 
-  it('una regla inactiva no genera nada', () => {
+  it('an inactive rule generates nothing', () => {
     const occ = expandRecurringRule(rule({ isActive: false }), { from: '2026-01-01', to: '2026-12-31' });
     expect(occ).toEqual([]);
   });
 
-  it('es idempotente: llamarla dos veces con el mismo rango da exactamente el mismo resultado', () => {
+  it("it's idempotent: calling it twice with the same range gives exactly the same result", () => {
     const r = rule({});
     const range = { from: '2026-01-01', to: '2026-06-30' };
     expect(expandRecurringRule(r, range)).toEqual(expandRecurringRule(r, range));
   });
 
-  it('no genera nada antes de startDate', () => {
+  it('it generates nothing before startDate', () => {
     const occ = expandRecurringRule(
       rule({ dayOfMonth: 1, startDate: '2026-06-01' }),
       { from: '2026-01-01', to: '2026-12-31' },
@@ -66,7 +66,7 @@ describe('expandRecurringRule — mensual', () => {
 });
 
 describe('expandRecurringRule — semanal / quincenal', () => {
-  it('semanal genera cada 7 dias desde el ancla', () => {
+  it('weekly generates every 7 days from the anchor', () => {
     const occ = expandRecurringRule(
       rule({ frequency: 'weekly', startDate: '2026-09-07', dayOfMonth: undefined }),
       { from: '2026-09-01', to: '2026-09-30' },
@@ -74,7 +74,7 @@ describe('expandRecurringRule — semanal / quincenal', () => {
     expect(occ.map((o) => o.date)).toEqual(['2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
   });
 
-  it('quincenal genera cada 14 dias', () => {
+  it('biweekly generates every 14 days', () => {
     const occ = expandRecurringRule(
       rule({ frequency: 'biweekly', startDate: '2026-09-01', dayOfMonth: undefined }),
       { from: '2026-09-01', to: '2026-10-31' },
@@ -84,7 +84,7 @@ describe('expandRecurringRule — semanal / quincenal', () => {
 });
 
 describe('expandRecurringRule — anual', () => {
-  it('genera una instancia por año en el aniversario', () => {
+  it('generates one instance per year on the anniversary', () => {
     const occ = expandRecurringRule(
       rule({ frequency: 'yearly', startDate: '2024-06-09', dayOfMonth: undefined }),
       { from: '2024-01-01', to: '2027-12-31' },
@@ -92,7 +92,7 @@ describe('expandRecurringRule — anual', () => {
     expect(occ.map((o) => o.date)).toEqual(['2024-06-09', '2025-06-09', '2026-06-09', '2027-06-09']);
   });
 
-  it('clampea 29 de febrero en años no bisiestos', () => {
+  it('clamps February 29th in non-leap years', () => {
     const occ = expandRecurringRule(
       rule({ frequency: 'yearly', startDate: '2024-02-29', dayOfMonth: undefined }),
       { from: '2024-01-01', to: '2027-12-31' },

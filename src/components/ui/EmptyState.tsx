@@ -1,4 +1,4 @@
-/** Una pantalla vacía es una invitación a actuar, no un mensaje de error. */
+/** An empty screen is an invitation to act, not an error message. */
 export function EmptyState({ title, body, action }: {
   title: string;
   body: string;

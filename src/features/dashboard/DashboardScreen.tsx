@@ -1,34 +1,34 @@
-import { useT } from '@/i18n/idioma';
-import { etiquetaQuincena } from '@/i18n/periodo';
+import { useT } from '@/i18n/language';
+import { payPeriodLabel } from '@/i18n/periodLabels';
 import { IconCheck, IconCreditCardOff } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { MonthNav, monthName } from '@/components/ui/MonthNav';
+import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
 import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { formatMoney } from '@/domain/money/format';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
-import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
-import { calcularBalanceMes } from '@/domain/periodo/balance';
+import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
+import { calculateMonthBalance } from '@/domain/period/balance';
 import { calculateMonthFlow } from '@/domain/totals/available';
-import { calculatePorPagar } from '@/domain/totals/porPagar';
-import { saldosSinPagar } from '@/domain/credit-card/disponible';
-import { calcularPeriodo, periodosDelMes } from '@/domain/periodo/periodo';
-import { conPeriodoResuelto } from '@/domain/periodo/resolve';
+import { calculateOutstanding } from '@/domain/totals/outstanding';
+import { unpaidBalances } from '@/domain/credit-card/availableCredit';
+import { calculatePeriod, periodsOfMonth } from '@/domain/period/period';
+import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO, nowISO } from '@/lib/todayISO';
 import { selectUpcoming, upcomingTotals, relevantDate } from './upcoming';
 import { AnimatedNumber } from './AnimatedNumber';
-import { PorPagarSheet } from './PorPagarSheet';
+import { ToPaySheet } from './ToPaySheet';
 import { haptic } from '@/lib/haptic';
 import type { Transaction } from '@/domain/types';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 
 export function DashboardScreen() {
@@ -40,84 +40,87 @@ export function DashboardScreen() {
   const today = todayISO();
   const [todayYear, todayMonth] = today.split('-').map(Number) as [number, number];
 
-  // Mes visible. Arranca en el actual; las flechas lo mueven. Todo lo de
-  // abajo (flujo, quincenas, proximos) se recalcula sobre ESTE mes.
+  // Visible month. Starts on the current one; the arrows move it.
+  // Everything below (flow, pay periods, upcoming) is recalculated for
+  // THIS month.
   const [cursor, setCursor] = useState({ y: todayYear, m: todayMonth });
   const { y: year, m: month } = cursor;
   const isCurrentMonth = year === todayYear && month === todayMonth;
 
-  // Los recurrentes solo estan materializados ~3 meses adelante. Al mirar
-  // un mes fuera de esa ventana hay que crearlos, si no el mes sale vacio
-  // aunque la regla no tenga fecha limite.
+  // Recurring transactions are only materialized ~3 months ahead. Looking
+  // at a month outside that window means they have to be created, or the
+  // month comes out empty even though the rule has no end date.
   useEffect(() => { void ensureMonthMaterialized(year, month); }, [year, month]);
 
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const resolved = useMemo(
-    () => conPeriodoResuelto(transactions, settings.diasDePago),
-    [transactions, settings.diasDePago],
+    () => withResolvedPeriods(transactions, settings.payDays),
+    [transactions, settings.payDays],
   );
 
-  // Tantas claves como periodos tenga el mes: dos si te pagan quincenal,
-  // una si te pagan una vez al mes. Pedir Q1 y Q2 a mano dejaba fuera
-  // movimientos —y reventaba— en cuanto los periodos no eran dos.
+  // As many keys as the month has periods: two if you're paid biweekly,
+  // one if you're paid once a month. Asking for Q1 and Q2 by hand left
+  // out transactions — and crashed — as soon as the periods weren't two.
   const monthKeys = useMemo(
-    () => periodosDelMes(year, month, settings.diasDePago),
-    [year, month, settings.diasDePago],
+    () => periodsOfMonth(year, month, settings.payDays),
+    [year, month, settings.payDays],
   );
 
-  // Por el periodo de CARGO, no el de registro: estos cuatro numeros —
-  // flujo, falta pagar, proximos — responden "cuanta plata se mueve este
-  // mes", y una compra con tarjeta se mueve el dia que se paga el extracto,
-  // no el dia que la hiciste. Ver domain/periodo/resolve.ts.
+  // By the CHARGE period, not the entry one: these four numbers — flow,
+  // left to pay, upcoming — answer "how much money moves this month", and
+  // a card purchase moves on the day the statement gets paid, not the day
+  // you made it. See domain/periodo/resolve.ts.
   const monthTransactions = useMemo(
-    () => resolved.filter((t) => monthKeys.includes(t.resolvedCargoKey)),
+    () => resolved.filter((t) => monthKeys.includes(t.chargePeriodKey)),
     [resolved, monthKeys],
   );
 
-  // Con los días de pago: sin ellos cae en el valor por defecto [10, 25] y
-  // dibuja DOS periodos aunque te paguen una vez al mes — el segundo, vacío.
+  // With the pay days: without them it falls back to the default [10, 25]
+  // and draws TWO periods even if you're paid once a month — the second
+  // one, empty.
   const monthBalance = useMemo(
-    () => calcularBalanceMes(resolved, year, month, settings.diasDePago),
-    [resolved, year, month, settings.diasDePago],
+    () => calculateMonthBalance(resolved, year, month, settings.payDays),
+    [resolved, year, month, settings.payDays],
   );
   const flow = useMemo(() => calculateMonthFlow(monthTransactions), [monthTransactions]);
 
-  // Conjuntos disjuntos: un gasto con tarjeta cuenta UNA vez, en tarjeta.
-  // Antes los tres filtros se solapaban y el chip mostraba un conteo
-  // inflado al lado de un total correcto. Ver domain/totals/porPagar.ts.
-  const porPagar = useMemo(() => calculatePorPagar(monthTransactions), [monthTransactions]);
+  // Disjoint sets: a card expense counts ONCE, under card. The three
+  // filters used to overlap and the chip showed an inflated count next
+  // to a correct total. See domain/totals/outstanding.ts.
+  const toPay = useMemo(() => calculateOutstanding(monthTransactions), [monthTransactions]);
 
-  // Saldos de tarjeta que ya vencieron y siguen sin marcarse pagados.
-  // Mira TODO el historial, no el mes: lo que se olvido de pagar en junio
-  // sigue comiendo cupo hoy, y es justo lo que nadie recuerda solo.
-  const vencidos = useMemo(
-    () => saldosSinPagar(paymentMethods, transactions, today),
+  // Card balances that are already overdue and still not marked paid.
+  // Looks at the WHOLE history, not just the month: what got forgotten
+  // in June is still eating into the limit today, and that is exactly
+  // what nobody remembers on their own.
+  const overdue = useMemo(
+    () => unpaidBalances(paymentMethods, transactions, today),
     [paymentMethods, transactions, today],
   );
 
-  // Proximos: la MISMA lista del mes que alimenta el hero, para que
-  // "falta pagar" de arriba y "esperas gastar" de abajo coincidan.
+  // Upcoming: the SAME month list that feeds the hero, so "left to pay"
+  // up top and "expect to spend" down below always agree.
   const upcoming = useMemo(() => selectUpcoming(monthTransactions, 8), [monthTransactions]);
   const totals = useMemo(() => upcomingTotals(monthTransactions), [monthTransactions]);
 
-  // Quincena activa: se la pregunta al dominio en vez de recalcularla.
-  // La cuenta a mano (`dia < quincenaStartDays[1] ? 0 : 1`) estaba MAL los
-  // primeros ~9 días de cada mes: el 3 de septiembre marcaba la quincena
-  // del 10 de septiembre, cuando la que sigue viva es la del 25 de AGOSTO
-  // — que es justo la que cruza el cambio de mes, el caso que el dominio
-  // ya modela y tiene testeado.
-  const claveHoy = useMemo(
-    () => calcularPeriodo(today, settings.diasDePago).key,
-    [today, settings.diasDePago],
+  // Active pay period: asked from the domain instead of recalculated
+  // here. The by-hand version (`dia < quincenaStartDays[1] ? 0 : 1`) was
+  // WRONG for the first ~9 days of every month: September 3rd marked the
+  // September 10th period as active, when the one still running is
+  // AUGUST 25th's — which is exactly the one that crosses the month
+  // boundary, the case the domain already models and has tests for.
+  const todayKey = useMemo(
+    () => calculatePeriod(today, settings.payDays).key,
+    [today, settings.payDays],
   );
-  const activeQuincenaIdx = monthKeys.indexOf(claveHoy);
-  const heroTintVar = activeQuincenaIdx === 1 ? '--q25-soft' : '--q10-soft';
-  const heroAccentVar = activeQuincenaIdx === 1 ? '--q25' : '--q10';
+  const activePeriodIdx = monthKeys.indexOf(todayKey);
+  const heroTintVar = activePeriodIdx === 1 ? '--q25-soft' : '--q10-soft';
+  const heroAccentVar = activePeriodIdx === 1 ? '--q25' : '--q10';
 
   async function handleLoadDemo() {
     setLoadingDemo(true);
@@ -140,6 +143,8 @@ export function DashboardScreen() {
   const nav = (
     <MonthNav
       label={`${monthName(month)} ${year}`}
+      widthSample={widestMonthLabel()}
+      todayIsAhead={year * 12 + month < todayYear * 12 + todayMonth}
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
       onNext={() => setCursor((c) => shiftMonth(c.y, c.m, 1))}
       onToday={isCurrentMonth ? undefined : () => setCursor({ y: todayYear, m: todayMonth })}
@@ -148,21 +153,21 @@ export function DashboardScreen() {
 
   if (transactions.length === 0) {
     return (
-      <Screen title={settings.displayName ? `${t('inicio.hola')}, ${settings.displayName}` : t('inicio.titulo')} subtitle={`${monthName(month)} ${year}`}>
+      <Screen title={settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')} subtitle={`${monthName(month)} ${year}`}>
         <EmptyState
-          title={t('inicio.sinMovimientos')}
-          body={t('inicio.sinMovimientosBody')}
-          action={{ label: loadingDemo ? t('inicio.cargando') : t('inicio.cargarEjemplo'), onClick: handleLoadDemo }}
+          title={t('home.noTransactions')}
+          body={t('home.noTransactionsBody')}
+          action={{ label: loadingDemo ? t('home.loading') : t('home.loadSample'), onClick: handleLoadDemo }}
         />
       </Screen>
     );
   }
 
   return (
-    <Screen title={settings.displayName ? `${t('inicio.hola')}, ${settings.displayName}` : t('inicio.titulo')} right={nav}>
-      {/* Solo si hay algo que avisar. Que todo este al dia no es noticia
-          — misma regla que SyncIndicator. */}
-      {vencidos.length > 0 && (
+    <Screen title={settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')} right={nav}>
+      {/* Only if there is something to warn about. Everything being up
+          to date is not news — same rule as SyncIndicator. */}
+      {overdue.length > 0 && (
         <button
           type="button"
           onClick={() => navigate('/tarjeta')}
@@ -177,21 +182,21 @@ export function DashboardScreen() {
           <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
-              {vencidos.length === 1 ? t('inicio.saldoSinPagar') : `${vencidos.length} ${t('inicio.saldosSinPagar')}`}
+              {overdue.length === 1 ? t('home.unpaidBalance') : `${overdue.length} ${t('home.unpaidBalances')}`}
             </span>
             <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {vencidos.length === 1
-                ? `${vencidos[0]!.tarjeta.name} · ${t('inicio.vencioEl')} ${formatShortDate(vencidos[0]!.paymentDate).day} ${formatShortDate(vencidos[0]!.paymentDate).month}`
-                : t('inicio.marcalos')}
+              {overdue.length === 1
+                ? `${overdue[0]!.card.name} · ${t('home.overdueOn')} ${formatShortDate(overdue[0]!.paymentDate).day} ${formatShortDate(overdue[0]!.paymentDate).month}`
+                : t('home.markThem')}
             </span>
           </span>
           <span className="figures" style={{ flex: 'none', fontWeight: 700, color: 'var(--danger-text)' }}>
-            {formatMoney(vencidos.reduce((a, v) => a + v.total, 0))}
+            {formatMoney(overdue.reduce((a, v) => a + v.total, 0))}
           </span>
         </button>
       )}
 
-      {/* Hero: como termina el mes si todo se cumple. */}
+      {/* Hero: how the month ends up if everything goes as planned. */}
       <div
         style={{
           background: `color-mix(in srgb, var(${heroTintVar}) 65%, var(--surface))`,
@@ -203,10 +208,10 @@ export function DashboardScreen() {
         }}
       >
         <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: `var(${heroAccentVar})`, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-          {t('inicio.teQueda')}
+          {t('home.youHaveLeft')}
         </p>
         <AnimatedNumber
-          value={monthBalance.sobrante}
+          value={monthBalance.leftover}
           format={(n) => formatMoney(n)}
           className="figures"
           style={{
@@ -215,14 +220,14 @@ export function DashboardScreen() {
             fontWeight: 700,
             lineHeight: 'var(--lh-tight)',
             letterSpacing: '-0.022em',
-            color: monthBalance.sobrante >= 0 ? 'var(--text)' : 'var(--danger-text)',
+            color: monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)',
           }}
         />
         <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          {t('inicio.explicacion')}
+          {t('home.explanation')}
         </p>
 
-        {/* Los cuatro numeros que lo componen. Ninguno puede ser negativo. */}
+        {/* The four numbers that make it up. None of them can be negative. */}
         <div
           style={{
             display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
@@ -230,35 +235,35 @@ export function DashboardScreen() {
             background: `color-mix(in srgb, var(${heroAccentVar}) 12%, var(--line))`,
           }}
         >
-          <FlowCell label={t('inicio.yaRecibiste')} value={flow.recibido} tone="positive" />
-          <FlowCell label={t('inicio.faltaRecibir')} value={flow.porRecibir} tone="positive-soft" />
-          <FlowCell label={t('inicio.yaPagaste')} value={flow.pagado} tone="plain" />
-          <FlowCell label={t('inicio.faltaPagar')} value={flow.porPagar} tone="danger-soft" />
+          <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
+          <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
+          <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
+          <FlowCell label={t('home.leftToPay')} value={flow.toPay} tone="danger-soft" />
         </div>
       </div>
 
-      {/* Un recuadro por periodo: dos si te pagan quincenal, uno si una vez al mes. */}
+      {/* One box per period: two if you're paid biweekly, one if once a month. */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${monthBalance.periodos.length}, 1fr)`,
+          gridTemplateColumns: `repeat(${monthBalance.periods.length}, 1fr)`,
           gap: 10,
           marginBottom: 14,
         }}
       >
-        {monthBalance.periodos.map((p, i) => (
-          <PeriodoCard
+        {monthBalance.periods.map((p, i) => (
+          <PeriodCard
             key={p.key}
-            label={etiquetaPeriodo(settings.diasDePago, i, month)}
-            restante={p.restante}
+            label={periodLabel(settings.payDays, i, month)}
+            remainder={p.remainder}
             colorVar={i % 2 === 1 ? '--q25' : '--q10'}
             softVar={i % 2 === 1 ? '--q25-soft' : '--q10-soft'}
-            isActive={activeQuincenaIdx === i}
+            isActive={activePeriodIdx === i}
           />
         ))}
       </div>
 
-      {porPagar.count > 0 && (
+      {toPay.count > 0 && (
         <button
           type="button"
           onClick={() => setPorPagarOpen(true)}
@@ -274,22 +279,22 @@ export function DashboardScreen() {
               Desglose de lo que falta pagar
             </div>
             <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              {porPagar.count} · {formatMoney(porPagar.monto)}
+              {toPay.count} · {formatMoney(toPay.amount)}
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', marginTop: 2 }}>
-              {porPagar.pendientes.length} {porPagar.pendientes.length === 1 ? t('inicio.pendiente') : t('inicio.pendientes')}
-              {' · '}{porPagar.programados.length} {porPagar.programados.length === 1 ? t('inicio.programado') : t('inicio.programados')}
-              {' · '}{porPagar.enTarjeta.length} {t('inicio.enTarjeta')}
+              {toPay.pending.length} {toPay.pending.length === 1 ? t('home.pending') : t('home.pendingPl')}
+              {' · '}{toPay.scheduled.length} {toPay.scheduled.length === 1 ? t('home.scheduled') : t('home.scheduledPl')}
+              {' · '}{toPay.onCard.length} {t('home.onCard')}
             </div>
           </div>
           <span style={{ color: 'var(--text-faint)', fontSize: 22 }}>›</span>
         </button>
       )}
 
-      {/* Proximos movimientos DEL MES visible: ingresos y gastos. */}
+      {/* Upcoming transactions FOR THE visible month: income and expenses. */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 10px' }}>
         <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-          {t('inicio.faltaEsteMes')}
+          {t('home.leftThisMonth')}
         </h2>
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
           {monthName(month).toLowerCase()}
@@ -297,13 +302,13 @@ export function DashboardScreen() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-        <ExpectCard label={t('inicio.esperasRecibir')} value={totals.income} color="var(--positive)" sign="+" />
-        <ExpectCard label={t('inicio.esperasGastar')} value={totals.expense} color="var(--danger)" sign="−" />
+        <ExpectCard label={t('home.expectToReceive')} value={totals.income} color="var(--positive)" sign="+" />
+        <ExpectCard label={t('home.expectToSpend')} value={totals.expense} color="var(--danger)" sign="−" />
       </div>
 
       {upcoming.length === 0 ? (
         <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
-          {t('inicio.nadaPendiente')} — {monthName(month).toLowerCase()}.
+          {t('home.nothingPending')} — {monthName(month).toLowerCase()}.
         </p>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', overflow: 'hidden' }}>
@@ -347,7 +352,7 @@ export function DashboardScreen() {
                 >
                   <CategoryAvatar
                     icon={cat?.icon ?? (isIncome ? 'salary' : 'other')}
-                    color={cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA}
+                    color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
                     size={36}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -355,7 +360,7 @@ export function DashboardScreen() {
                       {tx.concept}
                     </div>
                     <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
-                      {isLate ? `${t('inicio.vencio')} ` : ''}{day} {monthLabel}
+                      {isLate ? `${t('home.overdue')} ` : ''}{day} {monthLabel}
                     </div>
                   </div>
                 </button>
@@ -376,11 +381,11 @@ export function DashboardScreen() {
         onClick={() => navigate('/movimientos')}
         style={{ marginTop: 16, width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-base)' }}
       >
-        {t('inicio.verTodos')}
+        {t('home.seeAll')}
       </button>
 
       {porPagarOpen && (
-        <PorPagarSheet porPagar={porPagar} onClose={() => setPorPagarOpen(false)} />
+        <ToPaySheet toPay={toPay} onClose={() => setPorPagarOpen(false)} />
       )}
     </Screen>
   );
@@ -412,23 +417,23 @@ function ExpectCard({ label, value, color, sign }: { label: string; value: numbe
 }
 
 /**
- * Como se llama un periodo en el recuadro. Con dos o mas dias de pago es la
- * palabra que la persona ya usa; con uno solo, decir "quincena" seria
- * mentira, asi que se nombra el mes —o desde cuando empieza, si su mes no
- * es el del calendario.
+ * What a period is called in the box. With two or more pay days it's the
+ * word the person already uses; with just one, calling it a "pay period"
+ * would be a lie, so it names the month instead — or when it starts from,
+ * if their month isn't the calendar one.
  */
-function etiquetaPeriodo(dias: number[], indice: number, mes: number): string {
-  if (dias.length > 1) return `${etiquetaQuincena()} ${dias[indice]}`;
-  const dia = dias[0] ?? 1;
-  if (dia === 1) {
-    const n = monthName(mes);
+function periodLabel(payDays: number[], index: number, month: number): string {
+  if (payDays.length > 1) return `${payPeriodLabel()} ${payDays[index]}`;
+  const day = payDays[0] ?? 1;
+  if (day === 1) {
+    const n = monthName(month);
     return n.charAt(0).toUpperCase() + n.slice(1);
   }
-  return `Desde el ${dia}`;
+  return `Desde el ${day}`;
 }
 
-function PeriodoCard({ label, restante, colorVar, softVar, isActive }: {
-  label: string; restante: number; colorVar: string; softVar: string; isActive: boolean;
+function PeriodCard({ label, remainder, colorVar, softVar, isActive }: {
+  label: string; remainder: number; colorVar: string; softVar: string; isActive: boolean;
 }) {
   return (
     <div
@@ -452,8 +457,8 @@ function PeriodoCard({ label, restante, colorVar, softVar, isActive }: {
       <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', fontWeight: 700, color: `var(${colorVar})`, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
         {label}
       </p>
-      <p className="figures" style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700, color: restante >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
-        {formatMoney(restante)}
+      <p className="figures" style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700, color: remainder >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
+        {formatMoney(remainder)}
       </p>
     </div>
   );

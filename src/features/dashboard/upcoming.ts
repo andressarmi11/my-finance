@@ -1,30 +1,32 @@
 /**
- * Proximos movimientos: lo que todavia no se ejecuto, gastos E ingresos.
+ * Upcoming transactions: what hasn't happened yet, both expenses AND income.
  *
- * NO filtra por fecha: recibe la lista ya acotada al mes visible por quien
- * llama. Antes barria todas las transacciones sin tope, y como
- * materialize.ts crea recurrentes hasta 95 dias adelante, el dashboard
- * mostraba pagos de dentro de tres meses. Se acota afuera, con el mismo
- * criterio de quincena que usa el resto del dashboard, para que "falta
- * pagar" del hero y "esperas gastar" de aca nunca digan cosas distintas.
+ * Does NOT filter by date: it receives the list already scoped to the
+ * month the caller is showing. It used to sweep every transaction with no
+ * cap, and since materialize.ts creates recurring ones up to 95 days
+ * ahead, the dashboard showed payments from three months out. The scoping
+ * is done outside, with the same pay-period criterion the rest of the
+ * dashboard uses, so "left to pay" in the hero and "expect to spend"
+ * down here never say different things.
  */
 import { compareISO } from '@/domain/dates';
-import { fechaDeCargo } from '@/domain/periodo/fechaDeCargo';
+import { chargeDate } from '@/domain/period/chargeDate';
 import type { Transaction } from '@/domain/types';
 
 /**
- * La fecha que importa: la de pago de la TC si existe, si no la del
- * movimiento. Vivia aca, y por estar en una carpeta de feature Analisis
- * nunca la uso — ver domain/periodo/fechaDeCargo.ts. Se conserva el nombre
- * para no tocar los call sites de esta pantalla.
+ * The date that matters: the credit card's payment date if it exists,
+ * otherwise the transaction's own date. This used to live here, and being
+ * in a feature folder Analytics never used it — see
+ * domain/period/chargeDate.ts. The name is kept so this screen's call
+ * sites don't need to change.
  */
-export const relevantDate = fechaDeCargo;
+export const relevantDate = chargeDate;
 
 function isUpcoming(tx: Transaction): boolean {
   return tx.status === 'pending' || tx.status === 'scheduled';
 }
 
-/** Los `limit` mas cercanos a la fecha, primero lo que vence antes. */
+/** The `limit` closest to the date, whatever is due soonest first. */
 export function selectUpcoming(monthTransactions: Transaction[], limit = 8): Transaction[] {
   return monthTransactions
     .filter(isUpcoming)
@@ -33,7 +35,7 @@ export function selectUpcoming(monthTransactions: Transaction[], limit = 8): Tra
     .slice(0, limit);
 }
 
-/** Lo que esperas recibir y lo que esperas gastar en el mes. */
+/** What you expect to receive and what you expect to spend in the month. */
 export function upcomingTotals(monthTransactions: Transaction[]): { income: number; expense: number } {
   let income = 0;
   let expense = 0;

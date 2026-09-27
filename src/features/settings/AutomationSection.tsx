@@ -1,48 +1,48 @@
 import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from '@/data/supabase/client';
-import { crearToken, hayToken, urlIngesta } from '@/data/supabase/inbox';
+import { createToken, hasToken, ingestUrl } from '@/data/supabase/inbox';
 import { useSession } from '@/features/auth/useSession';
 
 /**
- * El token que usan los Atajos de iOS para dejar texto en la bandeja.
+ * The token that iOS Shortcuts use to drop text into the inbox.
  *
- * Existe porque iOS no abre una URL dentro de una web app instalada: un
- * Atajo que abre un enlace cae en Safari, que tiene otro almacenamiento.
- * Con este camino el Atajo no abre nada — manda el texto y sigue.
+ * It exists because iOS doesn't open a URL inside an installed web app: a
+ * Shortcut that opens a link lands in Safari, which has separate storage.
+ * With this route the Shortcut doesn't open anything — it sends the text and moves on.
  */
 export function AutomationSection() {
   const { session } = useSession();
   const [token, setToken] = useState<string | null>(null);
-  const [existe, setExiste] = useState<boolean | null>(null);
-  const [ocupado, setOcupado] = useState(false);
-  const [copiado, setCopiado] = useState<string | null>(null);
+  const [exists, setExiste] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!session) return;
-    void hayToken().then(setExiste);
+    void hasToken().then(setExiste);
   }, [session]);
 
   if (!isSupabaseConfigured() || !session) return null;
 
-  async function generar() {
-    setOcupado(true);
+  async function generate() {
+    setBusy(true);
     setError('');
     try {
-      setToken(await crearToken());
+      setToken(await createToken());
       setExiste(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo generar.');
     } finally {
-      setOcupado(false);
+      setBusy(false);
     }
   }
 
-  async function copiar(texto: string, que: string) {
+  async function copy(text: string, que: string) {
     try {
-      await navigator.clipboard.writeText(texto);
-      setCopiado(que);
-      setTimeout(() => setCopiado(null), 1800);
+      await navigator.clipboard.writeText(text);
+      setCopied(que);
+      setTimeout(() => setCopied(null), 1800);
     } catch {
       setError('Tu navegador no dejó copiar. Selecciona el texto a mano.');
     }
@@ -65,35 +65,35 @@ export function AutomationSection() {
             Cópialo ahora: no se vuelve a mostrar.
           </p>
 
-          {/* Lo que de verdad hace falta pegar: la dirección con la clave
-              adentro. Un solo copiar, y en el Atajo solo queda arrastrar la
-              variable del mensaje al final. */}
+          {/* What actually needs to be pasted: the address with the key
+              inside. A single copy, and in the Shortcut all that's left is dragging the
+              message variable to the end. */}
           <p style={{ margin: '0 0 4px', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
             Para el Atajo del SMS
           </p>
           <code style={{ display: 'block', fontSize: 11, wordBreak: 'break-all', marginBottom: 6, color: 'var(--text)' }}>
-            {`${urlIngesta()}?origen=sms&token=${token}&texto=`}
+            {`${ingestUrl()}?origen=sms&token=${token}&texto=`}
           </code>
           <button
             type="button"
-            onClick={() => copiar(`${urlIngesta()}?origen=sms&token=${token}&texto=`, 'sms')}
+            onClick={() => copy(`${ingestUrl()}?origen=sms&token=${token}&texto=`, 'sms')}
             style={{ ...btn, marginBottom: 10 }}
           >
-            {copiado === 'sms' ? 'Copiada ✓' : 'Copiar dirección del SMS'}
+            {copied === 'sms' ? 'Copiada ✓' : 'Copiar dirección del SMS'}
           </button>
 
           <p style={{ margin: '0 0 4px', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}>
             Para el Atajo de dictado
           </p>
           <code style={{ display: 'block', fontSize: 11, wordBreak: 'break-all', marginBottom: 6, color: 'var(--text)' }}>
-            {`${urlIngesta()}?origen=dictado&token=${token}&texto=`}
+            {`${ingestUrl()}?origen=dictado&token=${token}&texto=`}
           </code>
           <button
             type="button"
-            onClick={() => copiar(`${urlIngesta()}?origen=dictado&token=${token}&texto=`, 'dictado')}
+            onClick={() => copy(`${ingestUrl()}?origen=dictado&token=${token}&texto=`, 'dictado')}
             style={{ ...btn, marginBottom: 10 }}
           >
-            {copiado === 'dictado' ? 'Copiada ✓' : 'Copiar dirección del dictado'}
+            {copied === 'dictado' ? 'Copiada ✓' : 'Copiar dirección del dictado'}
           </button>
 
           <details>
@@ -103,18 +103,18 @@ export function AutomationSection() {
             <code style={{ display: 'block', fontSize: 11, wordBreak: 'break-all', margin: '6px 0', color: 'var(--text-muted)' }}>
               {token}
             </code>
-            <button type="button" onClick={() => copiar(token, 'token')} style={btn}>
-              {copiado === 'token' ? 'Copiada ✓' : 'Copiar clave sola'}
+            <button type="button" onClick={() => copy(token, 'token')} style={btn}>
+              {copied === 'token' ? 'Copiada ✓' : 'Copiar clave sola'}
             </button>
           </details>
         </div>
       ) : (
-        <button type="button" onClick={generar} disabled={ocupado} style={{ ...btn, width: '100%', marginBottom: 10 }}>
-          {ocupado ? 'Generando…' : existe ? 'Generar una clave nueva' : 'Generar clave'}
+        <button type="button" onClick={generate} disabled={busy} style={{ ...btn, width: '100%', marginBottom: 10 }}>
+          {busy ? 'Generando…' : exists ? 'Generar una clave nueva' : 'Generar clave'}
         </button>
       )}
 
-      {existe && !token && (
+      {exists && !token && (
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', margin: '0 0 10px' }}>
           Ya tienes una clave. Generar otra reemplaza la anterior, y los Atajos
           que usen la vieja dejan de funcionar.

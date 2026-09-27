@@ -1,22 +1,23 @@
-# Deployment — de tu computador a tu iPhone
+# Deployment — from your computer to your iPhone
 
-Guía paso a paso, de cero, para llevar Step up de este código a una app
-instalada en tu teléfono. Nada de esto es obligatorio en orden estricto,
-pero sí en dependencia: no puedes instalar en el iPhone sin haber
-desplegado, no puedes desplegar sin haber subido a GitHub.
+A step-by-step guide, from zero, to get Step up from this code to an
+app installed on your phone. None of this has to happen in strict
+order, but it does have dependencies: you can't install on the iPhone
+without having deployed, and you can't deploy without having pushed to
+GitHub.
 
-## 0. Lo que necesitas antes de empezar
+## 0. What you need before starting
 
-- Una cuenta de [GitHub](https://github.com) (gratis).
-- [Node.js](https://nodejs.org) 20 o superior instalado en tu computador.
-- Git instalado.
-- **Opcional:** una cuenta de [Supabase](https://supabase.com) (gratis) —
-  solo si quieres respaldo en la nube y notificaciones push. Sin esto, la
-  app funciona igual de completa, 100% local en tu teléfono.
+- A [GitHub](https://github.com) account (free).
+- [Node.js](https://nodejs.org) 20 or higher installed on your computer.
+- Git installed.
+- **Optional:** a [Supabase](https://supabase.com) account (free) —
+  only if you want cloud backup and push notifications. Without this,
+  the app is still 100% functional, fully local on your phone.
 
 ---
 
-## 1. Correr el proyecto en tu computador
+## 1. Run the project on your computer
 
 ```bash
 git clone https://github.com/<tu-usuario>/step-up.git
@@ -25,23 +26,23 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173/step-up/`. Deberías ver el dashboard vacío.
-Toca "Cargar datos de ejemplo" para probar que todo funciona.
+Open `http://localhost:5173/step-up/`. You should see the empty
+dashboard. Tap "Load sample data" to confirm everything works.
 
 ```bash
 npm run test        # 123 tests, todos deben pasar
-npm run typecheck   # sin errores
+npm run typecheck   # no errors
 npm run build        # genera dist/
 ```
 
-Si algo de esto falla, revisa la sección de **Solución de problemas** al
-final antes de seguir.
+If any of this fails, check the **Common troubleshooting** section at
+the end before continuing.
 
 ---
 
-## 2. Subir el código a GitHub
+## 2. Push the code to GitHub
 
-Si el proyecto no está en un repositorio todavía:
+If the project isn't in a repository yet:
 
 ```bash
 git init
@@ -49,13 +50,13 @@ git add .
 git commit -m "Step up — versión inicial"
 ```
 
-Crea un repositorio nuevo en GitHub llamado **exactamente** `step-up`
-(en minúsculas) — el nombre debe coincidir con `base: '/step-up/'` en
-`vite.config.ts`, o la app no encontrará sus propios archivos una vez
-publicada. Si prefieres otro nombre, cambia ese `base` primero.
+Create a new GitHub repository named **exactly** `step-up`
+(lowercase) — the name has to match `base: '/step-up/'` in
+`vite.config.ts`, or the app won't find its own files once published.
+If you prefer a different name, change that `base` first.
 
-**Importante:** el repositorio debe ser **público**. GitHub Pages gratis
-en una cuenta personal no publica sitios desde repos privados.
+**Important:** the repository must be **public**. Free GitHub Pages
+on a personal account doesn't publish sites from private repos.
 
 ```bash
 git remote add origin https://github.com/<tu-usuario>/step-up.git
@@ -65,73 +66,74 @@ git push -u origin main
 
 ---
 
-## 3. Activar GitHub Pages
+## 3. Enable GitHub Pages
 
-1. En GitHub, ve a tu repositorio → **Settings** → **Pages**.
-2. En "Build and deployment" → "Source", elige **GitHub Actions** (no
-   "Deploy from a branch" — el workflow ya incluido en
-   `.github/workflows/deploy.yml` se encarga de todo).
-3. Ve a la pestaña **Actions** de tu repo. Deberías ver un workflow
-   "Deploy to GitHub Pages" corriendo (se dispara solo con el push del
-   paso anterior). Espera a que termine en verde — toma 1-2 minutos.
-4. Tu app ya está en: `https://<tu-usuario>.github.io/step-up/`
+1. On GitHub, go to your repository → **Settings** → **Pages**.
+2. Under "Build and deployment" → "Source", choose **GitHub Actions**
+   (not "Deploy from a branch" — the workflow already included at
+   `.github/workflows/deploy.yml` handles everything).
+3. Go to your repo's **Actions** tab. You should see a "Deploy to
+   GitHub Pages" workflow running (it triggers automatically from the
+   push in the previous step). Wait for it to finish green — it takes
+   1-2 minutes.
+4. Your app is now live at: `https://<tu-usuario>.github.io/step-up/`
 
-Cada vez que hagas `git push` a `main`, este workflow se vuelve a correr
-y actualiza el sitio automáticamente.
+Every time you `git push` to `main`, this workflow runs again and
+updates the site automatically.
 
 ---
 
-## 4. (Opcional) Configurar Supabase — respaldo en la nube y notificaciones
+## 4. (Optional) Set up Supabase — cloud backup and notifications
 
-Sin este paso, la app funciona 100% completa, solo que tus datos viven
-únicamente en el navegador de tu teléfono (con export/import manual desde
-Ajustes como respaldo). Este paso agrega sincronización real y
-notificaciones push.
+Without this step, the app is 100% functional, it's just that your
+data lives only in your phone's browser (with manual export/import
+from Settings as a backup). This step adds real sync and push
+notifications.
 
-### 4.1 Crear el proyecto
+### 4.1 Create the project
 
-1. Entra a [supabase.com](https://supabase.com) → **New project**.
-2. Elige una contraseña de base de datos (guárdala; la necesitarás solo si
-   te conectas por `psql`, no para el día a día).
-3. Espera 1-2 minutos a que el proyecto termine de crearse.
+1. Go to [supabase.com](https://supabase.com) → **New project**.
+2. Choose a database password (save it; you'll only need it if you
+   connect via `psql`, not for day-to-day use).
+3. Wait 1-2 minutes for the project to finish being created.
 
-### 4.2 Aplicar el esquema
+### 4.2 Apply the schema
 
-En el panel de Supabase → **SQL Editor** → **New query**, pega y ejecuta,
-**en este orden**, el contenido de:
+In the Supabase panel → **SQL Editor** → **New query**, paste and run,
+**in this order**, the contents of:
 
 1. `supabase/migrations/0001_init.sql`
 2. `supabase/migrations/0002_push_subscriptions.sql`
 
-(El tercero, `0003_reminder_cron.sql`, se aplica más adelante, en el paso
-4.5 — necesita datos que todavía no tienes.)
+(The third one, `0003_reminder_cron.sql`, is applied later, in step
+4.5 — it needs data you don't have yet.)
 
-### 4.3 Habilitar el login por correo
+### 4.3 Enable email login
 
-Panel → **Authentication** → **Providers** → confirma que **Email** esté
-habilitado, con "Confirm email" y "Magic Link" activos (vienen así por
-defecto). No necesitas configurar OAuth de terceros — la app solo usa
-enlace mágico por correo.
+Panel → **Authentication** → **Providers** → confirm that **Email** is
+enabled, with "Confirm email" and "Magic Link" turned on (this is the
+default). You don't need to configure any third-party OAuth — the app
+only uses magic link by email.
 
-### 4.4 Conectar la app a tu proyecto
+### 4.4 Connect the app to your project
 
-Panel → **Project Settings** → **API**. Copia:
+Panel → **Project Settings** → **API**. Copy:
 
 - **Project URL**
-- **anon public** key (la `anon`, **nunca** la `service_role`)
+- **anon public** key (the `anon` one, **never** the `service_role` one)
 
-Crea un archivo `.env.local` en la raíz del proyecto (nunca lo subas a
-git — ya está en `.gitignore`):
+Create a `.env.local` file at the project root (never commit it to
+git — it's already in `.gitignore`):
 
 ```bash
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-anon-key-aqui
 ```
 
-Para que el sitio **desplegado** en GitHub Pages también las use, agrega
-las mismas dos variables como **Secrets** del repositorio: Settings →
-**Secrets and variables** → **Actions** → **New repository secret**. Y
-edita `.github/workflows/deploy.yml` para pasarlas al paso de build:
+For the **deployed** site on GitHub Pages to also use these, add the
+same two variables as repository **Secrets**: Settings →
+**Secrets and variables** → **Actions** → **New repository secret**.
+And edit `.github/workflows/deploy.yml` to pass them to the build step:
 
 ```yaml
       - run: npm run build
@@ -141,60 +143,59 @@ edita `.github/workflows/deploy.yml` para pasarlas al paso de build:
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
 ```
 
-Vuelve a hacer `npm run dev` — ahora la app te pedirá iniciar sesión con
-tu correo antes de mostrar cualquier pantalla. Esto es intencional: el
-repo es público, así que la `anon key` queda visible en el código
-descargado por cualquiera — sin login (protegido por Row Level Security
-en cada tabla), esa key por sí sola no le da acceso a nadie a tus datos.
+Run `npm run dev` again — now the app will ask you to sign in with
+your email before showing any screen. This is intentional: the repo is
+public, so the `anon key` is visible in the code anyone can download —
+without login (protected by Row Level Security on every table), that
+key alone doesn't give anyone access to your data.
 
-### 4.5 Notificaciones push (opcional dentro de lo opcional)
+### 4.5 Push notifications (optional within the optional)
 
-Ver **[docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)** — tiene su propia
-guía completa (generar llaves VAPID, desplegar la Edge Function,
-programar el cron). Es la parte más avanzada de todo el proyecto; sáltala
-si por ahora solo quieres el respaldo en la nube.
-
----
-
-## 5. Instalar en tu iPhone
-
-1. Abre `https://<tu-usuario>.github.io/step-up/` en **Safari** (tiene
-   que ser Safari — Chrome en iOS no puede instalar PWAs).
-2. Toca el botón de **Compartir** (el cuadrado con la flecha hacia
-   arriba).
-3. Baja hasta **"Agregar a inicio"** (o "Add to Home Screen").
-4. Confirma el nombre y toca **Agregar**.
-
-Ya tienes el ícono de Step up en tu pantalla de inicio, y se abre como
-una app — sin la barra de Safari.
-
-Si configuraste notificaciones (paso 4.5), ahora sí puedes activarlas
-desde Ajustes: **solo funcionan si abres la app desde este ícono**, nunca
-desde una pestaña normal de Safari — así es como Apple lo diseñó.
+See **[docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)** — it has its
+own complete guide (generating VAPID keys, deploying the Edge
+Function, scheduling the cron). It's the most advanced part of the
+whole project; skip it if for now you only want cloud backup.
 
 ---
 
-## 6. Actualizar la app después de cambios
+## 5. Install on your iPhone
+
+1. Open `https://<tu-usuario>.github.io/step-up/` in **Safari** (it
+   has to be Safari — Chrome on iOS can't install PWAs).
+2. Tap the **Share** button (the square with the arrow pointing up).
+3. Scroll down to **"Add to Home Screen"**.
+4. Confirm the name and tap **Add**.
+
+You now have the Step up icon on your home screen, and it opens like
+an app — without Safari's toolbar.
+
+If you set up notifications (step 4.5), you can now turn them on from
+Settings: **they only work if you open the app from this icon**,
+never from a regular Safari tab — that's how Apple designed it.
+
+---
+
+## 6. Updating the app after changes
 
 ```bash
 git add .
-git commit -m "lo que cambiaste"
+git commit -m "what you changed"
 git push
 ```
 
-El workflow de Pages se dispara solo. El ícono en tu iPhone se actualiza
-solo la próxima vez que abras la app con internet (el service worker
-revisa si hay una versión nueva).
+The Pages workflow triggers automatically. The icon on your iPhone
+updates on its own the next time you open the app with internet
+access (the service worker checks for a new version).
 
 ---
 
-## Solución de problemas comunes
+## Common troubleshooting
 
-| Problema | Causa probable |
+| Problem | Likely cause |
 |---|---|
-| La app se ve en blanco en GitHub Pages, pero funciona en `npm run dev` | El nombre del repo no coincide con `base` en `vite.config.ts` |
-| "404" al recargar una pantalla que no sea el inicio | El workflow de deploy no copió `404.html` — revisa que el paso `cp dist/index.html dist/404.html` siga en `deploy.yml` |
-| No aparece el botón de "Agregar a inicio" en iOS | Tienes que estar en Safari, no en Chrome ni en el navegador dentro de otra app |
-| Las notificaciones no llegan | Revisa `docs/NOTIFICATIONS.md` — hay varios pasos manuales (VAPID, Edge Function, cron) que no se hacen solos |
-| `npm install` falla o se cuelga | Verifica tu versión de Node (`node -v`, debe ser 20+); prueba borrar `node_modules` y `package-lock.json` y repetir |
-| Cambié `cutoffDay`/`paymentDay` de la tarjeta y las compras viejas cambiaron de fecha de pago | No debería pasar — cada compra guarda su propia fecha calculada (`cyclePaymentDate`) al momento de crearse. Si ves esto, es un bug: abre un issue |
+| The app shows blank on GitHub Pages, but works with `npm run dev` | The repo name doesn't match `base` in `vite.config.ts` |
+| "404" when reloading a screen other than the home one | The deploy workflow didn't copy `404.html` — check that the `cp dist/index.html dist/404.html` step is still in `deploy.yml` |
+| The "Add to Home Screen" button doesn't show up on iOS | You have to be in Safari, not Chrome or an in-app browser |
+| Notifications don't arrive | Check `docs/NOTIFICATIONS.md` — there are several manual steps (VAPID, Edge Function, cron) that don't happen on their own |
+| `npm install` fails or hangs | Check your Node version (`node -v`, must be 20+); try deleting `node_modules` and `package-lock.json` and repeating |
+| I changed the card's `cutoffDay`/`paymentDay` and old purchases changed their payment date | This shouldn't happen — each purchase stores its own calculated date (`cyclePaymentDate`) at the moment it's created. If you see this, it's a bug: open an issue |

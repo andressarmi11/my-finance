@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordatoriosASubir } from './recordatorios';
+import { remindersToUpload } from './reminders';
 import type { Reminder } from '@/domain/types';
 
 function r(over: Partial<Reminder> = {}): Reminder {
@@ -10,61 +10,62 @@ function r(over: Partial<Reminder> = {}): Reminder {
   };
 }
 
-const VIVOS = new Set(['t1', 't2']);
+const ALIVE = new Set(['t1', 't2']);
 
-describe('recordatoriosASubir — el filtro de huérfanos', () => {
+describe('recordatoriosASubir — the orphan filter', () => {
   /**
-   * El caso importante: en Postgres reminders.transaction_id tiene FK a
-   * transactions(id). Subir el recordatorio de un movimiento borrado no
-   * falla solo, tumba el push entero y con él todo lo que venía detrás.
+   * The case that matters: in Postgres reminders.transaction_id has an FK
+   * to transactions(id). Uploading the reminder of a deleted transaction
+   * doesn't fail quietly on its own, it takes down the entire push and
+   * with it everything else queued behind it.
    */
-  it('no sube el recordatorio de un movimiento que ya no existe', () => {
-    const huerfano = r({ id: 'borrado', transactionId: 'borrado' });
-    expect(recordatoriosASubir([huerfano], [], VIVOS)).toEqual([]);
+  it('does not upload the reminder of a transaction that no longer exists', () => {
+    const orphan = r({ id: 'borrado', transactionId: 'borrado' });
+    expect(remindersToUpload([orphan], [], ALIVE)).toEqual([]);
   });
 
-  it('un huérfano no arrastra a los sanos que van con él', () => {
-    const sano = r({ id: 't1', transactionId: 't1' });
-    const huerfano = r({ id: 'x', transactionId: 'x' });
-    expect(recordatoriosASubir([huerfano, sano], [], VIVOS)).toEqual([sano]);
+  it('an orphan does not drag down the healthy ones alongside it', () => {
+    const healthy = r({ id: 't1', transactionId: 't1' });
+    const orphan = r({ id: 'x', transactionId: 'x' });
+    expect(remindersToUpload([orphan, healthy], [], ALIVE)).toEqual([healthy]);
   });
 
-  it('sin movimientos vivos no sube nada', () => {
-    expect(recordatoriosASubir([r()], [], new Set())).toEqual([]);
+  it('with no live transactions, uploads nothing', () => {
+    expect(remindersToUpload([r()], [], new Set())).toEqual([]);
   });
 });
 
-describe('recordatoriosASubir — quién gana', () => {
-  it('sube el que todavía no está en la nube', () => {
+describe('recordatoriosASubir — who wins', () => {
+  it('uploads the one that is not in the cloud yet', () => {
     const nuevo = r({ id: 't2', transactionId: 't2' });
-    expect(recordatoriosASubir([nuevo], [], VIVOS)).toEqual([nuevo]);
+    expect(remindersToUpload([nuevo], [], ALIVE)).toEqual([nuevo]);
   });
 
-  it('sube el local si es más nuevo', () => {
+  it('uploads the local one if it is newer', () => {
     const local = r({ updatedAt: '2026-09-20T00:00:00.000Z' });
-    const remoto = r({ updatedAt: '2026-09-01T00:00:00.000Z' });
-    expect(recordatoriosASubir([local], [remoto], VIVOS)).toEqual([local]);
+    const remoteRow = r({ updatedAt: '2026-09-01T00:00:00.000Z' });
+    expect(remindersToUpload([local], [remoteRow], ALIVE)).toEqual([local]);
   });
 
   /**
-   * Importante para las notificaciones: el servidor marca 'sent' cuando la
-   * manda. Si el local volviera a subir su 'scheduled', la notificación se
-   * enviaría otra vez.
+   * Important for notifications: the server marks it 'sent' when it sends
+   * it. If the local one uploaded its 'scheduled' status again, the
+   * notification would go out a second time.
    */
-  it('NO pisa el estado más nuevo que puso el servidor', () => {
+  it('does NOT overwrite the newer status the server set', () => {
     const local = r({ status: 'scheduled', updatedAt: '2026-09-01T00:00:00.000Z' });
-    const remoto = r({ status: 'sent', updatedAt: '2026-09-20T00:00:00.000Z' });
-    expect(recordatoriosASubir([local], [remoto], VIVOS)).toEqual([]);
+    const remoteRow = r({ status: 'sent', updatedAt: '2026-09-20T00:00:00.000Z' });
+    expect(remindersToUpload([local], [remoteRow], ALIVE)).toEqual([]);
   });
 
-  it('un local sin fecha nunca le gana a uno real', () => {
+  it('a local one with no date never beats a real one', () => {
     const local = r({ updatedAt: '' });
-    const remoto = r({ status: 'sent' });
-    expect(recordatoriosASubir([local], [remoto], VIVOS)).toEqual([]);
+    const remoteRow = r({ status: 'sent' });
+    expect(remindersToUpload([local], [remoteRow], ALIVE)).toEqual([]);
   });
 
-  it('pero un local sin fecha sí se sube si allá no hay nada', () => {
+  it('but a local one with no date does upload if there is nothing on the other side', () => {
     const local = r({ updatedAt: '' });
-    expect(recordatoriosASubir([local], [], VIVOS)).toEqual([local]);
+    expect(remindersToUpload([local], [], ALIVE)).toEqual([local]);
   });
 });

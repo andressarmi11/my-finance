@@ -2,15 +2,15 @@ import { test, expect } from './fixtures';
 import type { Page } from '@playwright/test';
 
 /**
- * El dictado por voz, con un reconocedor falso.
+ * Voice dictation, with a fake recognizer.
  *
- * Hasta ahora no tenía ni una prueba: los navegadores headless no exponen
- * la Web Speech API, así que hayDictado() devuelve false y el botón del
- * micrófono ni se dibuja. O sea que toda la máquina de estados —escuchar,
- * parar, error, volver a intentar— nunca se ejecutó en CI.
+ * Until now it had no test at all: headless browsers don't expose the Web
+ * Speech API, so hasDictation() returns false and the microphone button
+ * isn't even drawn. Which means the whole state machine —listen, stop,
+ * error, try again— never ran in CI.
  *
- * El doble se inyecta antes de que cargue la app y deja conducir la
- * conversación desde el test: `window.__voz.hablar(...)`, `.fallar(...)`,
+ * The double is injected before the app loads and lets the test drive the
+ * conversation: `window.__voz.hablar(...)`, `.fallar(...)`,
  * `.terminarEnSilencio()`.
  */
 async function conDictadoFalso(page: Page) {
@@ -29,9 +29,9 @@ async function conDictadoFalso(page: Page) {
       corriendo = false;
 
       start() {
-        // El micrófono es uno solo: si OTRO reconocedor sigue vivo, este no
-        // arranca. Es lo que pasa de verdad — no basta con que cada
-        // instancia se vigile a sí misma.
+        // There is only one microphone: if ANOTHER recognizer is still
+        // alive, this one won't start. That's what really happens — it isn't
+        // enough for each instance to watch only itself.
         const otro = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
         if (otro && otro !== this && otro.corriendo) throw new Error('InvalidStateError');
         if (this.corriendo) throw new Error('InvalidStateError');
@@ -41,10 +41,10 @@ async function conDictadoFalso(page: Page) {
       }
 
       stop() {
-        // Encasquillado: ignora stop() y no avisa a nadie, pero sigue
-        // agarrado al micrófono. Solo abort() lo mata. Es la forma que tiene
-        // el fallo de verdad, y la razón de que el dictado quedara
-        // inservible hasta recargar.
+        // Jammed: it ignores stop() and tells nobody, but still holds the
+        // microphone. Only abort() kills it. That's the shape the real
+        // failure takes, and the reason dictation was left unusable until
+        // a reload.
         if ((window as unknown as { __vozMuda: boolean }).__vozMuda) return;
         if (!this.corriendo) return;
         this.corriendo = false;
@@ -52,14 +52,14 @@ async function conDictadoFalso(page: Page) {
       }
 
       abort() {
-        // abort() SIEMPRE mata, aunque el modo mudo no avise.
+        // abort() ALWAYS kills it, even when the mute mode says nothing.
         this.corriendo = false;
       }
     }
 
-    // Los DOS nombres: Chromium trae SpeechRecognition nativo y speech.ts
-    // lo prefiere, así que pisar solo el webkit- dejaba correr el de verdad
-    // —que sin micrófono se queda callado— y el doble no se usaba nunca.
+    // BOTH names: Chromium ships a native SpeechRecognition and speech.ts
+    // prefers it, so overriding only the webkit- one let the real one run
+    // —which, with no microphone, stays silent— and the double was never used.
     (window as unknown as { SpeechRecognition: unknown }).SpeechRecognition = FakeRecognition;
     (window as unknown as { webkitSpeechRecognition: unknown }).webkitSpeechRecognition = FakeRecognition;
     (window as unknown as { __vozActiva: unknown }).__vozActiva = null;
@@ -67,26 +67,26 @@ async function conDictadoFalso(page: Page) {
     (window as unknown as { __vozMuda: boolean }).__vozMuda = false;
 
     (window as unknown as { __voz: unknown }).__voz = {
-      /** Entrega texto como lo haría el reconocedor real. */
-      hablar(texto: string, final: boolean) {
-        const activa = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
-        if (!activa) throw new Error('no hay dictado activo');
-        const results = [{ 0: { transcript: texto }, isFinal: final, length: 1 }] as unknown as Res[] & { length: number };
-        activa.onresult?.({ resultIndex: 0, results });
-        if (final) activa.stop();
+      /** Delivers text the way the real recognizer would. */
+      hablar(text: string, final: boolean) {
+        const isActive = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
+        if (!isActive) throw new Error('no hay dictado activo');
+        const results = [{ 0: { transcript: text }, isFinal: final, length: 1 }] as unknown as Res[] & { length: number };
+        isActive.onresult?.({ resultIndex: 0, results });
+        if (final) isActive.stop();
       },
-      fallar(codigo: string) {
-        const activa = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
-        if (!activa) throw new Error('no hay dictado activo');
-        activa.onerror?.({ error: codigo });
-        activa.stop();
+      fallar(code: string) {
+        const isActive = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
+        if (!isActive) throw new Error('no hay dictado activo');
+        isActive.onerror?.({ error: code });
+        isActive.stop();
       },
-      /** El caso de Safari: se acaba sin haber oído nada. */
+      /** The Safari case: it ends without having heard anything. */
       terminarEnSilencio() {
-        const activa = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
-        activa?.stop();
+        const isActive = (window as unknown as { __vozActiva: FakeRecognition | null }).__vozActiva;
+        isActive?.stop();
       },
-      /** Safari que se apaga sin llamar a onend. */
+      /** Safari shutting down without calling onend. */
       enmudecer() {
         (window as unknown as { __vozMuda: boolean }).__vozMuda = true;
       },
@@ -97,14 +97,14 @@ async function conDictadoFalso(page: Page) {
   });
 }
 
-/** Abre la hoja de "Contale a la app". */
+/** Opens the "Contale a la app" sheet. */
 async function abrirHoja(page: Page) {
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const hoja = page.getByRole('dialog', { name: 'Contale a la app' });
-  await expect(hoja).toBeVisible();
-  return hoja;
+  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  await expect(sheet).toBeVisible();
+  return sheet;
 }
 
 type Voz = {
@@ -115,168 +115,168 @@ type Voz = {
   sigueCorriendo(): boolean;
 };
 
-test('dictar un gasto lo guarda', async ({ page }) => {
+test('dictating an expense saves it', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
-  await expect(hoja.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
+  await expect(sheet.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
 
-  // Parcial mientras habla, y luego el definitivo.
+  // Partial while speaking, then the final one.
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('gasté cuarenta', false));
-  await expect(hoja.getByLabel('Qué pasó')).toHaveValue('gasté cuarenta');
+  await expect(sheet.getByLabel('Qué pasó')).toHaveValue('gasté cuarenta');
 
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('gasté cuarenta mil en el almuerzo', true));
-  await expect(hoja.getByLabel('Qué pasó')).toHaveValue('gasté cuarenta mil en el almuerzo');
+  await expect(sheet.getByLabel('Qué pasó')).toHaveValue('gasté cuarenta mil en el almuerzo');
 
-  // Al terminar deja de escuchar solo.
-  await expect(hoja.getByRole('button', { name: 'Dictar' })).toBeVisible();
+  // When it finishes it stops listening on its own.
+  await expect(sheet.getByRole('button', { name: 'Dictar' })).toBeVisible();
 
-  await hoja.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(hoja.getByText(/Anotado/)).toBeVisible();
+  await sheet.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(sheet.getByText(/Anotado/)).toBeVisible();
 });
 
-test('si no escuchó nada, se puede volver a intentar', async ({ page }) => {
+test('if it heard nothing, you can try again', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.fallar('no-speech'));
-  await expect(hoja.getByText('No escuché nada.')).toBeVisible();
-  await expect(hoja.getByRole('button', { name: 'Dictar' })).toBeVisible();
+  await expect(sheet.getByText('No escuché nada.')).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Dictar' })).toBeVisible();
 
-  // El segundo intento tiene que funcionar igual que el primero.
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  // The second attempt has to work just like the first.
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('veinte mil de café', true));
-  await expect(hoja.getByLabel('Qué pasó')).toHaveValue('veinte mil de café');
-  await hoja.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(hoja.getByText(/Anotado/)).toBeVisible();
+  await expect(sheet.getByLabel('Qué pasó')).toHaveValue('veinte mil de café');
+  await sheet.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(sheet.getByText(/Anotado/)).toBeVisible();
 });
 
 /**
- * Safari corta el dictado solo tras un silencio, sin error y sin texto.
- * Si el botón se quedara en "Dejar de escuchar", el micrófono parecería
- * colgado y el siguiente intento no arrancaría.
+ * Safari cuts dictation off on its own after a silence, with no error and
+ * no text. If the button stayed on "Dejar de escuchar", the microphone
+ * would look hung and the next attempt wouldn't start.
  */
-test('si Safari lo corta en silencio, el botón vuelve a su sitio', async ({ page }) => {
+test('if Safari cuts it off silently, the button returns to normal', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.terminarEnSilencio());
-  await expect(hoja.getByRole('button', { name: 'Dictar' })).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Dictar' })).toBeVisible();
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('quince mil de bus', true));
-  await expect(hoja.getByLabel('Qué pasó')).toHaveValue('quince mil de bus');
+  await expect(sheet.getByLabel('Qué pasó')).toHaveValue('quince mil de bus');
 });
 
-test('parar a mano deja el texto que alcanzó a oír', async ({ page }) => {
+test('stopping by hand keeps the text it managed to hear', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('treinta mil de mercado', false));
-  await hoja.getByRole('button', { name: 'Dejar de escuchar' }).click();
+  await sheet.getByRole('button', { name: 'Dejar de escuchar' }).click();
 
-  await expect(hoja.getByRole('button', { name: 'Dictar' })).toBeVisible();
-  await expect(hoja.getByLabel('Qué pasó')).toHaveValue('treinta mil de mercado');
+  await expect(sheet.getByRole('button', { name: 'Dictar' })).toBeVisible();
+  await expect(sheet.getByLabel('Qué pasó')).toHaveValue('treinta mil de mercado');
 });
 
 /**
- * Cerrar la hoja mientras escucha tiene que soltar el micrófono. Si el
- * reconocedor quedara vivo, el siguiente start() lanzaría InvalidStateError
- * y el dictado dejaría de funcionar hasta recargar — que es exactamente la
- * forma que tiene "a veces no funciona".
+ * Closing the sheet while listening has to release the microphone. If the
+ * recognizer were left alive, the next start() would throw
+ * InvalidStateError and dictation would stop working until a reload — which
+ * is exactly what "sometimes it doesn't work" looks like.
  */
-test('cerrar mientras escucha suelta el micrófono', async ({ page }) => {
+test('closing while listening releases the microphone', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
   await page.keyboard.press('Escape');
-  await expect(hoja).toBeHidden();
+  await expect(sheet).toBeHidden();
 
-  const colgado = await page.evaluate(
+  const stalled = await page.evaluate(
     () => (window as never as { __vozActiva: { corriendo: boolean } | null }).__vozActiva?.corriendo ?? false,
   );
-  expect(colgado, 'el reconocedor quedó corriendo tras cerrar la hoja').toBe(false);
+  expect(stalled, 'el reconocedor quedó corriendo tras cerrar la hoja').toBe(false);
 
   // Y dictar otra vez funciona.
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const hoja2 = page.getByRole('dialog', { name: 'Contale a la app' });
-  await hoja2.getByRole('button', { name: 'Dictar' }).click();
+  const sheet2 = page.getByRole('dialog', { name: 'Contale a la app' });
+  await sheet2.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('diez mil de taxi', true));
-  await expect(hoja2.getByLabel('Qué pasó')).toHaveValue('diez mil de taxi');
+  await expect(sheet2.getByLabel('Qué pasó')).toHaveValue('diez mil de taxi');
 });
 
 /**
- * El caso que rompía el dictado hasta recargar la app.
+ * The case that broke dictation until the app was reloaded.
  *
- * Si un reconocedor queda vivo —Safari lo apaga sin llamar a onend, o la
- * hoja se cerró a mitad—, el siguiente start() lanza InvalidStateError.
- * Antes eso se reportaba como "este navegador no deja dictar", que además
- * de ser mentira dejaba a la persona sin salida. Ahora se suelta el
- * anterior antes de pedir uno nuevo.
+ * If a recognizer is left alive —Safari shuts it down without calling
+ * onend, or the sheet closed halfway— the next start() throws
+ * InvalidStateError. That used to be reported as "this browser won't let
+ * you dictate", which on top of being a lie left the person with no way
+ * out. Now the previous one is released before asking for a new one.
  */
-test('un reconocedor colgado no deja el dictado inservible', async ({ page }) => {
+test('a hung recognizer does not leave dictation unusable', async ({ page }) => {
   await conDictadoFalso(page);
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
 
-  // El reconocedor se encasquilla: ignora stop() y se queda con el micrófono.
+  // The recognizer jams: it ignores stop() and keeps the microphone.
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.enmudecer());
 
-  // Se cierra la hoja. La limpieza llama a stop(), que ya no sirve de nada:
-  // el reconocedor sigue vivo y agarrado al micrófono.
+  // The sheet closes. Cleanup calls stop(), which is now useless: the
+  // recognizer is still alive and still holding the microphone.
   await page.keyboard.press('Escape');
-  await expect(hoja).toBeHidden();
+  await expect(sheet).toBeHidden();
   expect(
     await page.evaluate(() => (window as never as { __voz: Voz }).__voz.sigueCorriendo()),
     'el reconocedor encasquillado debería seguir vivo para que el test signifique algo',
   ).toBe(true);
 
-  // Se vuelve a abrir y se dicta. Acá es donde antes moría todo: el start()
-  // del reconocedor nuevo choca con el viejo y la app decía "este navegador
-  // no deja dictar" hasta que recargaras.
+  // Reopen and dictate. This is where everything used to die: the new
+  // recognizer's start() collides with the old one and the app said "this
+  // browser won't let you dictate" until you reloaded.
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const hoja2 = page.getByRole('dialog', { name: 'Contale a la app' });
-  await hoja2.getByRole('button', { name: 'Dictar' }).click();
+  const sheet2 = page.getByRole('dialog', { name: 'Contale a la app' });
+  await sheet2.getByRole('button', { name: 'Dictar' }).click();
 
-  await expect(hoja2.getByText(/navegador no deja dictar/)).toBeHidden();
+  await expect(sheet2.getByText(/navegador no deja dictar/)).toBeHidden();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('doce mil de pan', true));
-  await expect(hoja2.getByLabel('Qué pasó')).toHaveValue('doce mil de pan');
+  await expect(sheet2.getByLabel('Qué pasó')).toHaveValue('doce mil de pan');
 });
 
 /**
- * Si el reconocedor no contesta nada —micrófono ocupado, permiso a medias,
- * errores conocidos de Safari— el botón se quedaba en "Dejar de escuchar"
- * para siempre y no había forma de recuperarlo sin recargar. Parecía que la
- * app se había colgado.
+ * If the recognizer answers nothing —microphone busy, permission stuck
+ * halfway, known Safari bugs— the button stayed on "Dejar de escuchar"
+ * forever and there was no way to recover without reloading. It looked like
+ * the app had frozen.
  */
-test('si nadie contesta, el dictado se rinde y lo dice', async ({ page }) => {
+test('if nobody answers, dictation gives up and says so', async ({ page }) => {
   await conDictadoFalso(page);
   await page.clock.install();
-  const hoja = await abrirHoja(page);
+  const sheet = await abrirHoja(page);
 
-  await hoja.getByRole('button', { name: 'Dictar' }).click();
-  await expect(hoja.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
+  await sheet.getByRole('button', { name: 'Dictar' }).click();
+  await expect(sheet.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
 
-  // A los 3 segundos todavía está escuchando: el límite son 4, y esta mitad
-  // del test es la que lo fija. Sin ella, subir el tiempo a 12 otra vez
-  // pasaría desapercibido.
+  // At 3 seconds it's still listening: the limit is 4, and this half of the
+  // test is what pins it. Without it, raising the time back to 12 would go
+  // unnoticed.
   await page.clock.fastForward(3_000);
-  await expect(hoja.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
-  await expect(hoja.getByText(/Se quedó esperando/)).toBeHidden();
+  await expect(sheet.getByRole('button', { name: 'Dejar de escuchar' })).toBeVisible();
+  await expect(sheet.getByText(/Se quedó esperando/)).toBeHidden();
 
-  // Pasado el límite, y sin que llegue ni texto, ni error, ni fin, se rinde.
+  // Past the limit, with no text, no error and no end arriving, it gives up.
   await page.clock.fastForward(2_000);
 
-  await expect(hoja.getByText(/Se quedó esperando/)).toBeVisible();
-  await expect(hoja.getByRole('button', { name: 'Dictar' })).toBeVisible();
-  // Y suelta el micrófono, para que el siguiente intento arranque.
+  await expect(sheet.getByText(/Se quedó esperando/)).toBeVisible();
+  await expect(sheet.getByRole('button', { name: 'Dictar' })).toBeVisible();
+  // And it releases the microphone, so the next attempt can start.
   expect(await page.evaluate(() => (window as never as { __voz: Voz }).__voz.sigueCorriendo())).toBe(false);
 });

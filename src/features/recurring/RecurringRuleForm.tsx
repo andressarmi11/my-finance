@@ -1,4 +1,5 @@
-import { useT } from '@/i18n/idioma';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { useT } from '@/i18n/language';
 import { IconX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -57,17 +58,17 @@ export function RecurringRuleForm({
       startDate,
       endDate: hasEnd && endDate ? endDate : undefined,
       isActive,
-      // La fecha real la estampa localRepository.saveRecurringRule.
+      // The real date gets stamped by localRepository.saveRecurringRule.
       updatedAt: existing?.updatedAt ?? '',
     });
   }
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
-      aria-label={existing ? t('accion.editar') : t('accion.nuevoRecurrente')}
+      aria-label={existing ? t('action.edit') : t('action.newRecurring')}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
       onClick={onCancel}
     >
@@ -77,15 +78,15 @@ export function RecurringRuleForm({
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
 
-        {/* Cerrar VISIBLE. Antes solo se podia salir tocando el fondo o con
-            Escape: en un telefono no hay Escape, y el fondo visible es una
-            franja angosta arriba de una hoja que ocupa casi toda la
-            pantalla. Abrir esto por error era quedarse adentro. */}
+        {/* VISIBLE close button. Before, the only way out was tapping the
+            background or Escape: a phone has no Escape, and the visible background is a
+            narrow strip above a sheet that takes up almost the whole
+            screen. Opening this by mistake meant being stuck inside. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <button
             type="button"
             onClick={onCancel}
-            aria-label={t('accion.cancelar')}
+            aria-label={t('action.cancel')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
               placeItems: 'center', background: 'var(--surface-sunken)',
@@ -107,21 +108,21 @@ export function RecurringRuleForm({
           ))}
         </div>
 
-        <Field label={t('form.nombre')} htmlFor="rr-nombre">
+        <Field label={t('form.name')} htmlFor="rr-nombre">
           <input id="rr-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Arriendo" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={errorText}>Ponle un nombre.</p>}
 
-        <Field label={t('form.valor')} htmlFor="rr-valor">
+        <Field label={t('form.amount')} htmlFor="rr-valor">
           <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
         </Field>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
 
-        <FieldGroup label={t('form.categoria')} id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+        <FieldGroup label={t('form.category')} id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === type).map((c) => (
             <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} aria-pressed={categoryId === c.id}
               style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, minHeight: 'var(--tap)', padding: '0 12px', borderRadius: 999, border: `1.5px solid ${categoryId === c.id ? c.color : 'var(--line)'}`, background: categoryId === c.id ? `color-mix(in srgb, ${c.color} 16%, var(--surface))` : 'var(--surface)', color: categoryId === c.id ? c.color : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-              <span aria-hidden>{c.icon}</span>{c.name}
+              <CategoryIcon icon={c.icon} size={15} />{c.name}
             </button>
           ))}
         </FieldGroup>
@@ -186,7 +187,7 @@ export function RecurringRuleForm({
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
-            Eliminar regla
+            Eliminar recurrente
           </button>
         )}
       </div>

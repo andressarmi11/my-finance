@@ -1,8 +1,8 @@
 /**
- * Kernel de fechas. Todo el resto del dominio pasa por aqui para
- * aritmetica de meses/dias. Usa exclusivamente metodos UTC de Date
- * (nunca metodos locales) para que el resultado no dependa de la
- * zona horaria de quien ejecuta el codigo.
+ * Date kernel. All the rest of the domain goes through here for
+ * month/day arithmetic. Uses exclusively UTC methods of Date
+ * (never local methods) so the result doesn't depend on the
+ * timezone of whoever runs the code.
  */
 import type { ISODate } from './types';
 
@@ -27,17 +27,17 @@ export function toISO({ y, m, d }: YMD): ISODate {
   return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** Ultimo dia del mes m (1-12) del año y. Maneja bisiestos automaticamente. */
+/** Last day of month m (1-12) of year y. Handles leap years automatically. */
 export function daysInMonth(y: number, m: number): number {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();
 }
 
-/** Clampea day al rango valido del mes, nunca produce un dia inexistente. */
+/** Clamps day to the month's valid range, never produces a non-existent day. */
 export function clampDay(y: number, m: number, day: number): number {
   return Math.min(Math.max(day, 1), daysInMonth(y, m));
 }
 
-/** Suma (o resta) meses de forma exacta, sin el "desborde" de Date nativo. */
+/** Adds (or subtracts) months exactly, without native Date's "overflow". */
 export function shiftMonth(y: number, m: number, delta: number): { y: number; m: number } {
   const total = y * 12 + (m - 1) + delta;
   const y2 = Math.floor(total / 12);
@@ -56,5 +56,5 @@ export function compareISO(a: ISODate, b: ISODate): number {
 }
 
 export function weekdayOf({ y, m, d }: YMD): number {
-  return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 domingo .. 6 sabado
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 Sunday .. 6 Saturday
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * Cuenta desde 0 (o el valor previo) hasta `value` en `duration` ms con
- * easing out. Respeta prefers-reduced-motion — si está activo, salta al
- * final sin animación.
+ * Counts from 0 (or the previous value) up to `value` over `duration` ms
+ * with ease-out. Respects prefers-reduced-motion — if active, it jumps
+ * straight to the final value with no animation.
  */
 export function AnimatedNumber({
   value,

@@ -1,25 +1,25 @@
-# Filtros por tipo y estado, y granularidad en Análisis
+# Filters by type and status, and granularity in Analytics
 
-**Fecha:** 2026-09-26
-**Estado:** diseño aprobado
-**Spec 3 de 4.**
-
----
-
-## Qué se quiere
-
-Poder filtrar los movimientos por tipo (gasto/ingreso) y por estado
-(pendiente/pagado), y ver los agregados con distinta ventana temporal:
-quincenal, mensual, trimestral o anual.
-
-**Decisión del usuario que fija el alcance:** trimestral y anual viven en
-**Análisis**, no en la lista. La lista sigue navegando por mes, que es la
-realidad de los pagos; Análisis es donde se hace la pregunta "¿cuánto
-gasté este trimestre?".
+**Date:** 2026-09-26
+**Status:** design approved
+**Spec 3 of 4.**
 
 ---
 
-## A. El bug que esta spec arrastra
+## What's wanted
+
+Being able to filter transactions by type (expense/income) and by
+status (pending/paid), and see the aggregates with a different time
+window: by pay period (quincenal), monthly, quarterly, or yearly.
+
+**User decision that sets the scope:** quarterly and yearly live in
+**Analytics**, not in the list. The list keeps navigating by month,
+which is the reality of payments; Analytics is where you ask "how much
+did I spend this quarter?"
+
+---
+
+## A. The bug this spec inherits
 
 `src/features/analytics/periodAggregate.ts:127`:
 
@@ -27,15 +27,15 @@ gasté este trimestre?".
 return transactions.filter((t) => t.date >= from && t.date <= to);
 ```
 
-Filtra por la fecha de **registro**. Una compra con tarjeta del 20 de
-septiembre que se paga el 2 de noviembre cuenta como gasto de septiembre,
-igual que antes del arreglo del dashboard (commit `95e91ce`). El bug se
-arregló en el balance y sobrevivió acá.
+It filters by the **entry** date. A card purchase from September 20th
+that's paid on November 2nd counts as a September expense, just like
+before the dashboard fix (commit `95e91ce`). The bug was fixed in the
+balance and survived here.
 
-Con diferidos se nota más: las doce cuotas de una nevera aparecen por su
-fecha de registro, no por la de cargo.
+It's more noticeable with installments: a fridge's twelve installments
+show up by their entry date, not their charge date.
 
-### La función ya existe
+### The function already exists
 
 `src/features/dashboard/upcoming.ts:15-17`:
 
@@ -46,84 +46,97 @@ export function relevantDate(tx: Transaction): string {
 }
 ```
 
-No hay que inventar nada: hay que darle **un solo hogar**. Sube a
-`src/domain/periodo/fechaDeCargo.ts` y la usan Análisis y el dashboard.
+(That comment translates to: "The date that matters: the card's payment date if there is one, otherwise the transaction's date.")
 
-Ojo con la distinción que ya está escrita en `domain/periodo/resolve.ts`:
+There's nothing to invent: it just needs **a single home**. It moves
+up to `src/domain/periodo/fechaDeCargo.ts` and gets used by both
+Analytics and the dashboard.
 
-- **registro** (`tx.date`) → dónde se lista.
-- **cargo** (`cyclePaymentDate ?? date`) → de dónde sale la plata.
+Watch out for the distinction already written in
+`domain/periodo/resolve.ts`:
 
-Análisis mide plata, así que va por cargo. `resolverPeriodoDeCargo` no
-sirve acá porque devuelve una clave de periodo de pago, y Análisis trabaja
-con rangos de calendario: lo que hace falta es la **fecha**, no la clave.
+- **entry** (`tx.date`) → where it's listed.
+- **charge** (`cyclePaymentDate ?? date`) → where the money actually
+  comes out.
 
----
-
-## B. Granularidad
-
-`Range` pasa de `'mes' | 'trimestre' | 'año'` a incluir `'quincena'`.
-
-`rangeBounds()` gana una rama: mes, trimestre y año siguen siendo
-**calendario puro**; quincena sale de `calcularPeriodo(hoy, diasDePago)`,
-o sea del periodo de pago del usuario.
-
-Son dos ejes distintos y la spec lo asume a propósito en vez de
-disimularlo: no existe "trimestre de quincenas" y no se inventa. La
-función recibe `diasDePago` solo para la rama de quincena.
-
-`rangeBounds` pasa a necesitar `diasDePago`, así que `AnalyticsScreen`
-tiene que leer `settings` — hoy no lo hace.
+Analytics measures money, so it goes by charge date.
+`resolverPeriodoDeCargo` doesn't work here because it returns a pay
+period key, and Analytics works with calendar ranges: what's needed
+is the **date**, not the key.
 
 ---
 
-## C. Filtros de tipo y estado
+## B. Granularity
 
-Van en `TransactionsScreen`, sobre la lista ya acotada al mes.
+`Range` goes from `'mes' | 'trimestre' | 'año'` (month | quarter |
+year) to also including `'quincena'` (pay period).
 
-- **Tipo**: Todos / Gastos / Ingresos.
-- **Estado**: Todos / Pendientes / Pagados.
+`rangeBounds()` gains a branch: month, quarter, and year stay **pure
+calendar**; pay period comes out of `calcularPeriodo(hoy, diasDePago)`
+(calculate period from today and pay days), meaning the user's actual
+pay period.
 
-### "Pendiente" incluye los programados
+These are two different axes and the spec deliberately treats them
+that way instead of papering over it: there's no such thing as "a
+quarter of pay periods," and none gets invented. The function only
+receives `diasDePago` for the pay-period branch.
 
-`TransactionStatus` tiene `paid | pending | scheduled | cancelled`, y hoy
-el código trata `pending` y `scheduled` de dos formas distintas según el
-archivo:
-
-- `domain/totals/porPagar.ts:43-44` los separa en dos grupos, pero los
-  suma juntos en el total.
-- `features/dashboard/upcoming.ts:20` los funde: `pending || scheduled`.
-- `domain/totals/available.ts:36` solo mira si es `paid` o no.
-
-Un filtro obliga a elegir. Se elige **"Pendientes" = `pending` +
-`scheduled`**, que es lo que ya hacen dos de los tres y lo que significa
-para el usuario ("lo que falta"). `cancelled` nunca aparece bajo ningún
-filtro: un movimiento cancelado no es ni pendiente ni pagado.
-
-El filtro es **presentación**, no dominio: acota lo que se lista y no
-toca el balance del encabezado. El restante de una quincena es el de la
-quincena, no el de lo que dejaste visible — si el filtro cambiara ese
-número, "Gastos" haría ver un restante negativo falso.
+`rangeBounds` now needs `diasDePago`, so `AnalyticsScreen` has to read
+`settings` — today it doesn't.
 
 ---
 
-## D. Pruebas
+## C. Type and status filters
 
-- `rangeBounds`: los cuatro rangos; que quincena siga a `diasDePago` y no
-  al calendario; que en modo mensual (un solo día de pago) no devuelva
-  media quincena.
-- `filterByRange`: una compra con tarjeta cae en el rango de su fecha de
-  **pago**, no de compra (el bug de la sección A).
-- Filtros de lista: que "Pendientes" incluya `scheduled` y que
-  `cancelled` no salga en ninguno.
-- E2E: filtrar por Ingresos deja solo ingresos, y el restante del
-  encabezado no se mueve.
+These go in `TransactionsScreen`, on top of the list already scoped to
+the month.
+
+- **Type**: All / Expenses / Income.
+- **Status**: All / Pending / Paid.
+
+### "Pending" includes scheduled ones
+
+`TransactionStatus` has `paid | pending | scheduled | cancelled`, and
+today the code treats `pending` and `scheduled` two different ways
+depending on the file:
+
+- `domain/totals/porPagar.ts:43-44` splits them into two groups, but
+  adds them together in the total.
+- `features/dashboard/upcoming.ts:20` merges them: `pending ||
+  scheduled`.
+- `domain/totals/available.ts:36` only checks whether it's `paid` or
+  not.
+
+A filter forces a choice. The choice is **"Pending" = `pending` +
+`scheduled`**, which is what two of the three already do and what it
+means to the user ("what's still owed"). `cancelled` never shows up
+under any filter: a cancelled transaction is neither pending nor paid.
+
+The filter is **presentation**, not domain: it narrows what's listed
+and doesn't touch the header's balance. A pay period's remainder is
+the pay period's, not whatever you left visible — if the filter
+changed that number, "Expenses" would show a false negative remainder.
 
 ---
 
-## Fuera de alcance
+## D. Tests
 
-- Filtro por categoría o por tarjeta (el buscador ya cubre por texto).
-- Filtros en Análisis: esa pantalla ya separa ingresos de gastos
-  visualmente.
-- Trimestre o año en la lista de movimientos.
+- `rangeBounds`: all four ranges; that the pay-period one follows
+  `diasDePago` and not the calendar; that in monthly mode (a single
+  pay day) it doesn't return half a pay period.
+- `filterByRange`: a card purchase falls in the range of its
+  **payment** date, not its purchase date (the bug from section A).
+- List filters: that "Pending" includes `scheduled` and that
+  `cancelled` doesn't show up in any of them.
+- E2E: filtering by Income leaves only income, and the header's
+  remainder doesn't move.
+
+---
+
+## Out of scope
+
+- Filtering by category or by card (the search box already covers
+  text).
+- Filters in Analytics: that screen already visually separates income
+  from expenses.
+- Quarter or year in the transaction list.

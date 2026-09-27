@@ -1,16 +1,16 @@
 /**
- * Inferencia autónoma de categoría + método de pago desde el concepto de
- * una transacción. Aprende del historial: cada `saveTransaction`
- * actualiza el índice, y cada apertura del form lo consulta.
+ * Autonomous inference of category + payment method from a
+ * transaction's concept. Learns from history: every `saveTransaction`
+ * updates the index, and every time the form opens it queries it.
  *
- * Match exacto normalizado (case + acentos + puntuación insensitive) →
- *   confidence 'exact'. Match por prefijo con mínimo 3 chars →
- *   'prefix'. Sin match → 'fallback' (usa el default provisto).
+ * Normalised exact match (case + accent + punctuation insensitive) →
+ *   confidence 'exact'. Prefix match with a minimum of 3 chars →
+ *   'prefix'. No match → 'fallback' (uses the provided default).
  */
 
 export interface ConceptIndexEntry {
-  id: string;            // conceptKey (normalizado)
-  displayName: string;   // último casing usado por el usuario
+  id: string;            // conceptKey (normalised)
+  displayName: string;   // last casing used by the user
   categoryId: string | null;
   paymentMethodId: string | null;
   count: number;
@@ -24,8 +24,8 @@ export interface InferenceResult {
   source: ConceptIndexEntry | null;
 }
 
-/** Normaliza un concepto para matching: minúsculas, sin tildes, sin
- *  puntuación, espacios colapsados. "Café Con Leche!" → "cafe con leche". */
+/** Normalises a concept for matching: lowercase, no accents, no
+ *  punctuation, collapsed whitespace. "Café Con Leche!" → "cafe con leche". */
 export function normalize(text: string): string {
   return text
     .trim()
@@ -71,7 +71,7 @@ export function inferFromConcept(
   return { ...fallback, confidence: 'fallback', source: null };
 }
 
-/** Top-N conceptos más recientes (para chips de "sugerencias"). */
+/** Top-N most recent concepts (for "suggestion" chips). */
 export function topRecents(index: ConceptIndexEntry[], n = 5): ConceptIndexEntry[] {
   return [...index]
     .sort((a, b) => b.lastUsedAt.localeCompare(a.lastUsedAt))

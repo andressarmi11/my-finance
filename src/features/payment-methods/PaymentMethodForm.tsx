@@ -1,11 +1,11 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { Field, FieldGroup } from '@/components/ui/Field';
 import { parseMoney } from '@/domain/money/format';
 import type { PaymentMethod, PaymentMethodType } from '@/domain/types';
 
-const TIPOS: Array<{ id: PaymentMethodType; label: string }> = [
+const TYPES: Array<{ id: PaymentMethodType; label: string }> = [
   { id: 'debit', label: 'Débito' },
   { id: 'credit', label: 'Crédito' },
   { id: 'cash', label: 'Efectivo' },
@@ -13,23 +13,23 @@ const TIPOS: Array<{ id: PaymentMethodType; label: string }> = [
 ];
 
 /**
- * Alta y edicion de un metodo de pago. El corte, el pago y el cupo solo
- * aparecen si el tipo es credito: son los tres campos que hacen que una
- * tarjeta sea SUYA y no una copia de la primera.
+ * Create and edit a payment method. The cutoff, payment day, and limit only
+ * show up if the type is credit: they're the three fields that make a
+ * card ITS OWN and not a copy of the first one.
  *
- * No hay casilla de "por defecto" a proposito. Ese dato vive en
- * Settings.defaultPaymentMethodId, no aca — PaymentMethod.isDefault quedo
- * como campo heredado (ver domain/types.ts). Una casilla que escribiera
- * isDefault pareceria no hacer nada, porque Settings gana el ??.
+ * There's no "default" checkbox on purpose. That data lives in
+ * Settings.defaultPaymentMethodId, not here — PaymentMethod.isDefault is left
+ * as a legacy field (see domain/types.ts). A checkbox that wrote
+ * isDefault would seem to do nothing, because Settings wins the ??.
  */
 export function PaymentMethodForm({
-  existing, onSave, onCancel, onDelete, movimientosAsociados }: {
+  existing, onSave, onCancel, onDelete, relatedTransactions }: {
   existing: PaymentMethod | null;
   onSave: (method: PaymentMethod) => void;
   onCancel: () => void;
   onDelete?: () => void;
-  /** Cuantos movimientos quedarian sin metodo si se borra. */
-  movimientosAsociados: number;
+  /** How many transactions would be left without a method if this is deleted. */
+  relatedTransactions: number;
 }) {
   const t = useT();
   const [name, setName] = useState(existing?.name ?? '');
@@ -39,35 +39,35 @@ export function PaymentMethodForm({
   const [cupo, setCupo] = useState(existing?.creditLimit ? String(existing.creditLimit) : '');
   const [touched, setTouched] = useState(false);
 
-  const esCredito = type === 'credit';
-  const corte = Number(cutoffDay);
-  const pago = Number(paymentDay);
-  const diasValidos = !esCredito || (esDiaDelMes(corte) && esDiaDelMes(pago));
-  const canSave = name.trim().length > 0 && diasValidos;
+  const isCredit = type === 'credit';
+  const cutoff = Number(cutoffDay);
+  const payment = Number(paymentDay);
+  const validDays = !isCredit || (isDayOfMonth(cutoff) && isDayOfMonth(payment));
+  const canSave = name.trim().length > 0 && validDays;
 
   function handleSubmit() {
     setTouched(true);
     if (!canSave) return;
-    const limite = parseMoney(cupo);
+    const limit = parseMoney(cupo);
     onSave({
-      // crypto.randomUUID y nunca un slug fijo: la PK en Postgres es
-      // (user_id, id), y un id repetido entre dispositivos colisiona.
+      // crypto.randomUUID and never a fixed slug: the PK in Postgres is
+      // (user_id, id), and a repeated id across devices collides.
       id: existing?.id ?? crypto.randomUUID(),
       type,
       name: name.trim(),
       isDefault: existing?.isDefault ?? false,
-      ...(esCredito
-        ? { cutoffDay: corte, paymentDay: pago, ...(limite && limite > 0 ? { creditLimit: limite } : {}) }
+      ...(isCredit
+        ? { cutoffDay: cutoff, paymentDay: payment, ...(limit && limit > 0 ? { creditLimit: limit } : {}) }
         : {}),
-      // La fecha real la estampa localRepository; aca basta con el tipo.
+      // The real date gets stamped by localRepository; here the type is enough.
       updatedAt: existing?.updatedAt ?? '',
     });
   }
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label={existing ? 'Editar método de pago' : 'Nuevo método de pago'}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
@@ -79,20 +79,20 @@ export function PaymentMethodForm({
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
 
-        <Field label={t('form.nombre')} htmlFor="pm-nombre">
+        <Field label={t('form.name')} htmlFor="pm-nombre">
           <input id="pm-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Visa Bancolombia" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={errorStyle}>Ponle un nombre para distinguirla.</p>}
 
         <FieldGroup label="Tipo" id="pm-tipo" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-          {TIPOS.map((t) => (
+          {TYPES.map((t) => (
             <button key={t.id} type="button" onClick={() => setType(t.id)} aria-pressed={type === t.id} style={segmentStyle(type === t.id)}>
               {t.label}
             </button>
           ))}
         </FieldGroup>
 
-        {esCredito && (
+        {isCredit && (
           <>
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="Día de corte" htmlFor="pm-corte">
@@ -104,7 +104,7 @@ export function PaymentMethodForm({
                   onChange={(e) => setPaymentDay(e.target.value)} style={inputStyle} />
               </Field>
             </div>
-            {touched && !diasValidos && <p style={errorStyle}>El corte y el pago van entre 1 y 31.</p>}
+            {touched && !validDays && <p style={errorStyle}>El corte y el pago van entre 1 y 31.</p>}
 
             <Field label="Cupo (opcional)" htmlFor="pm-cupo">
               <input id="pm-cupo" inputMode="numeric" value={cupo} onChange={(e) => setCupo(e.target.value)}
@@ -116,14 +116,14 @@ export function PaymentMethodForm({
           </>
         )}
 
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('accion.guardar')}</button>
+        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('action.save')}</button>
 
         {existing && onDelete && (
           <>
-            <button type="button" onClick={onDelete} style={deleteButtonStyle}>{t('accion.eliminar')}</button>
-            {movimientosAsociados > 0 && (
+            <button type="button" onClick={onDelete} style={deleteButtonStyle}>{t('action.delete')}</button>
+            {relatedTransactions > 0 && (
               <p style={hintStyle}>
-                {movimientosAsociados} {movimientosAsociados === 1 ? 'movimiento quedará' : 'movimientos quedarán'} sin
+                {relatedTransactions} {relatedTransactions === 1 ? 'movimiento quedará' : 'movimientos quedarán'} sin
                 método de pago. No se borran: la plata se gastó igual.
               </p>
             )}
@@ -134,7 +134,7 @@ export function PaymentMethodForm({
   );
 }
 
-function esDiaDelMes(n: number): boolean {
+function isDayOfMonth(n: number): boolean {
   return Number.isInteger(n) && n >= 1 && n <= 31;
 }
 

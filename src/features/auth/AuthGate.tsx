@@ -6,8 +6,8 @@ import { NewPasswordScreen } from './NewPasswordScreen';
 import { useRecoveryMode } from './recovery';
 
 /**
- * Si Supabase no esta configurado, deja pasar sin mas (la app sigue 100%
- * local). Si SI esta configurado, exige sesion antes de mostrar la app.
+ * If Supabase isn't configured, it just lets things through (the app stays 100%
+ * local). If it IS configured, it requires a session before showing the app.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   if (!isSupabaseConfigured()) return <>{children}</>;
@@ -16,13 +16,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
 function AuthGateInner({ children }: { children: ReactNode }) {
   const { loading, session } = useSession();
-  const recuperando = useRecoveryMode();
+  const recovering = useRecoveryMode();
 
-  // ANTES que la sesion, a proposito: el enlace de "olvide mi contraseña"
-  // abre sesion por su cuenta, asi que preguntar por la sesion primero
-  // mandaba directo a la app y nunca dejaba cambiar la contraseña — que es
-  // justo a lo que uno entro. Ver recovery.ts.
-  if (recuperando) return <NewPasswordScreen />;
+  // BEFORE the session, on purpose: the "forgot my password" link
+  // opens a session on its own, so checking for the session first
+  // sent you straight into the app and never let you change the password — which is
+  // exactly what you came to do. See recovery.ts.
+  if (recovering) return <NewPasswordScreen />;
 
   if (loading) return null;
   if (!session) return <SignInScreen />;

@@ -3,9 +3,10 @@ import { isIOS, isStandalone } from '@/lib/platform';
 import { usePushNotifications } from './usePushNotifications';
 
 /**
- * Solo tiene sentido si hay Supabase configurado (el scheduler vive en el
- * servidor) y el navegador soporta Push. En iOS, ademas, la PWA debe estar
- * instalada en pantalla de inicio — si no, ni intentamos: explicamos por que.
+ * This only makes sense if Supabase is configured (the scheduler lives on
+ * the server) and the browser supports Push. On iOS the PWA also has to be
+ * installed on the home screen — if it isn't, we don't even try: we explain
+ * why.
  */
 export function NotificationsSection() {
   const { state, busy, error, subscribe, unsubscribe } = usePushNotifications();
@@ -21,7 +22,7 @@ export function NotificationsSection() {
 
       {iosNotInstalled ? (
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-          Instala la app en tu pantalla de inicio (ver el aviso arriba) para poder activar los recordatorios.
+          Instala la app en tu pantalla de inicio (ver el notice arriba) para poder activar los recordatorios.
         </p>
       ) : state === 'unconfigured' ? (
         <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>Configuración de notificaciones pendiente.</p>

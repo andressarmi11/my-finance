@@ -1,67 +1,67 @@
 # Testing
 
-## Tests unitarios (Vitest)
+## Unit tests (Vitest)
 
 ```bash
-npm run test        # corre todo una vez
+npm run test        # runs everything once
 npm run test:watch  # modo interactivo
 ```
 
-123 tests, todos sobre `src/domain/` y la lógica de agrupación de
-`src/features/*/` — funciones puras, sin necesidad de un navegador ni
-una base de datos real. Cubren, entre otras cosas:
+123 tests, all over `src/domain/` and the grouping logic in
+`src/features/*/` — pure functions, with no need for a browser or a
+real database. They cover, among other things:
 
-- Los 10 casos exactos de ciclos de tarjeta de crédito pedidos
-  originalmente (14/15/16/31 de enero, cambios de mes, año bisiesto,
-  cambio de año), más un test de propiedad que verifica el invariante
-  ("el pago siempre es posterior al corte") sobre 400 fechas consecutivas.
-- Quincenas: límites exactos (día 9, 10, 24, 25), cruces de mes y de año,
-  configuraciones no estándar.
-- El restante de cada quincena y el sobrante del mes, verificados contra
-  las cifras reales de la hoja de Excel original del usuario.
-- Recurrencia: las 4 frecuencias, respeto de fecha de inicio/fin,
-  idempotencia, clampeo de días en meses cortos.
-- Los mappers de Supabase (dominio ↔ fila de Postgres), por round-trip.
+- The 10 exact credit-card-cycle cases originally requested (Jan
+  14/15/16/31, month changes, leap year, year change), plus a property
+  test that checks the invariant ("payment is always after the
+  cutoff") over 400 consecutive dates.
+- Pay periods: exact boundaries (day 9, 10, 24, 25), month and year
+  crossings, non-standard configurations.
+- Each pay period's remainder and the month's leftover, verified
+  against the real figures from the user's original spreadsheet.
+- Recurrence: all 4 frequencies, respecting start/end date,
+  idempotency, day clamping in short months.
+- Supabase mappers (domain ↔ Postgres row), by round-trip.
 
-## Tests E2E (Playwright)
+## E2E tests (Playwright)
 
 ```bash
-npx playwright install chromium   # una sola vez
+npx playwright install chromium   # once only
 npm run test:e2e
 ```
 
-8 flujos, cada uno en Chromium y en emulación de iPhone Safari (16 tests
-en total):
+8 flows, each on Chromium and on emulated iPhone Safari (16 tests
+total):
 
-1. Crear un gasto
-2. Editarlo
-3. Eliminarlo
-4. Crear un gasto con tarjeta de crédito (y ver el preview de fecha antes
-   de guardar)
-5. Ver la fecha de pago en la pantalla de Tarjeta
-6. Crear un gasto recurrente y confirmar que se materializa
-7. Crear un ingreso
-8. Ver el Dashboard con datos de ejemplo
+1. Create an expense
+2. Edit it
+3. Delete it
+4. Create a credit-card expense (and see the date preview before
+   saving)
+5. See the payment date on the Credit Card screen
+6. Create a recurring expense and confirm it materializes
+7. Create an income
+8. View the Dashboard with sample data
 
-Corren contra un build de producción real (`npm run build && npm run
-preview`), no contra el servidor de desarrollo — más cercano a lo que de
-verdad se despliega.
+They run against a real production build (`npm run build && npm run
+preview`), not against the dev server — closer to what actually gets
+deployed.
 
-## Qué NO está cubierto (a propósito)
+## What's NOT covered (on purpose)
 
-- La Edge Function de notificaciones (`supabase/functions/send-reminders`)
-  no tiene tests automatizados — se prueba con el `curl` documentado en
-  `docs/NOTIFICATIONS.md`. Automatizarla requeriría un entorno Deno +
-  Supabase local corriendo en CI, que no vale la complejidad para una
-  función de ~100 líneas.
-- No hay tests de integración contra un Supabase real — los mappers
-  (que es donde vive el riesgo real de bugs de este tipo de código) sí
-  están probados; las llamadas de red del repositorio no se simulan con
-  mocks falsos, siguiendo el principio de no fingir cobertura que no
-  existe.
+- The notifications Edge Function (`supabase/functions/send-reminders`)
+  has no automated tests — it's tested with the `curl` command
+  documented in `docs/NOTIFICATIONS.md`. Automating it would require a
+  Deno + local Supabase environment running in CI, which isn't worth
+  the complexity for a ~100-line function.
+- There are no integration tests against a real Supabase — the mappers
+  (which is where the real bug risk lives for this kind of code) are
+  tested; the repository's network calls aren't simulated with fake
+  mocks, following the principle of not faking coverage that doesn't
+  exist.
 
 ## CI
 
-`.github/workflows/ci.yml` corre, en cada push y PR: typecheck (de
-`src/` y de `e2e/` por separado), lint, tests unitarios, build, y los
-tests E2E completos con Chromium.
+`.github/workflows/ci.yml` runs, on every push and PR: typecheck (of
+`src/` and of `e2e/` separately), lint, unit tests, build, and the full
+E2E tests with Chromium.

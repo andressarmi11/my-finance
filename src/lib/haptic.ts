@@ -1,6 +1,6 @@
 /**
- * Helper de haptic feedback para iOS PWA (soporte desde iOS 16.4+).
- * En dispositivos sin soporte, es no-op silencioso.
+ * Haptic feedback helper for the iOS PWA (supported from iOS 16.4+).
+ * On devices without support it's a silent no-op.
  */
 
 type Intensity = 'light' | 'medium' | 'heavy';

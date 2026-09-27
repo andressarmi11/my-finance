@@ -1,7 +1,7 @@
 /**
- * Metodos de pago iniciales (Fase 0, seccion 8). Por defecto solo dos,
- * como pediste: Debito (default) y Tarjeta de credito, con corte/pago
- * configurables desde el dia 1 aunque el valor inicial sea 15/2.
+ * Starting payment methods. Only two by default: Debit (the default) and
+ * Credit card, with cutoff/payment configurable from day one even though
+ * the initial value is 15/2.
  */
 import type { PaymentMethod } from '../types';
 

@@ -7,20 +7,20 @@ import { normalize } from '@/domain/inference/conceptInference';
 import { makeTombstone, type DeletableEntity } from '../sync/tombstones';
 
 /**
- * Todo borrado deja lapida. Es lo que permite que el borrado viaje a los
- * otros dispositivos en vez de que ellos lo resuciten en el siguiente
- * sync (ver data/sync/tombstones.ts).
+ * Every deletion leaves a tombstone. That's what lets the deletion travel
+ * to other devices instead of them resurrecting it on the next sync (see
+ * data/sync/tombstones.ts).
  */
 /**
- * Pone la fecha de guardado. Va aca, en el unico lugar por el que pasan
- * todos los guardados, y no en cada pantalla: asi ninguna puede olvidarse
- * y dejar una fila que la sincronizacion no sepa fechar.
+ * Stamps the save timestamp. It goes here, in the single place all saves
+ * pass through, and not in every screen: this way none of them can forget
+ * and leave a row that sync doesn't know how to date.
  */
-function sellar<T extends { updatedAt: string }>(fila: T): T {
-  return { ...fila, updatedAt: new Date().toISOString() };
+function seal<T extends { updatedAt: string }>(row: T): T {
+  return { ...row, updatedAt: new Date().toISOString() };
 }
 
-async function borrarConLapida(entity: DeletableEntity, id: string): Promise<void> {
+async function deleteWithTombstone(entity: DeletableEntity, id: string): Promise<void> {
   await db.deletions.put(makeTombstone(entity, id, new Date().toISOString()));
 }
 
@@ -29,31 +29,40 @@ export const DEFAULT_SETTINGS: Settings = {
   displayName: '',
   currency: 'COP',
   locale: 'es-CO',
-  diasDePago: [10, 25], // dos dias de pago = quincenal
+  payDays: [10, 25], // two pay dates = biweekly
   defaultPaymentMethodId: null,
   reminderDefaultDaysBefore: 1,
   theme: 'system',
   onboardedAt: null,
-  // Vacio a proposito: una fila que nunca se guardo no puede ganarle a
-  // ninguna de la nube en la comparacion de "cual es mas nueva".
+  // Empty on purpose: a row that was never saved can't beat any row from
+  // the cloud in the "which one is newer" comparison.
   updatedAt: '',
 };
 
 /**
- * Rellena con los defaults los campos que falten. Sin esto, cada campo
- * nuevo de Settings deja `undefined` en la base de quien ya venia usando
- * la app (displayName, onboardedAt...) y la UI se rompe en silencio.
+ * Fills in missing fields with the defaults. Without this, every new
+ * Settings field leaves `undefined` in the database of anyone who was
+ * already using the app (displayName, onboardedAt...) and the UI breaks
+ * silently.
  */
 export function withDefaults(stored: Settings | undefined): Settings {
   const base = { ...DEFAULT_SETTINGS, ...(stored ?? {}), id: 'singleton' as const };
 
-  // Puente para quien ya venia usando la app: sus dias vivian en
-  // `quincenaStartDays`, que ahora se llama `diasDePago`. Sin esto, el
-  // spread de arriba dejaria el valor por defecto y alguien con quincenas
-  // en, digamos, el 5 y el 20 volveria al 10 y 25 sin enterarse.
-  const viejo = (stored as unknown as { quincenaStartDays?: unknown } | undefined)?.quincenaStartDays;
-  if (!Array.isArray(stored?.diasDePago) && Array.isArray(viejo)) {
-    return { ...base, diasDePago: [...(viejo as number[])] };
+  // Bridge for anyone who was already using the app: their days lived in
+  // `quincenaStartDays` first, then in `diasDePago`, and are now in
+  // `payDays`. Without this, the spread above would leave the default
+  // value, and someone with pay dates on, say, the 5th and the 20th would
+  // revert to 10 and 25 without noticing.
+  //
+  // Both old names are still read because the rename happened twice and a
+  // phone that skipped the middle version exists just as much as one that
+  // didn't. The next save writes the current name and the bridge stops
+  // mattering for that device.
+  const legacy = stored as unknown as
+    { quincenaStartDays?: unknown; diasDePago?: unknown } | undefined;
+  const old = legacy?.diasDePago ?? legacy?.quincenaStartDays;
+  if (!Array.isArray(stored?.payDays) && Array.isArray(old)) {
+    return { ...base, payDays: [...(old as number[])] };
   }
   return base;
 }
@@ -63,36 +72,37 @@ export const localRepository: Repository = {
     return withDefaults(await db.settings.get('singleton'));
   },
   async saveSettings(settings) {
-    // La marca de tiempo se pone aca y no en cada pantalla: es el unico
-    // lugar por el que pasan todos los guardados, asi que es imposible
-    // olvidarse y dejar un Settings que la sincronizacion no sepa fechar.
+    // The timestamp is set here and not in every screen: it's the single
+    // place all saves pass through, so it's impossible to forget and
+    // leave a Settings that sync doesn't know how to date.
     await db.settings.put({ ...settings, updatedAt: new Date().toISOString() });
   },
 
   listCategories: () => db.categories.orderBy('sortOrder').toArray(),
-  saveCategory: async (category) => { await db.categories.put(sellar(category)); },
-  deleteCategory: async (id) => { await db.categories.delete(id); await borrarConLapida('categories', id); },
+  saveCategory: async (category) => { await db.categories.put(seal(category)); },
+  deleteCategory: async (id) => { await db.categories.delete(id); await deleteWithTombstone('categories', id); },
 
   listPaymentMethods: () => db.paymentMethods.toArray(),
-  savePaymentMethod: async (method) => { await db.paymentMethods.put(sellar(method)); },
+  savePaymentMethod: async (method) => { await db.paymentMethods.put(seal(method)); },
   deletePaymentMethod: async (id) => {
-    // Las referencias se sueltan ANTES de borrar la tarjeta. En Postgres lo
-    // hace el ON DELETE SET NULL de las FK; aca hay que hacerlo a mano o
-    // quedan transacciones apuntando a una tarjeta que ya no existe hasta
-    // que el proximo sync baje la version con null. Mismo caso que
-    // deleteTransaction con sus recordatorios.
+    // References are released BEFORE deleting the card. In Postgres this
+    // is the FK's ON DELETE SET NULL; here it has to be done by hand, or
+    // transactions are left pointing at a card that no longer exists until
+    // the next sync pulls down the version with null. Same case as
+    // deleteTransaction with its reminders.
     //
-    // Los movimientos NO se borran: son plata que si se gasto. Quedan sin
-    // metodo, y la UI ya tolera paymentMethod undefined.
+    // Transactions are NOT deleted: that's money that really was spent.
+    // They're left without a method, and the UI already tolerates
+    // paymentMethod undefined.
     await db.transactions.where('paymentMethodId').equals(id).modify({ paymentMethodId: null });
-    // filter y no where: recurringRules solo indexa 'id, frequency' (db.ts),
-    // asi que where('paymentMethodId') reventaria. Son pocas reglas.
-    const reglas = await db.recurringRules.filter((r) => r.paymentMethodId === id).toArray();
-    for (const regla of reglas) {
-      await db.recurringRules.put(sellar({ ...regla, paymentMethodId: null }));
+    // filter, not where: recurringRules only indexes 'id, frequency' (db.ts),
+    // so where('paymentMethodId') would blow up. There are few rules anyway.
+    const rules = await db.recurringRules.filter((r) => r.paymentMethodId === id).toArray();
+    for (const rule of rules) {
+      await db.recurringRules.put(seal({ ...rule, paymentMethodId: null }));
     }
     await db.paymentMethods.delete(id);
-    await borrarConLapida('paymentMethods', id);
+    await deleteWithTombstone('paymentMethods', id);
   },
 
   listTransactions: (range) =>
@@ -101,10 +111,10 @@ export const localRepository: Repository = {
       : db.transactions.toArray(),
   saveTransaction: async (tx) => {
     await db.transactions.put(tx);
-    // Actualiza el índice de conceptos para el smart-fill del form.
-    // Solo entradas manuales del user (no las materializadas por reglas
-    // recurrentes) alimentan el índice: si el user vuelve a ese concepto,
-    // quiere recuperar la última categoría/método que usó.
+    // Updates the concept index for the form's smart-fill.
+    // Only manual entries from the user (not the ones materialized from
+    // recurring rules) feed the index: if the user comes back to that
+    // concept, they want to get back the last category/method they used.
     if (!tx.recurringRuleId && tx.concept.trim()) {
       const key = normalize(tx.concept);
       if (key) {
@@ -122,25 +132,25 @@ export const localRepository: Repository = {
   },
   deleteTransaction: async (id) => {
     await db.transactions.delete(id);
-    // Su recordatorio se va con el. En Postgres lo hace el ON DELETE
-    // CASCADE; aca hay que hacerlo a mano, o quedan huerfanos que ademas
-    // el push intentaria subir contra una FK que ya no existe.
+    // Its reminder goes with it. In Postgres this is the ON DELETE
+    // CASCADE; here it has to be done by hand, or orphans are left behind
+    // that push would also try to upload against an FK that no longer exists.
     await db.reminders.where('transactionId').equals(id).delete();
-    await borrarConLapida('transactions', id);
+    await deleteWithTombstone('transactions', id);
   },
 
   listRecurringRules: () => db.recurringRules.toArray(),
-  saveRecurringRule: async (rule) => { await db.recurringRules.put(sellar(rule)); },
-  deleteRecurringRule: async (id) => { await db.recurringRules.delete(id); await borrarConLapida('recurringRules', id); },
+  saveRecurringRule: async (rule) => { await db.recurringRules.put(seal(rule)); },
+  deleteRecurringRule: async (id) => { await db.recurringRules.delete(id); await deleteWithTombstone('recurringRules', id); },
 
   listBudgets: (year, month) =>
     db.budgets.where('[year+month]').equals([year, month]).toArray(),
-  // sellar como el resto: sin updatedAt no hay con que decidir cual copia
-  // gana al sincronizar entre dispositivos.
-  saveBudget: async (budget) => { await db.budgets.put(sellar(budget)); },
+  // sellar like everything else: without updatedAt there's nothing to
+  // decide which copy wins when syncing between devices.
+  saveBudget: async (budget) => { await db.budgets.put(seal(budget)); },
 
   listReminders: () => db.reminders.toArray(),
-  saveReminder: async (reminder) => { await db.reminders.put(sellar(reminder)); },
+  saveReminder: async (reminder) => { await db.reminders.put(seal(reminder)); },
 
   async exportAll() {
     const [settings, categories, paymentMethods, transactions, recurringRules, budgets, reminders] =
@@ -157,7 +167,7 @@ export const localRepository: Repository = {
   },
 
   async importAll(data) {
-    const parsed = BackupSchema.parse(data); // el caller (UI) ya debe haber validado con parseBackupFile
+    const parsed = BackupSchema.parse(data); // the caller (UI) should already have validated with parseBackupFile
     await importBackup(parsed);
   },
 };

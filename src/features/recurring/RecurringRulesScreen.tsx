@@ -8,7 +8,7 @@ import { materializeRecurringRules } from '@/data/local/materialize';
 import { formatMoney } from '@/domain/money/format';
 import type { RecurringRule } from '@/domain/types';
 import { RecurringRuleForm } from './RecurringRuleForm';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 const FREQ_LABEL: Record<RecurringRule['frequency'], string> = {
   monthly: 'Mensual', weekly: 'Semanal', biweekly: 'Quincenal', yearly: 'Anual',
@@ -17,9 +17,9 @@ const FREQ_LABEL: Record<RecurringRule['frequency'], string> = {
 export function RecurringRulesScreen() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const rules = useLiveQuery(() => localRepository.listRecurringRules(), []) ?? VACIO;
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
+  const rules = useLiveQuery(() => localRepository.listRecurringRules(), []) ?? EMPTY;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
   const [editing, setEditing] = useState<RecurringRule | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -36,7 +36,7 @@ export function RecurringRulesScreen() {
     await localRepository.saveRecurringRule(rule);
     setEditing(null);
     setCreating(false);
-    await materializeRecurringRules(); // genera de una vez las instancias futuras
+    await materializeRecurringRules(); // generates the future instances right away
   }
 
   async function handleDelete() {

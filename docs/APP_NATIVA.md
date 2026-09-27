@@ -1,49 +1,51 @@
-# App nativa (Flutter) y emulador de iPhone — estado y decisión
+# Native app (Flutter) and iPhone emulator — status and decision
 
-> **Actualización:** el port arrancó. Xcode ya está instalado y el dominio
-> está portado con sus 75 tests en `mobile/`. Ver
-> [mobile/README.md](../mobile/README.md) para el estado y cómo correrlo.
-> Lo de abajo es la decisión original y sigue explicando el porqué del
-> orden de trabajo.
+> **Update:** the port has started. Xcode is already installed and the
+> domain layer has been ported with its 75 tests in `mobile/`. See
+> [mobile/README.md](../mobile/README.md) for the status and how to run
+> it. What follows below is the original decision and it still
+> explains the reasoning behind the order of work.
 
-Pedido: *"crear una app directamente que pueda instalar en mi celular […]
-descarga emulador para verlo directamente aquí […] creo que la mejor
-opción es Flutter"*.
+Request: *"create an app I can install directly on my phone [...]
+download an emulator to see it directly here [...] I think the best
+option is Flutter"*.
 
-Esto es lo que se hizo, lo que no, y por qué.
+Here's what was done, what wasn't, and why.
 
-## Lo que se hizo
+## What was done
 
-**Instalar en el iPhone: ya funciona, sin Flutter.** El proyecto es una
-PWA completa (`vite-plugin-pwa`, manifest, service worker, íconos,
-`apple-mobile-web-app-*`). En el iPhone: abrir la URL en Safari →
-**Compartir** → **Agregar a inicio**. Queda como app: ícono propio,
-pantalla completa sin barra de Safari, funciona sin internet (todo vive en
-IndexedDB), y las URLs de Atajos (`docs/ATAJOS_IOS.md`) la abren a ella y
-no al navegador.
+**Installing on the iPhone: already works, without Flutter.** The
+project is a complete PWA (`vite-plugin-pwa`, manifest, service
+worker, icons, `apple-mobile-web-app-*`). On the iPhone: open the URL
+in Safari → **Share** → **Add to Home Screen**. It ends up as an app:
+its own icon, full screen with no Safari toolbar, works without
+internet (everything lives in IndexedDB), and the Shortcuts URLs
+(`docs/ATAJOS_IOS.md`) open it directly instead of the browser.
 
-**Verlo en un iPhone desde acá:**
+**Seeing it on an iPhone from here:**
 
 ```bash
 npm run preview:iphone            # ventana WebKit, iPhone 14 Pro, interactiva
 npm run preview:iphone -- --shots # solo capturas en preview-shots/
 ```
 
-Levanta el dev server por su cuenta si no hay uno corriendo, y lo baja al
-cerrar la ventana. Si ya tenés uno en el 5199, lo reutiliza.
+It starts the dev server on its own if none is running, and shuts it
+down when the window closes. If you already have one on 5199, it
+reuses it.
 
-WebKit es el mismo motor que Safari de iOS, con viewport, user-agent y
-safe-area de iPhone. Para una app web, ver esto es ver la app.
+WebKit is the same engine as iOS Safari, with the iPhone's viewport,
+user-agent, and safe-area. For a web app, seeing this is seeing the
+app.
 
-**Verlo en tu iPhone real**, que es mejor que cualquier emulador:
-`npm run dev -- --host` imprime una URL de red; ábrela desde el teléfono
-estando en el mismo WiFi.
+**Seeing it on your real iPhone**, which is better than any emulator:
+`npm run dev -- --host` prints a network URL; open it from your phone
+while on the same WiFi.
 
-## Lo que NO se hizo, y por qué
+## What was NOT done, and why
 
-**El emulador de iOS está bloqueado por algo que no puedo hacer yo.**
-Requiere Xcode completo (~17 GB) desde la Mac App Store, con tu Apple ID.
-En este Mac solo están las Command Line Tools:
+**The iOS emulator is blocked by something I can't do myself.** It
+requires the full Xcode (~17 GB) from the Mac App Store, with your
+Apple ID. On this Mac only the Command Line Tools are installed:
 
 ```
 $ xcode-select -p
@@ -52,40 +54,43 @@ $ xcrun simctl list devices
 xcrun: error: unable to find utility "simctl", not a developer tool
 ```
 
-Sin Xcode no hay Simulator, con o sin Flutter. Y aunque estuviera
-instalado, un Simulator es una app de macOS: no se puede meter dentro de
-esta terminal para que lo toques acá.
+Without Xcode there's no Simulator, with or without Flutter. And even
+if it were installed, a Simulator is a macOS app: it can't be embedded
+inside this terminal for you to interact with here.
 
-**El port a Flutter no se empezó.** No es pereza con el toolchain
-(`brew install --cask flutter` son ~10 minutos): es que el port reescribe
-lo único que en este proyecto ya está probado. Hoy hay 123 tests unitarios
-y 20 E2E sobre quincenas, ciclos de tarjeta, recurrentes, presupuestos,
-inferencia de conceptos y sincronización con Supabase. Nada de eso cruza a
-Dart: se reescribe desde cero, sin tests, y el resultado inicial es
-estrictamente peor que lo que ya corre.
+**The Flutter port wasn't started.** It's not laziness about the
+toolchain (`brew install --cask flutter` takes ~10 minutes): it's that
+the port rewrites the one thing in this project that's already
+proven. Today there are 123 unit tests and 20 E2E tests covering pay
+periods, card cycles, recurring items, budgets, concept inference, and
+Supabase sync. None of that carries over to Dart: it gets rewritten
+from scratch, with no tests, and the initial result is strictly worse
+than what's already running.
 
-Flutter se justifica cuando hace falta algo que la web en iOS no da:
-widgets de pantalla de inicio, Face ID, notificaciones push locales
-fiables, lectura de SMS. De esa lista, lo único que pediste —**meter
-ingresos sin abrir la app**— ya está resuelto con Atajos, que además puede
-leer el SMS del banco, cosa que una app de terceros en iOS no puede.
+Flutter is worth it when something the web on iOS can't provide is
+needed: home-screen widgets, Face ID, reliable local push
+notifications, reading SMS. Of that list, the only thing you asked
+for — **logging income without opening the app** — is already solved
+with Shortcuts, which can also read the bank's SMS, something a
+third-party app can't do on iOS.
 
-## Si aun así quieres el port
+## If you still want the port
 
-Es tu decisión y no hace falta discutirla de nuevo; solo que se empiece
-sabiendo el tamaño:
+It's your call and it doesn't need to be re-argued; just start knowing
+the size of it:
 
 ```bash
 brew install --cask flutter
-# Xcode: instalarlo tú desde la Mac App Store (~17 GB, pide tu Apple ID)
+# Xcode: install it yourself from the Mac App Store (~17 GB, asks for your Apple ID)
 sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 sudo xcodebuild -runFirstLaunch
 flutter doctor            # debe quedar todo en verde
 flutter create --org com.anfe --platforms=ios,android my_finance_app
 ```
 
-Orden de port que conserva el valor: primero `lib/domain/` (fechas,
-quincena, tarjeta, recurrentes, totales) **con sus tests portados uno a
-uno** — son funciones puras, se traducen casi literales y son el corazón
-de la app. Recién después las pantallas. La capa de datos (Dexie →
-`sqflite` o `drift`) y la sync con Supabase son lo último y lo más caro.
+Port order that preserves the value: first `lib/domain/` (dates, pay
+period, card, recurring items, totals) **with its tests ported one by
+one** — they're pure functions, they translate almost literally and
+they're the app's core. Only after that, the screens. The data layer
+(Dexie → `sqflite` or `drift`) and the Supabase sync are last and most
+expensive.

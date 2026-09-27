@@ -1,33 +1,34 @@
 /**
- * Formato de plata. Por defecto colombiano ($ 2.500.000, punto de miles,
- * sin decimales), pero la moneda y el locale los elige el usuario en la
- * configuracion inicial.
+ * Money formatting. Defaults to Colombian ($ 2.500.000, dot as thousands
+ * separator, no decimals), but the currency and locale are chosen by the
+ * user during onboarding.
  *
- * El default es una variable de modulo, no un parametro obligatorio, a
- * proposito: hay ~40 call sites de formatMoney() en la UI y ninguno tiene
- * por que cargar con el Settings. La app la fija una vez al arrancar
- * (ver useMoneyFormat) y todos los formatos siguen.
+ * The default is a module-level variable, not a required parameter, on
+ * purpose: there are ~40 call sites of formatMoney() in the UI and none
+ * of them should have to carry Settings around. The app sets it once on
+ * startup (see useMoneyFormat) and every format follows from that.
  *
- * NO usa Intl.NumberFormat con style:'currency'. Motivo: la app nativa
- * (mobile/) formatea la misma plata del mismo usuario, y los datos CLDR
- * que trae Dart no son los mismos que los del navegador — es-PE agrupa
- * con coma aqui y con punto alla, y es-ES no agrupa numeros de 4 digitos
- * ("2500 €") mientras Dart si. La tabla de abajo esta duplicada, identica,
- * en mobile/lib/domain/money/format.dart, y los dos tests la verifican:
- * es la unica forma de que las dos apps escriban la misma cifra igual.
+ * Does NOT use Intl.NumberFormat with style:'currency'. Reason: the
+ * native app (mobile/) formats the same money for the same user, and the
+ * CLDR data Dart ships isn't the same as the browser's — es-PE groups
+ * with a comma here and a dot there, and es-ES doesn't group 4-digit
+ * numbers ("2500 €") while Dart does. The table below is duplicated,
+ * identically, in mobile/lib/domain/money/format.dart, and both test
+ * suites verify it: it's the only way both apps write the same figure
+ * the same way.
  */
 
-interface MonedaFormato {
+interface CurrencyFormat {
   simbolo: string;
-  /** true = el simbolo va despues ("2.500 €"). */
+  /** true = the symbol goes after the number ("2.500 €"). */
   sufijo?: boolean;
-  /** ¿espacio entre simbolo y numero? */
+  /** Space between symbol and number? */
   espacio?: boolean;
-  /** Separador de miles. */
+  /** Thousands separator. */
   miles: string;
 }
 
-const FORMATOS: Record<string, MonedaFormato> = {
+const FORMATS: Record<string, CurrencyFormat> = {
   COP: { simbolo: '$', miles: '.' },
   MXN: { simbolo: '$', miles: ',', espacio: false },
   ARS: { simbolo: '$', miles: '.' },
@@ -39,38 +40,39 @@ const FORMATOS: Record<string, MonedaFormato> = {
 
 let current = { locale: 'es-CO', currency: 'COP' };
 
-/** La fija la app cuando cargan los Settings. Sin llamarla, queda en COP. */
+/** Set by the app when Settings load. Without calling it, stays on COP. */
 export function setMoneyLocale(locale: string, currency: string): void {
   current = { locale, currency };
 }
 
-function formatoDe(currency: string): MonedaFormato {
-  return FORMATOS[currency] ?? { simbolo: currency, miles: '.' };
+function formatFor(currency: string): CurrencyFormat {
+  return FORMATS[currency] ?? { simbolo: currency, miles: '.' };
 }
 
-/** Agrupa de a tres desde la derecha. Deterministico, sin depender de CLDR. */
-function agrupar(n: number, separador: string): string {
+/** Groups in threes from the right. Deterministic, doesn't depend on CLDR. */
+function group(n: number, separador: string): string {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, separador);
 }
 
 /**
- * El locale no es parametro: con la tabla de arriba, el formato lo decide
- * la moneda sola. Se sigue guardando en Settings porque lo usan las fechas.
+ * The locale is not a parameter: with the table above, the currency
+ * alone decides the format. It's still kept in Settings because the
+ * dates use it.
  */
 export function formatMoney(amount: number, currency = current.currency): string {
-  const f = formatoDe(currency);
-  const signo = amount < 0 ? '-' : '';
-  const cuerpo = agrupar(Math.abs(Math.round(amount)), f.miles);
+  const f = formatFor(currency);
+  const sign = amount < 0 ? '-' : '';
+  const body = group(Math.abs(Math.round(amount)), f.miles);
   const sep = f.espacio === false ? '' : ' ';
-  return f.sufijo ? `${signo}${cuerpo}${sep}${f.simbolo}` : `${signo}${f.simbolo}${sep}${cuerpo}`;
+  return f.sufijo ? `${sign}${body}${sep}${f.simbolo}` : `${sign}${f.simbolo}${sep}${body}`;
 }
 
-/** Solo el simbolo de la moneda activa ('$', '€'...), para ejes y etiquetas cortas. */
+/** Just the active currency's symbol ('$', '€'...), for axes and short labels. */
 export function currencySymbol(): string {
-  return formatoDe(current.currency).simbolo;
+  return formatFor(current.currency).simbolo;
 }
 
-/** Version compacta para graficos: $ 2,5 M */
+/** Compact version for charts: $ 2,5 M */
 export function formatCompact(amount: number): string {
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
@@ -83,8 +85,8 @@ export function formatCompact(amount: number): string {
 }
 
 /**
- * Acepta lo que el usuario escriba: '85000', '85.000', '$ 85.000', '85,000'.
- * Devuelve null si no hay un numero valido.
+ * Accepts whatever the user types: '85000', '85.000', '$ 85.000', '85,000'.
+ * Returns null if there's no valid number.
  */
 export function parseMoney(input: string): number | null {
   const cleaned = input.replace(/[^\d-]/g, '');

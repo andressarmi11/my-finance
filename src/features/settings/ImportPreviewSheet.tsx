@@ -7,10 +7,10 @@ export function ImportPreviewSheet({ preview, onConfirm, onCancel }: {
   onCancel: () => void;
 }) {
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog" aria-label="Confirmar importación"
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 60 }}
       onClick={onCancel}
@@ -27,7 +27,7 @@ export function ImportPreviewSheet({ preview, onConfirm, onCancel }: {
         </ul>
         <div style={{ background: 'var(--danger-soft)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-s)', padding: 12, marginBottom: 16 }}>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--danger-text)' }}>
-            Esto <strong>reemplaza todos tus datos actuales</strong> por los del archivo. No se puede deshacer.
+            Esto <strong>reemplaza todos tus datos existentes</strong> por los del archivo. No se puede deshacer.
           </p>
         </div>
         <button type="button" onClick={onConfirm} style={{ width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none', background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>

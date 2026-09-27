@@ -1,29 +1,28 @@
 /**
- * Que recordatorios se pueden subir.
+ * Which reminders can be uploaded.
  *
- * Mas simple que los presupuestos: el id de un recordatorio ES el id de su
- * movimiento, asi que dos dispositivos generan el mismo id para el mismo
- * recordatorio y basta con last-write-wins por id. No hay clave natural
- * que reconciliar.
+ * Simpler than budgets: a reminder's id IS its transaction's id, so two
+ * devices generate the same id for the same reminder and plain
+ * last-write-wins by id is enough. There's no natural key to reconcile.
  *
- * Lo que si hay que vigilar es la FK: en Postgres reminders.transaction_id
- * apunta a transactions(id). Subir el recordatorio de un movimiento que ya
- * no existe no falla solo; tumba el push entero, y con el la subida de
- * todo lo demas que venia detras.
+ * What does need watching is the FK: in Postgres reminders.transaction_id
+ * points to transactions(id). Uploading the reminder of a transaction
+ * that no longer exists doesn't fail quietly on its own; it takes down
+ * the entire push, and with it the upload of everything else queued behind it.
  */
 import type { Reminder } from '@/domain/types';
-import { masNuevo } from './masNuevo';
+import { newest } from './newest';
 
-export function recordatoriosASubir(
-  locales: Reminder[],
-  remotos: Reminder[],
-  /** Ids de movimientos que existen y no estan borrados. */
-  movimientosVivos: Set<string>,
+export function remindersToUpload(
+  localRows: Reminder[],
+  remoteRows: Reminder[],
+  /** Ids of transactions that exist and are not deleted. */
+  liveTransactionIds: Set<string>,
 ): Reminder[] {
-  const remotoPorId = new Map(remotos.map((r) => [r.id, r]));
-  return locales.filter((r) => {
-    if (!movimientosVivos.has(r.transactionId)) return false;
-    const remoto = remotoPorId.get(r.id);
-    return !remoto || masNuevo(r.updatedAt, remoto.updatedAt);
+  const remoteById = new Map(remoteRows.map((r) => [r.id, r]));
+  return localRows.filter((r) => {
+    if (!liveTransactionIds.has(r.transactionId)) return false;
+    const remoteRow = remoteById.get(r.id);
+    return !remoteRow || newest(r.updatedAt, remoteRow.updatedAt);
   });
 }

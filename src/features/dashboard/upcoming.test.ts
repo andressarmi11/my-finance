@@ -11,7 +11,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('selectUpcoming', () => {
-  it('ordena ascendente: primero lo mas cercano a la fecha', () => {
+  it('sorts ascending: closest to the date first', () => {
     const result = selectUpcoming([
       tx({ id: 'a', date: '2026-09-20' }),
       tx({ id: 'b', date: '2026-09-02' }),
@@ -20,7 +20,7 @@ describe('selectUpcoming', () => {
     expect(result.map((t) => t.id)).toEqual(['b', 'c', 'a']);
   });
 
-  it('usa la fecha de pago de TC cuando existe', () => {
+  it('uses the credit card payment date when it exists', () => {
     const result = selectUpcoming([
       tx({ id: 'tarde', date: '2026-09-01', cyclePaymentDate: '2026-11-02' }),
       tx({ id: 'pronto', date: '2026-09-20' }),
@@ -28,12 +28,12 @@ describe('selectUpcoming', () => {
     expect(result.map((t) => t.id)).toEqual(['pronto', 'tarde']);
   });
 
-  it('incluye ingresos, no solo gastos', () => {
+  it('includes income, not just expenses', () => {
     const result = selectUpcoming([tx({ id: 'sueldo', type: 'income' })]);
     expect(result.map((t) => t.id)).toEqual(['sueldo']);
   });
 
-  it('excluye pagados y cancelados', () => {
+  it('excludes paid and cancelled', () => {
     const result = selectUpcoming([
       tx({ id: 'a', status: 'paid' }),
       tx({ id: 'b', status: 'cancelled' }),
@@ -43,14 +43,14 @@ describe('selectUpcoming', () => {
     expect(result.map((t) => t.id)).toEqual(['c', 'd']);
   });
 
-  it('respeta el limite', () => {
+  it('respects the limit', () => {
     const many = Array.from({ length: 10 }, (_, i) => tx({ id: String(i), date: `2026-09-${10 + i}` }));
     expect(selectUpcoming(many, 3)).toHaveLength(3);
   });
 });
 
 describe('upcomingTotals', () => {
-  it('suma por separado lo que esperas recibir y lo que esperas gastar', () => {
+  it('sums separately what you expect to receive and what you expect to spend', () => {
     const totals = upcomingTotals([
       tx({ type: 'income', amount: 3_000_000 }),
       tx({ type: 'expense', amount: 400_000 }),
@@ -61,7 +61,7 @@ describe('upcomingTotals', () => {
     expect(totals).toEqual({ income: 3_000_000, expense: 500_000 });
   });
 
-  it('coincide con calculateMonthFlow sobre la misma lista', async () => {
+  it('matches calculateMonthFlow over the same list', async () => {
     const { calculateMonthFlow } = await import('@/domain/totals/available');
     const list = [
       tx({ type: 'income', amount: 3_000_000, status: 'pending' }),
@@ -70,7 +70,7 @@ describe('upcomingTotals', () => {
     ];
     const flow = calculateMonthFlow(list);
     const totals = upcomingTotals(list);
-    expect(totals.income).toBe(flow.porRecibir);
-    expect(totals.expense).toBe(flow.porPagar);
+    expect(totals.income).toBe(flow.toReceive);
+    expect(totals.expense).toBe(flow.toPay);
   });
 });

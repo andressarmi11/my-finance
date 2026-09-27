@@ -2,7 +2,7 @@ import { db } from '../db';
 import { localRepository } from '../local/localRepository';
 import { BackupSchema, type Backup } from './schema';
 
-/** BlobPart y no string: el xlsx son bytes, no texto. */
+/** BlobPart, not string: the xlsx is bytes, not text. */
 function download(filename: string, content: BlobPart, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -16,39 +16,40 @@ function download(filename: string, content: BlobPart, mime: string) {
 }
 
 /**
- * Todo a Excel: una hoja por entidad.
+ * Everything to Excel: one sheet per entity.
  *
- * NO es reimportable, y es a proposito: poner nombres donde el modelo
- * tiene ids es lo que lo hace legible y lo que lo hace irreversible. Para
- * restaurar esta el JSON (importBackup), que si conserva los ids.
+ * This is NOT re-importable, and that's on purpose: putting names where
+ * the model has ids is exactly what makes it readable and exactly what
+ * makes it irreversible. For restoring there's the JSON (importBackup),
+ * which does keep the ids.
  *
- * La libreria se carga con import() dinamico DENTRO de la funcion, igual
- * que @supabase/supabase-js en data/supabase/client.ts. Son ~1,8 MB para
- * una accion que se usa una vez al mes: no puede viajar en el bundle
- * inicial de una PWA que se instala en el telefono.
+ * The library is loaded with a dynamic import() INSIDE the function, same
+ * as @supabase/supabase-js in data/supabase/client.ts. It's ~1.8 MB for
+ * an action used once a month: it can't ride in the initial bundle of a
+ * PWA that gets installed on the phone.
  */
 export async function exportBackupXLSX(): Promise<void> {
-  const [{ default: writeXlsxFile }, { HOJAS }] = await Promise.all([
-    // '/browser' y no la raiz: el paquete no tiene export raiz, separa
-    // node de navegador.
+  const [{ default: writeXlsxFile }, { SHEETS }] = await Promise.all([
+    // '/browser', not the root: the package has no root export, it
+    // separates node from browser.
     import('write-excel-file/browser'),
     import('./xlsxRows'),
   ]);
   const backup = (await localRepository.exportAll()) as unknown as Backup;
   const stamp = new Date().toISOString().slice(0, 10);
 
-  // Una entrada por hoja: {data, sheet}. La primera fila es la cabecera y
-  // queda fija al hacer scroll.
+  // One entry per sheet: {data, sheet}. The first row is the header and
+  // stays fixed when scrolling.
   const { toBlob } = await writeXlsxFile(
-    HOJAS.map((h) => ({
-      data: h.filas(backup),
-      sheet: h.nombre,
+    SHEETS.map((h) => ({
+      data: h.rows(backup),
+      sheet: h.name,
       stickyRowsCount: 1,
     })),
   );
 
-  // toBlob y no toFile: asi los tres exports bajan por el mismo download(),
-  // en vez de que este tenga su propia forma de crear el enlace.
+  // toBlob, not toFile: this way all three exports flow through the same
+  // download(), instead of each having its own way to create the link.
   download(
     `step-up-${stamp}.xlsx`,
     await toBlob(),
@@ -88,7 +89,7 @@ export async function exportTransactionsCSV(): Promise<void> {
   ]);
   const csv = [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
   const stamp = new Date().toISOString().slice(0, 10);
-  download(`step-up-movimientos-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
+  download(`step-up-txs-${stamp}.csv`, csv, 'text/csv;charset=utf-8');
 }
 
 export interface BackupPreview {
@@ -130,7 +131,7 @@ export function parseBackupFile(text: string): ParseResult {
   };
 }
 
-/** Reemplaza TODO lo que hay en la base local por lo del backup. Se llama solo tras confirmacion explicita del usuario. */
+/** Replaces EVERYTHING in the local database with what's in the backup. Only called after explicit user confirmation. */
 export async function importBackup(backup: Backup): Promise<void> {
   await db.transaction(
     'rw',

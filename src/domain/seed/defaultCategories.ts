@@ -1,17 +1,18 @@
 /**
- * Categorias iniciales. Configurables despues: esto es solo el punto de
- * partida la primera vez que se abre la app.
+ * Starting categories. Configurable afterwards: this is only the starting
+ * point the first time the app is opened.
  *
- * Los colores salen del sistema generado en tokens.css (doce tonos OKLCH
- * equiespaciados, sin chocar entre si ni con los colores de quincena o de
- * estado). Aca se guarda el HEX del modo claro y no el token, porque esta
- * fila viaja a Postgres y la lee la app nativa, que no entiende CSS.
- * Quien PINTA decide el color real: ver domain/seed/categoryColor.ts.
+ * The colours come from the system generated in tokens.css (twelve evenly
+ * spaced OKLCH hues, clashing neither with each other nor with the pay
+ * period or status colours). What's stored here is the light-mode HEX and
+ * not the token, because this row travels to Postgres and is read by the
+ * native app, which doesn't understand CSS. Whoever PAINTS decides the real
+ * colour: see domain/seed/categoryColor.ts.
  *
- * `icon` es el NOMBRE de un icono de Tabler, no un emoji ni un componente:
- * esta columna viaja a Postgres y la lee tambien la app en Flutter. La
- * traduccion a componente vive en components/ui/CategoryIcon.tsx, que
- * ademas sigue entendiendo los emojis que guardaba la v2.
+ * `icon` is the NAME of a Tabler icon, not an emoji and not a component:
+ * this column travels to Postgres and is also read by the Flutter app. The
+ * translation into a component lives in components/ui/CategoryIcon.tsx,
+ * which also still understands the emojis v2 used to store.
  */
 import type { Category } from '../types';
 

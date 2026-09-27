@@ -2,18 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { deletedIdsOf, makeTombstone, mergeTombstones, tombstoneId } from './tombstones';
 
 describe('tombstoneId', () => {
-  it('es estable e idempotente', () => {
+  it('is stable and idempotent', () => {
     expect(tombstoneId('transactions', 'abc')).toBe('transactions:abc');
     expect(makeTombstone('transactions', 'abc', '2026-01-01').id).toBe('transactions:abc');
   });
 
-  it('no mezcla entidades con el mismo id', () => {
+  it('does not mix entities with the same id', () => {
     expect(tombstoneId('categories', 'x')).not.toBe(tombstoneId('transactions', 'x'));
   });
 });
 
 describe('deletedIdsOf', () => {
-  it('filtra por entidad', () => {
+  it('filters by entity', () => {
     const ts = [
       makeTombstone('transactions', 't1', '2026-01-01'),
       makeTombstone('categories', 'c1', '2026-01-01'),
@@ -25,13 +25,13 @@ describe('deletedIdsOf', () => {
 });
 
 describe('mergeTombstones', () => {
-  it('se queda con la fecha del borrado original', () => {
-    const viejo = makeTombstone('transactions', 't1', '2026-01-01T00:00:00Z');
-    const copia = makeTombstone('transactions', 't1', '2026-05-05T00:00:00Z');
-    expect(mergeTombstones([copia], [viejo])).toEqual([viejo]);
+  it('keeps the original deletion date', () => {
+    const old = makeTombstone('transactions', 't1', '2026-01-01T00:00:00Z');
+    const copy = makeTombstone('transactions', 't1', '2026-05-05T00:00:00Z');
+    expect(mergeTombstones([copy], [old])).toEqual([old]);
   });
 
-  it('une sin duplicar', () => {
+  it('merges without duplicating', () => {
     const a = [makeTombstone('transactions', 't1', '2026-01-01')];
     const b = [makeTombstone('categories', 'c1', '2026-01-01')];
     expect(mergeTombstones(a, b)).toHaveLength(2);

@@ -4,15 +4,15 @@ import { InboxSheet } from './InboxSheet';
 import { useInbox } from './useInbox';
 
 /**
- * Avisa que llegó algo de una automatización. Solo aparece cuando hay
- * algo: una barra permanente diciendo "0 pendientes" sería ruido.
+ * Warns that something arrived from an automation. Only shows up when there's
+ * something: a permanent bar saying "0 pending" would be noise.
  */
 export function InboxBanner() {
-  const { pendientes, recargar } = useInbox();
+  const { pending, reload } = useInbox();
   const [abierto, setAbierto] = useState(false);
 
-  if (pendientes.length === 0) return null;
-  const n = pendientes.length;
+  if (pending.length === 0) return null;
+  const n = pending.length;
 
   return (
     <>
@@ -38,9 +38,9 @@ export function InboxBanner() {
 
       {abierto && (
         <InboxSheet
-          entradas={pendientes}
+          entradas={pending}
           onClose={() => setAbierto(false)}
-          onCambio={() => { void recargar(); }}
+          onCambio={() => { void reload(); }}
         />
       )}
     </>

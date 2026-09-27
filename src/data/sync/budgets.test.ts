@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clavePresupuesto, conciliarPresupuestos } from './presupuestos';
+import { budgetKey, reconcileBudgets } from './budgets';
 import type { Budget } from '@/domain/types';
 
 function p(over: Partial<Budget> = {}): Budget {
@@ -11,124 +11,124 @@ function p(over: Partial<Budget> = {}): Budget {
 }
 
 describe('clavePresupuesto', () => {
-  it('es categoría + año + mes, que es lo que Postgres declara único', () => {
-    expect(clavePresupuesto(p())).toBe('cat-hogar|2026|9');
+  it('is category + year + month, which is what Postgres declares unique', () => {
+    expect(budgetKey(p())).toBe('cat-hogar|2026|9');
   });
 
-  it('distingue meses y categorías', () => {
-    expect(clavePresupuesto(p({ month: 10 }))).not.toBe(clavePresupuesto(p()));
-    expect(clavePresupuesto(p({ categoryId: 'cat-salud' }))).not.toBe(clavePresupuesto(p()));
+  it('distinguishes months and categories', () => {
+    expect(budgetKey(p({ month: 10 }))).not.toBe(budgetKey(p()));
+    expect(budgetKey(p({ categoryId: 'cat-salud' }))).not.toBe(budgetKey(p()));
   });
 });
 
-describe('conciliarPresupuestos — lo básico', () => {
-  it('sin nada en ningún lado no hace nada', () => {
-    expect(conciliarPresupuestos([], [])).toEqual({ guardarLocal: [], subir: [], borrarLocal: [] });
+describe('conciliarPresupuestos — the basics', () => {
+  it('with nothing on either side, does nothing', () => {
+    expect(reconcileBudgets([], [])).toEqual({ saveLocal: [], subir: [], deleteLocal: [] });
   });
 
-  it('lo que solo está en la nube se baja', () => {
-    const remoto = p({ id: 'r1' });
-    const plan = conciliarPresupuestos([], [remoto]);
-    expect(plan.guardarLocal).toEqual([remoto]);
+  it('what only exists in the cloud gets pulled down', () => {
+    const remoteRow = p({ id: 'r1' });
+    const plan = reconcileBudgets([], [remoteRow]);
+    expect(plan.saveLocal).toEqual([remoteRow]);
     expect(plan.subir).toEqual([]);
   });
 
-  it('lo que solo está acá se sube', () => {
+  it('what only exists here gets uploaded', () => {
     const local = p({ id: 'l1' });
-    const plan = conciliarPresupuestos([local], []);
+    const plan = reconcileBudgets([local], []);
     expect(plan.subir).toEqual([local]);
-    expect(plan.guardarLocal).toEqual([]);
+    expect(plan.saveLocal).toEqual([]);
   });
 });
 
-describe('conciliarPresupuestos — quién gana', () => {
-  it('gana el más nuevo aunque esté en la nube', () => {
+describe('conciliarPresupuestos — who wins', () => {
+  it('the newest wins even if it is in the cloud', () => {
     const local = p({ id: 'x', amount: 100, updatedAt: '2026-09-01T00:00:00.000Z' });
-    const remoto = p({ id: 'x', amount: 900, updatedAt: '2026-09-20T00:00:00.000Z' });
-    const plan = conciliarPresupuestos([local], [remoto]);
-    expect(plan.guardarLocal).toEqual([remoto]);
+    const remoteRow = p({ id: 'x', amount: 900, updatedAt: '2026-09-20T00:00:00.000Z' });
+    const plan = reconcileBudgets([local], [remoteRow]);
+    expect(plan.saveLocal).toEqual([remoteRow]);
     expect(plan.subir).toEqual([]);
   });
 
-  it('gana el más nuevo aunque sea el de acá', () => {
+  it('the newest wins even if it is the local one', () => {
     const local = p({ id: 'x', amount: 900, updatedAt: '2026-09-20T00:00:00.000Z' });
-    const remoto = p({ id: 'x', amount: 100, updatedAt: '2026-09-01T00:00:00.000Z' });
-    const plan = conciliarPresupuestos([local], [remoto]);
+    const remoteRow = p({ id: 'x', amount: 100, updatedAt: '2026-09-01T00:00:00.000Z' });
+    const plan = reconcileBudgets([local], [remoteRow]);
     expect(plan.subir).toEqual([local]);
-    expect(plan.guardarLocal).toEqual([]);
+    expect(plan.saveLocal).toEqual([]);
   });
 
-  it('una fila local sin fecha no le gana a una real', () => {
+  it('a local row with no date does not beat a real one', () => {
     const local = p({ id: 'x', amount: 1, updatedAt: '' });
-    const remoto = p({ id: 'x', amount: 900 });
-    expect(conciliarPresupuestos([local], [remoto]).guardarLocal).toEqual([remoto]);
+    const remoteRow = p({ id: 'x', amount: 900 });
+    expect(reconcileBudgets([local], [remoteRow]).saveLocal).toEqual([remoteRow]);
   });
 });
 
 /**
- * El caso que obliga a emparejar por categoría+mes y no por id: dos
- * teléfonos que ponen presupuesto al mismo mes sin haber sincronizado
- * generan ids distintos para la MISMA fila. Subir el segundo por su id no
- * crearía otra fila, chocaría contra unique(user_id, category_id, year,
- * month) y tumbaría el sync entero.
+ * The case that forces pairing by category+month instead of by id: two
+ * phones that set a budget for the same month without having synced
+ * generate different ids for the SAME row. Uploading the second one by
+ * its id wouldn't create another row, it would collide with
+ * unique(user_id, category_id, year, month) and take down the whole sync.
  */
-describe('conciliarPresupuestos — dos dispositivos, ids distintos', () => {
+describe('conciliarPresupuestos — two devices, different ids', () => {
   const local = p({ id: 'id-del-telefono', amount: 900, updatedAt: '2026-09-20T00:00:00.000Z' });
-  const remoto = p({ id: 'id-del-portatil', amount: 100, updatedAt: '2026-09-01T00:00:00.000Z' });
+  const remoteRow = p({ id: 'id-del-portatil', amount: 100, updatedAt: '2026-09-01T00:00:00.000Z' });
 
-  it('se reconocen como la misma fila pese al id distinto', () => {
-    const plan = conciliarPresupuestos([local], [remoto]);
-    // Una sola fila, no dos.
+  it('are recognized as the same row despite the different id', () => {
+    const plan = reconcileBudgets([local], [remoteRow]);
+    // A single row, not two.
     expect(plan.subir).toHaveLength(1);
-    expect(plan.guardarLocal).toHaveLength(1);
+    expect(plan.saveLocal).toHaveLength(1);
   });
 
-  it('gana el monto más nuevo, pero viaja con el id de la nube', () => {
-    const plan = conciliarPresupuestos([local], [remoto]);
+  it('the newest amount wins, but it travels with the cloud id', () => {
+    const plan = reconcileBudgets([local], [remoteRow]);
     expect(plan.subir[0]).toMatchObject({ id: 'id-del-portatil', amount: 900 });
   });
 
-  it('el id local huérfano se borra, para no dejar la fila duplicada acá', () => {
-    const plan = conciliarPresupuestos([local], [remoto]);
-    expect(plan.borrarLocal).toEqual(['id-del-telefono']);
-    expect(plan.guardarLocal[0]).toMatchObject({ id: 'id-del-portatil', amount: 900 });
+  it('the orphaned local id gets deleted, so the row is not left duplicated here', () => {
+    const plan = reconcileBudgets([local], [remoteRow]);
+    expect(plan.deleteLocal).toEqual(['id-del-telefono']);
+    expect(plan.saveLocal[0]).toMatchObject({ id: 'id-del-portatil', amount: 900 });
   });
 
-  it('si gana la nube, también se limpia el id local que sobra', () => {
-    const plan = conciliarPresupuestos(
+  it('if the cloud wins, the extra local id also gets cleaned up', () => {
+    const plan = reconcileBudgets(
       [p({ id: 'id-del-telefono', amount: 900, updatedAt: '2026-09-01T00:00:00.000Z' })],
       [p({ id: 'id-del-portatil', amount: 100, updatedAt: '2026-09-20T00:00:00.000Z' })],
     );
-    expect(plan.guardarLocal).toEqual([p({ id: 'id-del-portatil', amount: 100, updatedAt: '2026-09-20T00:00:00.000Z' })]);
-    expect(plan.borrarLocal).toEqual(['id-del-telefono']);
+    expect(plan.saveLocal).toEqual([p({ id: 'id-del-portatil', amount: 100, updatedAt: '2026-09-20T00:00:00.000Z' })]);
+    expect(plan.deleteLocal).toEqual(['id-del-telefono']);
   });
 
-  it('con el mismo id no se borra nada', () => {
-    const plan = conciliarPresupuestos(
+  it('with the same id nothing gets deleted', () => {
+    const plan = reconcileBudgets(
       [p({ id: 'x', amount: 900, updatedAt: '2026-09-20T00:00:00.000Z' })],
       [p({ id: 'x', amount: 100 })],
     );
-    expect(plan.borrarLocal).toEqual([]);
+    expect(plan.deleteLocal).toEqual([]);
   });
 });
 
-describe('conciliarPresupuestos — varios meses y categorías a la vez', () => {
-  it('cada mes y cada categoría se resuelve por separado', () => {
-    const locales = [
+describe('conciliarPresupuestos — several months and categories at once', () => {
+  it('each month and each category is resolved separately', () => {
+    const localRows = [
       p({ id: 'l1', categoryId: 'cat-hogar', month: 9, amount: 100, updatedAt: '2026-09-20T00:00:00.000Z' }),
       p({ id: 'l2', categoryId: 'cat-hogar', month: 10, amount: 200 }),
       p({ id: 'l3', categoryId: 'cat-salud', month: 9, amount: 300 }),
     ];
-    const remotos = [
+    const remoteRows = [
       p({ id: 'r1', categoryId: 'cat-hogar', month: 9, amount: 999, updatedAt: '2026-09-01T00:00:00.000Z' }),
     ];
-    const plan = conciliarPresupuestos(locales, remotos);
+    const plan = reconcileBudgets(localRows, remoteRows);
 
-    // Septiembre de Hogar: gana el local (más nuevo), con el id remoto.
+    // September for Hogar: the local one (newer) wins, with the remote id.
     expect(plan.subir).toContainEqual(expect.objectContaining({ id: 'r1', amount: 100 }));
-    // Los otros dos nunca viajaron: se suben tal cual.
-    expect(plan.subir).toContainEqual(locales[1]);
-    expect(plan.subir).toContainEqual(locales[2]);
+    // The other two never traveled: they get uploaded as-is.
+    expect(plan.subir).toContainEqual(localRows[1]);
+    expect(plan.subir).toContainEqual(localRows[2]);
     expect(plan.subir).toHaveLength(3);
   });
 });

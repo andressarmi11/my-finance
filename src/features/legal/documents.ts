@@ -1,49 +1,49 @@
-import type { Idioma } from '@/i18n/idioma';
+import type { Language } from '@/i18n/language';
 
 /**
- * Los documentos legales, en los dos idiomas.
+ * The legal documents, in both languages.
  *
- * Estan escritos sobre hechos VERIFICADOS en el codigo, no sobre una
- * plantilla. Lo que declaran se comprobo antes de escribirlo:
- *   - no hay analitica ni rastreo de ningun tipo (ni Google Analytics, ni
- *     Sentry, ni pixeles): grep sobre src/ e index.html;
- *   - no se usa document.cookie en ninguna parte;
- *   - el unico tercero que recibia peticiones era Google Fonts, y se
- *     elimino sirviendo la fuente desde la propia app;
- *   - los datos viven en IndexedDB y, si el usuario crea cuenta, tambien
- *     en Supabase (region us-west-2).
+ * They are written on facts VERIFIED in the code, not on a template.
+ * What they state was checked before being written:
+ *   - there is no analytics or tracking of any kind (no Google Analytics,
+ *     no Sentry, no pixels): grep over src/ and index.html;
+ *   - document.cookie is not used anywhere;
+ *   - the only third party that received requests was Google Fonts, and
+ *     that was removed by serving the font from the app itself;
+ *   - the data lives in IndexedDB and, if the user creates an account,
+ *     also in Supabase (region us-west-2).
  *
- * Si alguna de esas cosas cambia, ESTE ARCHIVO MIENTE. Cualquiera que
- * agregue analitica, un tercero o una cookie tiene que volver aca.
+ * If any of those things changes, THIS FILE LIES. Anyone adding analytics,
+ * a third party or a cookie has to come back here.
  *
- * Nota honesta: los redacto con cuidado, pero no son asesoria juridica ni
- * los reviso un abogado.
+ * Honest note: they were written carefully, but they are not legal advice
+ * and no lawyer reviewed them.
  */
 
-export const ACTUALIZADO = '2026-09-26';
+export const UPDATED = '2026-09-26';
 
-export type SlugLegal = 'aviso' | 'privacidad' | 'terminos' | 'cookies' | 'propiedad';
+export type LegalSlug = 'aviso' | 'privacidad' | 'terminos' | 'cookies' | 'propiedad';
 
-export const SLUGS: SlugLegal[] = ['aviso', 'privacidad', 'terminos', 'cookies', 'propiedad'];
+export const SLUGS: LegalSlug[] = ['aviso', 'privacidad', 'terminos', 'cookies', 'propiedad'];
 
-export interface Bloque {
-  /** Encabezado de seccion. */
+export interface Block {
+  /** Section heading. */
   h?: string;
   /** Parrafos. */
   p?: string[];
-  /** Lista de puntos. */
+  /** Bullet list. */
   ul?: string[];
 }
 
-export interface Documento {
-  titulo: string;
+export interface LegalDocument {
+  title: string;
   entrada: string;
-  bloques: Bloque[];
+  bloques: Block[];
 }
 
-const ES: Record<SlugLegal, Documento> = {
+const ES: Record<LegalSlug, LegalDocument> = {
   aviso: {
-    titulo: 'Aviso legal',
+    title: 'Aviso legal',
     entrada: 'Quién es responsable de Step up y cómo contactarlo.',
     bloques: [
       {
@@ -81,7 +81,7 @@ const ES: Record<SlugLegal, Documento> = {
   },
 
   privacidad: {
-    titulo: 'Política de privacidad',
+    title: 'Política de privacidad',
     entrada: 'Qué datos se guardan, dónde, y quién puede verlos.',
     bloques: [
       {
@@ -158,7 +158,7 @@ const ES: Record<SlugLegal, Documento> = {
   },
 
   terminos: {
-    titulo: 'Términos y condiciones',
+    title: 'Términos y condiciones',
     entrada: 'Las reglas de uso de la aplicación.',
     bloques: [
       {
@@ -216,7 +216,7 @@ const ES: Record<SlugLegal, Documento> = {
   },
 
   cookies: {
-    titulo: 'Política de cookies',
+    title: 'Política de cookies',
     entrada: 'Spoiler: no hay cookies. Pero sí hay almacenamiento local, y merece explicación.',
     bloques: [
       {
@@ -247,7 +247,7 @@ const ES: Record<SlugLegal, Documento> = {
   },
 
   propiedad: {
-    titulo: 'Copyright y propiedad intelectual',
+    title: 'Copyright y propiedad intelectual',
     entrada: 'De quién es el código, de quién es el nombre y de quién son tus datos.',
     bloques: [
       {
@@ -289,9 +289,9 @@ const ES: Record<SlugLegal, Documento> = {
   },
 };
 
-const EN: Record<SlugLegal, Documento> = {
+const EN: Record<LegalSlug, LegalDocument> = {
   aviso: {
-    titulo: 'Legal notice',
+    title: 'Legal notice',
     entrada: 'Who is behind Step up and how to reach them.',
     bloques: [
       {
@@ -329,7 +329,7 @@ const EN: Record<SlugLegal, Documento> = {
   },
 
   privacidad: {
-    titulo: 'Privacy policy',
+    title: 'Privacy policy',
     entrada: 'What is stored, where it lives, and who can see it.',
     bloques: [
       {
@@ -406,7 +406,7 @@ const EN: Record<SlugLegal, Documento> = {
   },
 
   terminos: {
-    titulo: 'Terms and conditions',
+    title: 'Terms and conditions',
     entrada: 'The rules for using the app.',
     bloques: [
       {
@@ -464,7 +464,7 @@ const EN: Record<SlugLegal, Documento> = {
   },
 
   cookies: {
-    titulo: 'Cookie policy',
+    title: 'Cookie policy',
     entrada: 'Spoiler: there are none. But there is local storage, and it deserves an explanation.',
     bloques: [
       {
@@ -495,7 +495,7 @@ const EN: Record<SlugLegal, Documento> = {
   },
 
   propiedad: {
-    titulo: 'Copyright and intellectual property',
+    title: 'Copyright and intellectual property',
     entrada: 'Who owns the code, who owns the name, and who owns your data.',
     bloques: [
       {
@@ -537,6 +537,6 @@ const EN: Record<SlugLegal, Documento> = {
   },
 };
 
-export function documentosDe(idioma: Idioma): Record<SlugLegal, Documento> {
-  return idioma === 'en' ? EN : ES;
+export function documentsFor(language: Language): Record<LegalSlug, LegalDocument> {
+  return language === 'en' ? EN : ES;
 }

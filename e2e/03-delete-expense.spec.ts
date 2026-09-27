@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('eliminar un gasto', async ({ page }) => {
+test('deletes an expense', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Gasto a borrar');

@@ -12,12 +12,12 @@ import { useMoneyFormat } from './useMoneyFormat';
 import { useTheme } from './useTheme';
 
 /**
- * Orden de las capas, y por que ese orden:
- *   AuthGate       — sin sesion no hay nada que mostrar.
- *   useCloudSync   — baja los datos de la cuenta ANTES de decidir nada mas.
- *   OnboardingGate — solo pregunta la configuracion inicial si, despues de
- *                    bajar, sigue sin haberla. Si no, un telefono nuevo
- *                    volveria a preguntar nombre y moneda cada vez.
+ * Order of the layers, and why that order:
+ *   AuthGate       — without a session there's nothing to show.
+ *   useCloudSync   — pulls the account data down BEFORE deciding anything else.
+ *   OnboardingGate — only asks for the initial setup if, after pulling,
+ *                    it's still missing. Otherwise a new phone would
+ *                    ask for name and currency again every time.
  */
 export function AppLayout() {
   useTheme();
@@ -29,23 +29,23 @@ export function AppLayout() {
 }
 
 function AppShell() {
-  const { estado, error, primeraHecha, sincronizar } = useCloudSync();
+  const { status, error, primeraHecha, sync } = useCloudSync();
   useMoneyFormat();
 
   return (
     <OnboardingGate esperando={!primeraHecha}>
-      {/* 100dvh, no 100%: en iOS el alto en % se resuelve contra el viewport
-          grande e ignora que la barra de Safari aparece y desaparece, asi que
-          pantallas cortas quedaban sin scroll y con la barra de abajo flotando
-          por encima del toolbar. dvh sigue el viewport real. */}
+      {/* 100dvh, not 100%: on iOS a % height resolves against the large
+          viewport and ignores that the Safari bar appears and disappears, so
+          short screens ended up without scroll and with the bottom bar floating
+          above the toolbar. dvh follows the real viewport. */}
       <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
         <BrandBar />
         <main
           style={{
             flex: 1,
-            // El safe-area de arriba ya lo absorbe BrandBar, que va pegada.
+            // The top safe-area is already absorbed by BrandBar, which sits flush.
             paddingTop: 'var(--gap-l)',
-            // 61 barra + 14 + 56 FAB + aire: nada queda debajo del tab bar ni del +.
+            // 61 bar + 14 + 56 FAB + breathing room: nothing ends up under the tab bar or the +.
             paddingBottom: 'calc(var(--safe-bottom) + 148px)',
           }}
         >
@@ -55,22 +55,22 @@ function AppShell() {
           <LegalFooter />
         </main>
         <TabBar />
-        <SyncIndicator estado={estado} error={error} onReintentar={() => void sincronizar(true)} />
+        <SyncIndicator status={status} error={error} onReintentar={() => void sync(true)} />
       </div>
     </OnboardingGate>
   );
 }
 
 /**
- * Barra de marca. Es el patrón de iOS: una barra fina y translúcida que
- * siempre dice dónde estás parado, y debajo el large title de cada pantalla
- * (Screen.tsx), que sí cambia. Sin ella el nombre de la app solo se veía al
- * iniciar sesión y después desaparecía.
+ * Brand bar. It's the iOS pattern: a thin, translucent bar that always says
+ * where you're standing, with each screen's large title underneath
+ * (Screen.tsx), which does change. Without it the app name was only visible
+ * at sign-in and then disappeared.
  *
- * sticky y no fixed: cuando el teclado achica el viewport, fixed se queda
- * flotando sobre el contenido; sticky se va con el scroll del documento.
- * Se come el --safe-top para que el blur llegue hasta el notch en vez de
- * dejar una franja del fondo arriba.
+ * sticky and not fixed: when the keyboard shrinks the viewport, fixed hovers
+ * over the content; sticky moves with the document scroll.
+ * It eats the --safe-top so the blur reaches the notch instead of
+ * leaving a strip of background above it.
  */
 function BrandBar() {
   return (
@@ -78,8 +78,8 @@ function BrandBar() {
       style={{
         position: 'sticky',
         top: 0,
-        // Por encima del contenido y del tab bar (40), por debajo de los
-        // modales (50-70): una hoja abierta tiene que taparla.
+        // Above the content and the tab bar (40), below the
+        // modals (50-70): an open sheet has to cover it.
         zIndex: 30,
         paddingTop: 'var(--safe-top)',
         background: 'color-mix(in srgb, var(--paper) 78%, transparent)',

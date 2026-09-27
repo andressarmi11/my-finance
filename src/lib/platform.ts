@@ -1,4 +1,4 @@
-/** Deteccion de plataforma para las particularidades de iOS/Safari. */
+/** Platform detection for the iOS/Safari quirks. */
 
 export function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !('MSStream' in window);

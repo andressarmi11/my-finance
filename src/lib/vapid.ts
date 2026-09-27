@@ -1,7 +1,7 @@
 /**
- * Convierte la VAPID public key (base64url) al Uint8Array que pide
- * PushManager.subscribe(). Boilerplate estandar de Web Push — facil de
- * teclear mal, por eso tiene test.
+ * Converts the VAPID public key (base64url) into the Uint8Array that
+ * PushManager.subscribe() asks for. Standard Web Push boilerplate — easy to
+ * mistype, which is why it has a test.
  */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

@@ -1,25 +1,25 @@
 # TODO
 
-## Las 17 fases del roadmap original están completas
-Ver CHANGELOG.md para el detalle de cada una.
+## The 17 phases of the original roadmap are complete
+See CHANGELOG.md for the detail of each one.
 
-## Mejoras opcionales para más adelante (no bloquean nada de lo actual)
-- [ ] Sincronización en tiempo real multi-dispositivo (hoy es manual,
-      bajo demanda, desde Ajustes → Nube)
-- [ ] Filtros de la lista de Movimientos por categoría/método/rango de
-      fechas (hoy solo hay búsqueda por texto)
-- [ ] Metas de ahorro, patrimonio, múltiples cuentas/tarjetas — el modelo
-      de datos ya está diseñado para soportarlo sin romper nada existente
-- [ ] Tests E2E de la Edge Function de notificaciones (hoy se prueba con
-      el `curl` de docs/NOTIFICATIONS.md)
-- [ ] Ejecutar los tests E2E en un entorno con acceso a
-      `cdn.playwright.dev` para confirmarlos localmente antes del primer
-      push (en GitHub Actions correrán sin problema)
+## Optional improvements for later (none block anything current)
+- [ ] Real-time multi-device sync (today it's manual, on demand, from
+      Settings → Cloud)
+- [ ] Filters on the Transactions list by category/method/date range
+      (today there's only text search)
+- [ ] Savings goals, net worth, multiple accounts/cards — the data model
+      is already designed to support it without breaking anything
+- [ ] E2E tests for the notifications Edge Function (today it's tested
+      with the `curl` in docs/NOTIFICATIONS.md)
+- [ ] Run the E2E tests in an environment with access to
+      `cdn.playwright.dev`, to confirm them locally before the first push
+      (they run fine on GitHub Actions)
 
-## Notas técnicas para quien retome este proyecto
-- `node_modules` debe vivir en disco local durante el desarrollo, no en
-  un mount de red — ver docs/CONTEXT.md si no tiene sentido de otra forma.
-- Antes de sumar/agrupar transacciones por quincena, pasarlas por
-  `withResolvedQuincena()` (`domain/quincena/resolve.ts`).
-- Cualquier cálculo nuevo va en `domain/`, con tests al lado — ver
+## Technical notes for whoever picks this project up
+- `node_modules` has to live on a local disk during development, not on a
+  network mount — see docs/CONTEXT.md if that doesn't make sense otherwise.
+- Before adding up or grouping transactions by period, run them through
+  `withResolvedPeriods()` (`domain/period/resolve.ts`).
+- Any new calculation goes in `domain/`, with its tests next to it — see
   CONTRIBUTING.md.

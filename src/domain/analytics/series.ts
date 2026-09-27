@@ -1,7 +1,7 @@
 /**
- * Series de tiempo para los graficos (Fase 0, seccion 5). Cada funcion
- * devuelve puntos ya listos para graficar — el componente de UI no
- * decide que sumar, solo dibuja.
+ * Time series for the charts (Phase 0, section 5). Each function
+ * returns points already ready to plot — the UI component doesn't
+ * decide what to sum, it just draws.
  */
 import { compareISO } from '../dates';
 import type { Transaction } from '../types';
@@ -13,7 +13,7 @@ export interface MonthPoint {
   expense: number;
 }
 
-/** Uno por cada mes calendario presente en las transacciones, ordenado cronologicamente. */
+/** One per calendar month present in the transactions, ordered chronologically. */
 export function monthlySeries(transactions: Transaction[]): MonthPoint[] {
   const map = new Map<string, MonthPoint>();
   for (const tx of transactions) {
@@ -33,7 +33,7 @@ export function monthlySeries(transactions: Transaction[]): MonthPoint[] {
 }
 
 export interface FixedVsVariable {
-  fixed: number; // tiene recurringRuleId
+  fixed: number; // has recurringRuleId
   variable: number;
 }
 

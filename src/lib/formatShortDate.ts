@@ -1,19 +1,20 @@
-const MESES_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-const MESES_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * Estado de modulo, igual que setMoneyLocale en domain/money/format.ts.
- * Se hace asi y no pasando el idioma por parametro porque formatShortDate
- * se llama desde decenas de sitios y encadenar el idioma por todos seria
- * ruido en cada firma. Lo fija IdiomaProvider al montar y al cambiar.
+ * Module state, same as setMoneyLocale in domain/money/format.ts. It's done
+ * this way rather than passing the language as a parameter because
+ * formatShortDate is called from dozens of places, and threading the
+ * language through all of them would be noise in every signature.
+ * LanguageProvider sets it on mount and on change.
  */
-let MONTHS = MESES_ES;
+let MONTHS = MONTHS_ES;
 
-export function setMesesLocales(idioma: 'es' | 'en'): void {
-  MONTHS = idioma === 'en' ? MESES_EN : MESES_ES;
+export function setShortMonthNames(language: 'es' | 'en'): void {
+  MONTHS = language === 'en' ? MONTHS_EN : MONTHS_ES;
 }
 
-/** '2026-09-17' -> '17 sep'. Solo para UI; nunca usar esto en domain/. */
+/** '2026-09-17' -> '17 sep'. UI only; never use this in domain/. */
 export function formatShortDate(iso: string): { day: number; month: string; monthIndex: number } {
   const parts = iso.split('-').map(Number);
   const m = parts[1];

@@ -1,50 +1,50 @@
 import { test as base, expect, type Page } from '@playwright/test';
 
 /**
- * Cada test de Playwright ya corre en su propio contexto de navegador
- * aislado (storage/IndexedDB separados), asi que no hace falta limpiar
- * la base de datos a mano entre tests — cada uno arranca de cero.
+ * Every Playwright test already runs in its own isolated browser context
+ * (separate storage/IndexedDB), so there's no need to clear the database by
+ * hand between tests — each one starts from scratch.
  *
- * Pero "de cero" ahora incluye la configuracion inicial, que aparece la
- * primera vez. El fixture la completa con valores por defecto para que
- * cada test siga empezando en la pantalla que le importa. El flujo en si
- * se prueba aparte, en 10-configuracion-inicial.spec.ts.
+ * But "from scratch" now includes the initial setup, which shows up the
+ * first time. This fixture completes it with default values so each test
+ * still starts on the screen it cares about. The flow itself is tested
+ * separately, in 10-initial-setup.spec.ts.
  */
-export async function completarOnboarding(page: Page): Promise<void> {
-  // waitFor, no isVisible(): isVisible() pregunta en ese instante, y en
-  // WebKit la app tarda mas en montar que lo que tarda goto() en resolver,
-  // asi que daba false y el fixture se saltaba la configuracion entera.
-  const nombre = page.getByLabel('Tu nombre');
-  await nombre.waitFor({ state: 'visible', timeout: 15_000 });
+export async function completeOnboarding(page: Page): Promise<void> {
+  // waitFor, not isVisible(): isVisible() asks at that instant, and on
+  // WebKit the app takes longer to mount than goto() takes to resolve, so
+  // it returned false and the fixture skipped the whole setup.
+  const name = page.getByLabel('Tu nombre');
+  await name.waitFor({ state: 'visible', timeout: 15_000 });
 
-  await nombre.fill('Tester');
+  await name.fill('Tester');
 
-  // Se avanza HASTA que aparezca "Empezar", en vez de disparar tres clics
-  // seguidos a ciegas. Aquello era una carrera: entre un clic y el
-  // siguiente React puede re-renderizar el paso, y el clic caia sobre un
-  // boton que ya no estaba montado. Con pocos tests casi nunca se veia;
-  // con un archivo de diez, en paralelo, fallaba ~1 de cada 8.
+  // Advance UNTIL "Empezar" appears, instead of firing three blind clicks
+  // in a row. That was a race: between one click and the next React can
+  // re-render the step, and the click landed on a button that was no longer
+  // mounted. With few tests it almost never showed; with a file of ten, in
+  // parallel, it failed ~1 in 8.
   //
-  // De paso deja de depender de que los pasos sean exactamente cuatro.
-  const empezar = page.getByRole('button', { name: 'Empezar' });
-  for (let i = 0; i < 8 && !(await empezar.isVisible().catch(() => false)); i++) {
+  // It also stops depending on the steps being exactly four.
+  const startButton = page.getByRole('button', { name: 'Empezar' });
+  for (let i = 0; i < 8 && !(await startButton.isVisible().catch(() => false)); i++) {
     await page.getByRole('button', { name: 'Siguiente' }).click();
   }
-  await empezar.click();
-  await expect(nombre).toBeHidden();
+  await startButton.click();
+  await expect(name).toBeHidden();
 }
 
 export const test = base.extend<object>({
   page: async ({ page }, use) => {
-    const gotoOriginal = page.goto.bind(page);
-    let primeraNavegacion = true;
-    page.goto = async (url, opciones) => {
-      const respuesta = await gotoOriginal(url, opciones);
-      if (primeraNavegacion) {
-        primeraNavegacion = false;
-        await completarOnboarding(page);
+    const originalGoto = page.goto.bind(page);
+    let firstNavigation = true;
+    page.goto = async (url, options) => {
+      const response = await originalGoto(url, options);
+      if (firstNavigation) {
+        firstNavigation = false;
+        await completeOnboarding(page);
       }
-      return respuesta;
+      return response;
     };
     await use(page);
   },

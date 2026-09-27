@@ -9,25 +9,25 @@ import {
 import type { ComponentType } from 'react';
 
 /**
- * Iconos de categoria, de Tabler.
+ * Category icons, from Tabler.
  *
- * Por que un registro de NOMBRES y no el componente directo: Category.icon
- * es una columna de texto que viaja a Postgres y que tambien lee la app
- * nativa en Flutter (ver mobile/). Un componente de React no cabe ahi. Se
- * guarda 'home' y aca se resuelve a <IconHome/>.
+ * Why a registry of NAMES instead of the component directly: Category.icon
+ * is a text column that travels to Postgres and is also read by the
+ * native Flutter app (see mobile/). A React component doesn't fit there. It
+ * stores 'home' and here it resolves to <IconHome/>.
  *
- * Y por que el mapa de emojis: hasta v2 la columna guardaba '🏠'. Las
- * filas que ya existen —las del usuario y las de cualquier backup viejo—
- * siguen teniendo emoji. Traducirlas al pintar evita una migracion de
- * datos que podria fallar a medias y dejar categorias sin icono.
+ * And why the emoji map: up to v2 the column stored '🏠'. Rows that already
+ * exist —the user's and any old backup's— still have an emoji. Translating
+ * them at render time avoids a data migration that could fail halfway
+ * and leave categories without an icon.
  */
-export type IconoNombre =
+export type IconName =
   | 'home' | 'food' | 'transport' | 'entertainment' | 'travel' | 'health'
   | 'subscriptions' | 'shopping' | 'education' | 'utilities' | 'debt'
   | 'savings' | 'other' | 'salary' | 'gift' | 'sports' | 'pets' | 'kids'
   | 'phone' | 'bank' | 'card' | 'cash' | 'bill' | 'furniture' | 'growth';
 
-const REGISTRO: Record<IconoNombre, ComponentType<IconProps>> = {
+const ICON_REGISTRY: Record<IconName, ComponentType<IconProps>> = {
   home: IconHome,
   food: IconToolsKitchen2,
   transport: IconBus,
@@ -55,8 +55,8 @@ const REGISTRO: Record<IconoNombre, ComponentType<IconProps>> = {
   growth: IconTrendingUp,
 };
 
-/** Lo que guardaba v2. Se traduce al pintar, sin tocar la base. */
-const DESDE_EMOJI: Record<string, IconoNombre> = {
+/** What v2 used to store. Translated at render time, without touching the database. */
+const FROM_EMOJI: Record<string, IconName> = {
   '🏠': 'home', '🍽️': 'food', '🍽': 'food', '🚗': 'transport',
   '🎬': 'entertainment', '✈️': 'travel', '✈': 'travel', '💊': 'health',
   '🔁': 'subscriptions', '🛍️': 'shopping', '🛍': 'shopping',
@@ -67,15 +67,15 @@ const DESDE_EMOJI: Record<string, IconoNombre> = {
   '🎂': 'gift',
 };
 
-export function resolverIcono(guardado: string | undefined): IconoNombre {
-  if (!guardado) return 'other';
-  if (guardado in REGISTRO) return guardado as IconoNombre;
-  return DESDE_EMOJI[guardado] ?? 'other';
+export function resolveIcon(stored: string | undefined): IconName {
+  if (!stored) return 'other';
+  if (stored in ICON_REGISTRY) return stored as IconName;
+  return FROM_EMOJI[stored] ?? 'other';
 }
 
 /**
- * Trazo 1.75 y no el 2 por defecto: al lado de un numeral pesado, la
- * linea fina es lo que hace que el numero sea lo que se lee primero.
+ * Stroke 1.75 instead of the default 2: next to a heavy numeral, the
+ * thin line is what makes the number the thing that gets read first.
  */
 export function CategoryIcon({ icon, size = 20, color, stroke = 1.75 }: {
   icon: string | undefined;
@@ -83,12 +83,12 @@ export function CategoryIcon({ icon, size = 20, color, stroke = 1.75 }: {
   color?: string;
   stroke?: number;
 }) {
-  const Componente = REGISTRO[resolverIcono(icon)];
-  return <Componente size={size} stroke={stroke} color={color ?? 'currentColor'} aria-hidden />;
+  const Icon = ICON_REGISTRY[resolveIcon(icon)];
+  return <Icon size={size} stroke={stroke} color={color ?? 'currentColor'} aria-hidden />;
 }
 
-/** Lo que ofrece el selector del formulario de categoria. */
-export const ICONOS_ELEGIBLES: IconoNombre[] = [
+/** What the category form's picker offers. */
+export const SELECTABLE_ICONS: IconName[] = [
   'home', 'food', 'transport', 'entertainment', 'travel', 'health',
   'subscriptions', 'shopping', 'education', 'utilities', 'debt', 'savings',
   'salary', 'gift', 'sports', 'pets', 'kids', 'phone', 'bank', 'cash',
@@ -96,16 +96,16 @@ export const ICONOS_ELEGIBLES: IconoNombre[] = [
 ];
 
 /**
- * El icono dentro de un disco teñido con el color de su categoria.
+ * The icon inside a disc tinted with its category's color.
  *
- * Es lo que le da estructura a una lista de movimientos: el disco marca
- * el ritmo vertical y el color deja identificar la categoria de un
- * vistazo, sin tener que leer. El emoji suelto que habia antes no hacia
- * ninguna de las dos cosas — no se alineaba y su color era el del emoji.
+ * It's what gives structure to a transaction list: the disc marks
+ * the vertical rhythm and the color lets you identify the category at a
+ * glance, without having to read. The loose emoji that used to be there did
+ * neither — it didn't align and its color was whatever the emoji's was.
  *
- * El color va al 14% de fondo y al 100% en el trazo: el token de
- * categoria esta calculado para >=3:1 sobre superficie (ver tokens.css),
- * asi que el icono se lee aunque el disco sea tenue.
+ * The color goes at 14% for the background and 100% for the stroke: the
+ * category token is calculated for >=3:1 against the surface (see tokens.css),
+ * so the icon reads even when the disc is faint.
  */
 export function CategoryAvatar({ icon, color, size = 38 }: {
   icon: string | undefined;

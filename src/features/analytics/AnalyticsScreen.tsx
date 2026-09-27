@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -13,17 +13,17 @@ import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository'
 import { formatCompact, formatMoney } from '@/domain/money/format';
 import { calculateDebitVsCredit, calculateFixedVsVariable, monthlySeries } from '@/domain/analytics/series';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
-import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
-import { filterByRange, hastaHoy, rangeBounds, rellenarHuecos, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, type PeriodPoint, type Range } from './periodAggregate';
+import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
+import { filterByRange, untilToday, rangeBounds, fillGaps, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, type PeriodPoint, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
 import { BudgetColumns } from './BudgetColumns';
-import { GestorDeGraficos } from './GestorDeGraficos';
+import { ChartManager } from './ChartManager';
 import {
-  guardarDisposicion, leerDisposicion, type Disposicion, type GraficoId,
-} from './disposicion';
-import { VACIO } from '@/lib/vacio';
+  saveChartLayout, readChartLayout, type ChartLayout, type ChartId,
+} from './chartLayout';
+import { EMPTY } from '@/lib/empty';
 
 const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#FFCC00', '#5AC8FA', '#FF2D55'];
 
@@ -31,14 +31,14 @@ export function AnalyticsScreen() {
   const t = useT();
   const [range, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
-  const [disposicion, setDisposicion] = useState<Disposicion>(leerDisposicion);
+  const [layout, setLayout] = useState<ChartLayout>(readChartLayout);
 
-  const aplicar = (d: Disposicion) => { setDisposicion(d); guardarDisposicion(d); };
+  const apply = (d: ChartLayout) => { setLayout(d); saveChartLayout(d); };
 
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
-  // Hace falta para 'quincena': es el unico rango que no es calendario.
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
+  // Needed for 'quincena': it's the only range that isn't a calendar one.
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -47,45 +47,46 @@ export function AnalyticsScreen() {
     [paymentMethods],
   );
 
-  // "Histórico" significa hasta hoy: se corta el futuro y se rellenan los
-  // meses vacíos que queden en el medio, para que el eje no mienta sobre
-  // cuánto tiempo pasó entre una barra y la siguiente.
+  // "Historical" means up to today: the future is cut off and any empty
+  // months left in between are filled in, so the axis doesn't lie about how
+  // much time passed between one bar and the next.
   const monthly = useMemo(
-    () => rellenarHuecos(hastaHoy(monthlySeries(transactions), todayISO())),
+    () => fillGaps(untilToday(monthlySeries(transactions), todayISO())),
     [transactions],
   );
   const points: PeriodPoint[] = useMemo(() => {
-    // La serie historica es mensual; en quincena se muestran los mismos
-    // meses. Sin este caso, 'quincena' caia en el `return` de abajo y
-    // dibujaba la serie ANUAL al lado de un titulo que decia "25 sep - 9 oct".
+    // The historical series is monthly; on the biweekly range the same
+    // months are shown. Without this case, 'quincena' fell through to the
+    // `return` below and drew the YEARLY series next to a title reading
+    // "25 sep - 9 oct".
     if (range === 'quincena' || range === 'mes') return toMonthlyPoints(monthly).slice(-6);
     if (range === 'trimestre') return toQuarterlyPoints(monthly).slice(-4);
     return toYearlyPoints(monthly);
   }, [monthly, range]);
 
-  // Filtrar transacciones por el rango seleccionado — TODAS las cards
+  // Filter transactions by the selected range — ALL the cards
   // (balance, pie, fijos/variables, débito/tarjeta) usan este filtro.
   const today = todayISO();
   const budgets = useLiveQuery(
     () => localRepository.listBudgets(Number(today.slice(0, 4)), Number(today.slice(5, 7))),
     [today],
-  ) ?? VACIO;
+  ) ?? EMPTY;
   const rangedTransactions = useMemo(
-    () => filterByRange(transactions, range, today, settings.diasDePago),
-    [transactions, range, today, settings.diasDePago],
+    () => filterByRange(transactions, range, today, settings.payDays),
+    [transactions, range, today, settings.payDays],
   );
   const rangeLabel = useMemo(
-    () => describeRange(range, today, settings.diasDePago),
-    [range, today, settings.diasDePago],
+    () => describeRange(range, today, settings.payDays),
+    [range, today, settings.payDays],
   );
 
-  // Gastos por categoría (top N + "Otros")
+  // Spend by category (top N + "Others")
   const spendByCategory = useMemo(() => calculateSpendByCategory(rangedTransactions), [rangedTransactions]);
   const spendTop = spendByCategory.slice(0, 7);
   const spendOtherAmount = spendByCategory.slice(7).reduce((a, c) => a + c.amount, 0);
   const spendTotal = spendByCategory.reduce((a, c) => a + c.amount, 0);
 
-  // Ingresos por categoría (nuevo — hasta ahora sólo gastos)
+  // Income by category (new — until now it was only expenses)
   const incomeByCategory = useMemo(() => calculateIncomeByCategory(rangedTransactions), [rangedTransactions]);
   const incomeTop = incomeByCategory.slice(0, 5);
   const incomeTotal = incomeByCategory.reduce((a, c) => a + c.amount, 0);
@@ -101,31 +102,31 @@ export function AnalyticsScreen() {
     );
   }
 
-  const totalFV = fixedVsVariable.fixed + fixedVsVariable.variable;
-  const totalDC = debitVsCredit.debit + debitVsCredit.credit;
+  const fixedVariableTotal = fixedVsVariable.fixed + fixedVsVariable.variable;
+  const debitCreditTotal = debitVsCredit.debit + debitVsCredit.credit;
 
-  // Pie data (todas las categorías + "Otros")
+  // Pie data (every category + "Others")
   const pieData = [
     ...spendTop.map((c) => {
       const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
       return {
         id: c.categoryId ?? 'none',
-        name: cat?.name ?? t('analisis.sinCategoria'),
+        name: cat?.name ?? t('analytics.noCategory'),
         icon: cat?.icon ?? 'other',
-        color: cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA,
+        color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
         amount: c.amount,
         count: c.count,
       };
     }),
-    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: t('analisis.otros'), icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
+    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: t('analytics.others'), icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
   ];
 
-  // Cada grafico, indexado por id. Se arma aqui y se PINTA segun el orden
-  // que el usuario haya elegido, en vez de estar cableado en el JSX.
-  const secciones: Record<GraficoId, { titulo: string; contenido: React.ReactNode }> = {
-    'balance-categoria': { titulo: t('analisis.balanceCategoria'), contenido: (<>
+  // Each chart, indexed by id. Built here and PAINTED in whatever order
+  // the user chose, instead of being hard-wired into the JSX.
+  const sections: Record<ChartId, { title: string; content: React.ReactNode }> = {
+    'balance-by-category': { title: t('analytics.balanceByCategory'), content: (<>
         <StackedBar
-          label={t('filtro.ingresos')}
+          label={t('filter.income')}
           total={incomeTotal}
           segments={incomeTop.map((c, i) => {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
@@ -142,7 +143,7 @@ export function AnalyticsScreen() {
         />
         <div style={{ height: 12 }} />
         <StackedBar
-          label={t('filtro.gastos')}
+          label={t('filter.expenses')}
           total={spendTotal}
           segments={spendTop.map((c, i) => {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
@@ -158,13 +159,13 @@ export function AnalyticsScreen() {
         />
         <div style={{ height: 12 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{t('analisis.balance')}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{t('analytics.balance')}</span>
           <span className="figures" style={{ fontWeight: 700, color: incomeTotal - spendTotal >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
             {incomeTotal - spendTotal >= 0 ? '+ ' : ''}{formatMoney(incomeTotal - spendTotal)}
           </span>
         </div>
     </>) },
-    'distribucion': { titulo: t('analisis.distribucion'), contenido: (<>
+    'distribution': { title: t('analytics.distribution'), content: (<>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <ResponsiveContainer width={140} height={140}>
             <PieChart>
@@ -218,10 +219,10 @@ export function AnalyticsScreen() {
           </div>
         </div>
         <p style={{ margin: '10px 4px 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {t('analisis.tocaCategoria')}
+          {t('analytics.tapCategory')}
         </p>
     </>) },
-    'ingresos-gastos': { titulo: t('analisis.ingresosVsGastos'), contenido: (<>
+    'income-vs-expenses': { title: t('analytics.incomeVsExpenses'), content: (<>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={points} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
@@ -233,35 +234,35 @@ export function AnalyticsScreen() {
           </BarChart>
         </ResponsiveContainer>
     </>) },
-    'fijos-variables': { titulo: t('analisis.fijosVsVariables'), contenido: (<>
+    'fixed-vs-variable': { title: t('analytics.fixedVsVariable'), content: (<>
         <SplitBar
           a={{ label: 'Fijos', value: fixedVsVariable.fixed, color: 'var(--committed)' }}
           b={{ label: 'Variables', value: fixedVsVariable.variable, color: 'var(--q25-text)' }}
-          total={totalFV}
+          total={fixedVariableTotal}
         />
     </>) },
-    'debito-credito': { titulo: t('analisis.debitoVsCredito'), contenido: (<>
+    'debit-vs-credit': { title: t('analytics.debitVsCredit'), content: (<>
         <SplitBar
           a={{ label: 'Débito', value: debitVsCredit.debit, color: 'var(--q10-text)' }}
           b={{ label: 'Tarjeta', value: debitVsCredit.credit, color: 'var(--q25-text)' }}
-          total={totalDC}
+          total={debitCreditTotal}
         />
     </>) },
-    'presupuestos': {
-      titulo: t('analisis.presupuestosMes'),
-      contenido: (
+    'budgets': {
+      title: t('analytics.monthBudgets'),
+      content: (
         <BudgetColumns
           categories={categories}
           budgets={budgets}
           transactions={transactions}
-          mesPrefijo={today.slice(0, 7)}
+          monthPrefix={today.slice(0, 7)}
         />
       ),
     },
   };
 
   return (
-    <Screen title={t('analisis.titulo')} subtitle={rangeLabel}>
+    <Screen title={t('analytics.title')} subtitle={rangeLabel}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
           <button
@@ -278,20 +279,20 @@ export function AnalyticsScreen() {
         ))}
       </div>
 
-      {disposicion.orden
-        .filter((id) => !disposicion.ocultos.includes(id))
+      {layout.order
+        .filter((id) => !layout.hiddenIds.includes(id))
         .map((id) => (
-          <ChartCard key={id} title={secciones[id].titulo}>
-            {secciones[id].contenido}
+          <ChartCard key={id} title={sections[id].title}>
+            {sections[id].content}
           </ChartCard>
         ))}
 
-      <GestorDeGraficos
-        disposicion={disposicion}
-        titulos={Object.fromEntries(
-          (Object.keys(secciones) as GraficoId[]).map((id) => [id, secciones[id].titulo]),
-        ) as Record<GraficoId, string>}
-        onCambiar={aplicar}
+      <ChartManager
+        layout={layout}
+        titles={Object.fromEntries(
+          (Object.keys(sections) as ChartId[]).map((id) => [id, sections[id].title]),
+        ) as Record<ChartId, string>}
+        onChange={apply}
       />
 
       {detailCategoryId !== undefined && (
@@ -347,8 +348,8 @@ function StackedBar({ label, total, segments, amountColor, prefix }: {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
         {segments.map((s) => (
           <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-            {/* El icono ya lleva el color de la categoria, asi que el punto
-                de color seria decir lo mismo dos veces. */}
+            {/* The icon already carries the category's colour, so a colour
+                dot would be saying the same thing twice. */}
             <CategoryIcon icon={s.icon} size={14} color={s.color} />
             {s.name} · <span className="figures">{Math.round((s.amount / (total || 1)) * 100)}%</span>
           </span>
@@ -391,10 +392,10 @@ function CategoryDetailSheet({
   const pct = totalSpend > 0 ? Math.round((total / totalSpend) * 100) : 0;
   const avg = transactions.length ? Math.round(total / transactions.length) : 0;
 
-  const refDialogo = useDialogo(onClose);
+  const dialogRef = useDialogo(onClose);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label={category?.name ?? 'Categoría — detalle'}
       onClick={onClose}
@@ -417,7 +418,7 @@ function CategoryDetailSheet({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <CategoryAvatar
             icon={category?.icon ?? 'other'}
-            color={category ? categoryColor(category) : COLOR_SIN_CATEGORIA}
+            color={category ? categoryColor(category) : UNCATEGORIZED_COLOR}
             size={44}
           />
           <div style={{ flex: 1 }}>
@@ -499,12 +500,12 @@ const tooltipStyle: React.CSSProperties = {
 
 const MONTH_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-/** Texto del periodo que se está mirando, para que el usuario vea que el selector sí cambia algo. */
-function describeRange(range: Range, today: string, dias: number[]): string {
-  const { from, to } = rangeBounds(range, today, dias);
+/** Label for the period being looked at, so the user can see the selector does change something. */
+function describeRange(range: Range, today: string, payDays: number[]): string {
+  const { from, to } = rangeBounds(range, today, payDays);
   const [y, m] = from.split('-').map(Number) as [number, number];
-  // La quincena se dice con dias, no con meses: su gracia es que cruza el
-  // cambio de mes y decir solo "septiembre" lo escondería.
+  // A pay period is stated in days, not months: its whole point is that it
+  // crosses the month boundary, and saying just "September" would hide that.
   if (range === 'quincena') {
     const d = formatShortDate(from);
     const h = formatShortDate(to);

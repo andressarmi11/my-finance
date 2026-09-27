@@ -1,28 +1,30 @@
 /**
- * Restante por periodo y sobrante del mes.
+ * Remainder per period, and the month's leftover.
  *
- * Regla (viene directo del Excel original): el restante de un periodo es
- * ingresos - gastos de ese periodo, SIN filtrar por si ya estan pagados
- * (el "listo" es seguimiento aparte, no cambia la matematica).
- * "Cancelado" si se excluye: un gasto cancelado nunca debio contar.
+ * Rule (straight from the original spreadsheet): a period's remainder is
+ * its income minus its expenses, WITHOUT filtering by whether they're
+ * already paid (the "done" checkbox is separate tracking, it doesn't change
+ * the arithmetic). "Cancelled" IS excluded: a cancelled expense should
+ * never have counted.
  *
- * "Sobrante del mes" = la suma de los restantes de sus periodos. Antes eran
- * siempre dos; ahora son los que haya, uno si te pagan una vez al mes.
+ * "Month leftover" = the sum of its periods' remainders. There used to
+ * always be two; now there are as many as there are, one if you get paid
+ * once a month.
  *
- * Se suma por el periodo de CARGO, no por el de registro: una compra con
- * tarjeta no te quita la plata el dia que la haces, sino el dia que pagas
- * el extracto. Son la misma clave para todo lo que no es tarjeta.
- * Ver domain/periodo/resolve.ts.
+ * It adds up by CHARGE period, not by record period: a card purchase
+ * doesn't take your money the day you make it, but the day you pay the
+ * statement. They are the same key for everything that isn't a card.
+ * See domain/period/resolve.ts.
  */
-import { periodosDelMes, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } from './periodo';
-import type { PeriodosResueltos } from './resolve';
-import type { QuincenaKey, Transaction } from '../types';
+import { periodsOfMonth, DEFAULT_PAY_DAYS, type PayDays } from './period';
+import type { ResolvedPeriods } from './resolve';
+import type { PeriodKey, Transaction } from '../types';
 
-export interface PeriodoBalance {
-  key: QuincenaKey;
+export interface PeriodBalance {
+  key: PeriodKey;
   income: number;
   expense: number;
-  restante: number;
+  remainder: number;
 }
 
 export interface MonthBalance {
@@ -30,46 +32,46 @@ export interface MonthBalance {
   month: number;
   income: number;
   expense: number;
-  sobrante: number;
-  /** Uno por dia de pago, en orden. */
-  periodos: PeriodoBalance[];
+  leftover: number;
+  /** One per pay day, in order. */
+  periods: PeriodBalance[];
 }
 
 /**
- * transactions ya debe traer los dos periodos resueltos (conPeriodoResuelto).
- * Este archivo no importa calcularPeriodo para no acoplar "sumar" con
- * "calcular fecha" — se prueban por separado.
+ * transactions must already carry both resolved periods (withResolvedPeriods).
+ * This file doesn't import calculatePeriod, so that "adding up" isn't coupled
+ * to "working out the date" — they're tested separately.
  */
-export function calcularBalancePeriodo(
-  transactionsWithKey: Array<Transaction & PeriodosResueltos>,
-  key: QuincenaKey,
-): PeriodoBalance {
+export function calculatePeriodBalance(
+  transactionsWithKey: Array<Transaction & ResolvedPeriods>,
+  key: PeriodKey,
+): PeriodBalance {
   let income = 0;
   let expense = 0;
   for (const tx of transactionsWithKey) {
     if (tx.status === 'cancelled') continue;
-    if (tx.resolvedCargoKey !== key) continue;
+    if (tx.chargePeriodKey !== key) continue;
     if (tx.type === 'income') income += tx.amount;
     else expense += tx.amount;
   }
-  return { key, income, expense, restante: income - expense };
+  return { key, income, expense, remainder: income - expense };
 }
 
-export function calcularBalanceMes(
-  transactionsWithKey: Array<Transaction & PeriodosResueltos>,
+export function calculateMonthBalance(
+  transactionsWithKey: Array<Transaction & ResolvedPeriods>,
   year: number,
   month: number,
-  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+  payDays: PayDays = DEFAULT_PAY_DAYS,
 ): MonthBalance {
-  const periodos = periodosDelMes(year, month, dias)
-    .map((key) => calcularBalancePeriodo(transactionsWithKey, key));
+  const periods = periodsOfMonth(year, month, payDays)
+    .map((key) => calculatePeriodBalance(transactionsWithKey, key));
 
   return {
     year,
     month,
-    income: periodos.reduce((a, p) => a + p.income, 0),
-    expense: periodos.reduce((a, p) => a + p.expense, 0),
-    sobrante: periodos.reduce((a, p) => a + p.restante, 0),
-    periodos,
+    income: periods.reduce((a, p) => a + p.income, 0),
+    expense: periods.reduce((a, p) => a + p.expense, 0),
+    leftover: periods.reduce((a, p) => a + p.remainder, 0),
+    periods,
   };
 }

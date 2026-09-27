@@ -1,10 +1,11 @@
-import { useT } from '@/i18n/idioma';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { useT } from '@/i18n/language';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
-import { expandirDiferido } from '@/domain/credit-card/diferido';
+import { expandInstallments } from '@/domain/credit-card/installments';
 import { formatMoney, parseMoney } from '@/domain/money/format';
 import type { Category, PaymentMethod, Transaction, TransactionType } from '@/domain/types';
 import { nowISO, todayISO } from '@/lib/todayISO';
@@ -14,7 +15,7 @@ import { inferFromConcept, topRecents, normalize, type ConceptIndexEntry } from 
 import { categoryColor } from '@/domain/seed/categoryColor';
 import { haptic } from '@/lib/haptic';
 import { Field, FieldGroup } from '@/components/ui/Field';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 function shortDate(iso: string): string {
   const { day, month } = formatShortDate(iso);
@@ -22,13 +23,14 @@ function shortDate(iso: string): string {
 }
 
 /**
- * Con año, pero solo si hace falta. Un diferido a 12 cuotas cruza de año
- * siempre, y sin el año "primera el 2 nov, última el 2 oct" se lee al
- * revés — parece que la última cae antes que la primera.
+ * With the year, but only when needed. A 12-installment plan always
+ * crosses into a new year, and without the year "first on Nov 2, last on
+ * Oct 2" reads backwards — it looks like the last one falls before the
+ * first.
  */
-function shortDateConAno(iso: string, referencia: string): string {
+function shortDateConAno(iso: string, reference: string): string {
   const base = shortDate(iso);
-  return iso.slice(0, 4) === referencia.slice(0, 4) ? base : `${base} ${iso.slice(0, 4)}`;
+  return iso.slice(0, 4) === reference.slice(0, 4) ? base : `${base} ${iso.slice(0, 4)}`;
 }
 
 export interface TransactionFormValue {
@@ -41,8 +43,8 @@ export interface TransactionFormValue {
   markPaidNow: boolean;
 }
 
-/** Valores con los que se puede abrir el form. Los manda el TabBar o una URL
- *  (`?nuevo=1&tipo=ingreso&monto=...`), que es como entra el Atajo de iOS. */
+/** Values the form can be opened with. Sent by the TabBar or a URL
+ *  (`?nuevo=1&tipo=ingreso&monto=...`), which is how the iOS Shortcut gets in. */
 export interface Prefill {
   type: TransactionType;
   concept?: string;
@@ -77,20 +79,20 @@ function initialValue(
     date,
     categoryId: prefill?.categoryId ?? null,
     paymentMethodId: prefill?.paymentMethodId ?? defaultPaymentMethodId,
-    // Un movimiento con fecha de hoy o anterior ya ocurrió: se marca hecho.
-    // Antes todo entraba como 'pendiente', lo que inflaba "por pagar" y
-    // dejaba los ingresos fuera de lo recibido.
+    // A transaction dated today or earlier already happened: mark it done.
+    // Everything used to come in as 'pending', which inflated "left to pay"
+    // and left income out of what's received.
     markPaidNow: prefill?.markPaidNow ?? date <= todayISO(),
   };
 }
 
 /**
- * Form rediseñado (Fase 3):
- *   - El monto grande ES el input (un solo campo, no display + caja).
- *   - Chips de conceptos recientes (top 5): tap → autofill TODO.
- *   - Al escribir concepto, inferencia autónoma de categoría + método
- *     desde el historial (debounce 200ms).
- *   - Tipo y valores iniciales vienen de `prefill` (o del existente).
+ * Redesigned form (Phase 3):
+ *   - The large amount IS the input (a single field, not display + box).
+ *   - Recent-concept chips (top 5): tap → autofill EVERYTHING.
+ *   - As you type the concept, autonomous inference of category + method
+ *     from history (200ms debounce).
+ *   - Type and initial values come from `prefill` (or the existing one).
  */
 export function TransactionForm({
   existing, prefill, categories, paymentMethods, defaultPaymentMethodId,
@@ -101,7 +103,7 @@ export function TransactionForm({
   categories: Category[];
   paymentMethods: PaymentMethod[];
   defaultPaymentMethodId: string | null;
-  onSave: (tx: Transaction, diferido?: { cuotas: number; valorCuota?: number }) => void;
+  onSave: (tx: Transaction, installmentPlan?: { installments: number; installmentAmount?: number }) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
   onCancel: () => void;
@@ -114,7 +116,7 @@ export function TransactionForm({
   const [inferredKey, setInferredKey] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
 
-  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? VACIO;
+  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? EMPTY;
   const recents = useMemo(() => topRecents(conceptIndex, 5), [conceptIndex]);
 
   const amount = parseMoney(value.amountText);
@@ -122,34 +124,33 @@ export function TransactionForm({
   const isCredit = selectedMethod?.type === 'credit';
   const isIncome = value.type === 'income';
 
-  // Métodos disponibles: en ingresos, no mostrar TC (no tiene sentido cobrar ingresos por tarjeta).
+  // Available methods: for income, don't show credit cards (charging income to a card makes no sense).
   const availableMethods = useMemo(
     () => paymentMethods.filter((m) => !isIncome || m.type !== 'credit'),
     [paymentMethods, isIncome],
   );
 
   /**
-   * Una compra con tarjeta NO esta pagada el dia que la pasas: la debes
-   * hasta que pagues el extracto. El default de markPaidNow ("con fecha de
-   * hoy o anterior, ya ocurrio") vale para efectivo y debito, pero con
-   * tarjeta hacia que toda compra naciera 'paid' — y entonces el cupo
-   * disponible nunca se movia y el grupo "en tarjeta" de porPagar.ts
-   * quedaba siempre vacio.
+   * A card purchase is NOT paid the day you make it: you owe it until you
+   * pay the statement. The markPaidNow default ("dated today or earlier,
+   * already happened") holds for cash and debit, but with a card it made
+   * every purchase born 'paid' — so the available limit never moved and
+   * porPagar.ts's "on card" group stayed forever empty.
    *
-   * Solo aplica al crear: si estas editando algo que ya marcaste pagado, tu
-   * decision manda.
+   * Only applies on create: if you're editing something you already
+   * marked paid, your call wins.
    */
-  // Diferido. 1 = no hay diferido, que es el caso normal.
-  const [cuotas, setCuotas] = useState(existing?.installmentCount ?? 1);
-  const [valorCuotaTexto, setValorCuotaTexto] = useState('');
+  // Installment plan. 1 = no plan, which is the normal case.
+  const [installments, setCuotas] = useState(existing?.installmentCount ?? 1);
+  const [installmentAmountText, setValorCuotaTexto] = useState('');
 
-  const creditoPrevio = useRef<boolean | null>(null);
+  const previousCredit = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!existing && isCredit && creditoPrevio.current !== true) {
+    if (!existing && isCredit && previousCredit.current !== true) {
       setValue((v) => ({ ...v, markPaidNow: false }));
     }
     if (!isCredit) setCuotas(1);
-    creditoPrevio.current = isCredit;
+    previousCredit.current = isCredit;
   }, [isCredit, existing]);
 
   const paymentPreview = useMemo(() => {
@@ -158,17 +159,17 @@ export function TransactionForm({
     return cycle.paymentDate;
   }, [isCredit, value.date, selectedMethod]);
 
-  /** Como quedaria repartido, para mostrarlo antes de guardar. */
-  const previewCuotas = useMemo(() => {
-    if (!isCredit || cuotas <= 1 || !value.date || amount === null || amount <= 0) return null;
-    return expandirDiferido(
-      value.date, amount, cuotas, selectedMethod?.cutoffDay, selectedMethod?.paymentDay,
-      parseMoney(valorCuotaTexto) ?? undefined,
+  /** How it would end up split, to show before saving. */
+  const installmentPreview = useMemo(() => {
+    if (!isCredit || installments <= 1 || !value.date || amount === null || amount <= 0) return null;
+    return expandInstallments(
+      value.date, amount, installments, selectedMethod?.cutoffDay, selectedMethod?.paymentDay,
+      parseMoney(installmentAmountText) ?? undefined,
     );
-  }, [isCredit, cuotas, value.date, amount, selectedMethod, valorCuotaTexto]);
+  }, [isCredit, installments, value.date, amount, selectedMethod, installmentAmountText]);
 
-  // Smart-fill: al escribir concepto, inferir categoría + método (200ms debounce).
-  // Sólo si el user no editó manualmente los chips (i.e. está en un match previo).
+  // Smart-fill: as you type the concept, infer category + method (200ms debounce).
+  // Only if the user hasn't manually edited the chips (i.e. it's still on a previous match).
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
@@ -183,7 +184,7 @@ export function TransactionForm({
         },
       );
       if (result.confidence !== 'fallback' && result.source) {
-        // Sólo autofill si los slots actuales están vacíos o son del match previo.
+        // Only autofill if the current slots are empty or from the previous match.
         setValue((v) => ({
           ...v,
           categoryId: v.categoryId ?? result.categoryId,
@@ -236,20 +237,20 @@ export function TransactionForm({
       updatedAt: now,
     };
     haptic('medium');
-    // Editar una cuota suelta NO vuelve a repartir: es lo que haces cuando
-    // pagas una. El diferido solo se arma al crear.
-    const esNuevoDiferido = !existing && isCredit && cuotas > 1;
-    onSave(tx, esNuevoDiferido ? { cuotas, valorCuota: parseMoney(valorCuotaTexto) ?? undefined } : undefined);
+    // Editing a single installment does NOT re-split the plan: that's
+    // what you do when you pay one. An installment plan is only built on create.
+    const isNewInstallmentPlan = !existing && isCredit && installments > 1;
+    onSave(tx, isNewInstallmentPlan ? { installments, installmentAmount: parseMoney(installmentAmountText) ?? undefined } : undefined);
   }
 
   const headerLabel = existing
     ? isIncome ? 'Editar ingreso' : 'Editar gasto'
     : isIncome ? 'Nuevo ingreso' : 'Nuevo gasto';
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label={existing ? 'Editar movimiento' : 'Agregar movimiento'}
       style={{
@@ -274,7 +275,7 @@ export function TransactionForm({
           <button
             type="button"
             onClick={onCancel}
-            aria-label={t('accion.cancelar')}
+            aria-label={t('action.cancel')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none',
               background: 'var(--surface-sunken)', color: 'var(--text-muted)',
@@ -296,8 +297,8 @@ export function TransactionForm({
           </span>
         </div>
 
-        {/* El número grande ES el campo. Antes había un display decorativo
-            arriba y un input chico debajo: dos cosas mostrando lo mismo. */}
+        {/* The big number IS the field. There used to be a decorative
+            display up top and a small input below: two things showing the same thing. */}
         <input
           value={value.amountText ? formatMoney(Number(value.amountText)) : ''}
           onChange={(e) => setValue((v) => ({ ...v, amountText: e.target.value.replace(/[^0-9]/g, '').slice(0, 12) }))}
@@ -315,11 +316,11 @@ export function TransactionForm({
           }}
         />
         <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {isIncome ? t('form.cuantoEntra') : t('form.cuantoSale')}
+          {isIncome ? t('form.howMuchIn') : t('form.howMuchOut')}
         </p>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
 
-        {/* Chips de recientes — solo cuando NO editás y hay historial */}
+        {/* Recent-concept chips — only when NOT editing and there's history */}
         {!existing && recents.length > 0 && (
           <>
             <FieldGroup label="Usar reciente" id="tx-recientes" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
@@ -338,7 +339,7 @@ export function TransactionForm({
                       fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
                     }}
                   >
-                    {cat && <span aria-hidden>{cat.icon}</span>}
+                    {cat && <CategoryIcon icon={cat.icon} size={15} />}
                     <span>{r.displayName}</span>
                   </button>
                 );
@@ -347,7 +348,7 @@ export function TransactionForm({
           </>
         )}
 
-        <Field label={t('form.concepto')} htmlFor="tx-concepto">
+        <Field label={t('form.concept')} htmlFor="tx-concepto">
         <input
           id="tx-concepto"
           value={value.concept}
@@ -358,7 +359,7 @@ export function TransactionForm({
         </Field>
         {touched && !value.concept.trim() && <p style={errorText}>Escribe qué es.</p>}
 
-        <FieldGroup label={t('form.categoria')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+        <FieldGroup label={t('form.category')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === value.type).map((c) => (
             <button
               key={c.id}
@@ -375,12 +376,12 @@ export function TransactionForm({
                 transition: 'all var(--dur-fast) var(--ease-spring-out)',
               }}
             >
-              <span aria-hidden>{c.icon}</span>{c.name}
+              <CategoryIcon icon={c.icon} size={15} />{c.name}
             </button>
           ))}
         </FieldGroup>
 
-        <FieldGroup label={t('form.metodoPago')} id="tx-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        <FieldGroup label={t('form.paymentMethod')} id="tx-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
           {availableMethods.map((m) => (
             <button
               key={m.id}
@@ -393,39 +394,39 @@ export function TransactionForm({
             </button>
           ))}
         </FieldGroup>
-        {isCredit && paymentPreview && cuotas === 1 && (
+        {isCredit && paymentPreview && installments === 1 && (
           <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
             Se paga el {shortDate(paymentPreview)}
           </p>
         )}
 
-        {/* Diferido. Solo al CREAR: editar una cuota suelta no vuelve a
-            repartir la compra. */}
+        {/* Installment plan. Only on CREATE: editing a single installment
+            does not re-split the purchase. */}
         {isCredit && !existing && (
           <>
-            <Field label={t('form.cuotas')} htmlFor="tx-cuotas">
+            <Field label={t('form.installments')} htmlFor="tx-cuotas">
               <input
                 id="tx-cuotas" type="number" inputMode="numeric" min={1} max={48}
-                value={cuotas}
+                value={installments}
                 onChange={(e) => setCuotas(Math.max(1, Math.min(48, Number(e.target.value) || 1)))}
                 style={inputStyle}
               />
             </Field>
 
-            {cuotas > 1 && (
+            {installments > 1 && (
               <>
-                <Field label={t('form.valorCuota')} htmlFor="tx-valor-cuota">
+                <Field label={t('form.installmentAmount')} htmlFor="tx-valor-cuota">
                   <input
                     id="tx-valor-cuota" inputMode="numeric"
-                    value={valorCuotaTexto}
+                    value={installmentAmountText}
                     onChange={(e) => setValorCuotaTexto(e.target.value)}
-                    placeholder={previewCuotas ? formatMoney(previewCuotas[0]!.amount) : '$ 0'}
+                    placeholder={installmentPreview ? formatMoney(installmentPreview[0]!.amount) : '$ 0'}
                     style={inputStyle}
                   />
                 </Field>
                 <p style={{ margin: '-8px 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-                  {previewCuotas
-                    ? `Primera el ${shortDate(previewCuotas[0]!.cyclePaymentDate)}, última el ${shortDateConAno(previewCuotas[previewCuotas.length - 1]!.cyclePaymentDate, previewCuotas[0]!.cyclePaymentDate)}. Si tu banco cobra interés, escribe la cuota real.`
+                  {installmentPreview
+                    ? `Primera el ${shortDate(installmentPreview[0]!.cyclePaymentDate)}, última el ${shortDateConAno(installmentPreview[installmentPreview.length - 1]!.cyclePaymentDate, installmentPreview[0]!.cyclePaymentDate)}. Si tu banco cobra interés, escribe la cuota real.`
                     : 'Si tu banco cobra interés, escribe acá la cuota que te dijo.'}
                 </p>
               </>
@@ -433,7 +434,7 @@ export function TransactionForm({
           </>
         )}
 
-        <Field label={t('form.fecha')} htmlFor="tx-fecha">
+        <Field label={t('form.date')} htmlFor="tx-fecha">
           <input
             id="tx-fecha"
             type="date"
@@ -453,7 +454,7 @@ export function TransactionForm({
             border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--text-base)',
           }}
         >
-          <span>{isIncome ? t('form.yaLoRecibiste') : isCredit ? t('form.yaPagasteExtracto') : t('form.yaEstaPagado')}</span>
+          <span>{isIncome ? t('form.alreadyReceived') : isCredit ? t('form.statementAlreadyPaid') : t('form.alreadyPaid')}</span>
           <span
             aria-hidden
             style={{
@@ -469,17 +470,17 @@ export function TransactionForm({
         </button>
 
         <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>
-          {t('accion.guardar')}
+          {t('action.save')}
         </button>
 
         {existing && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             {onDuplicate && (
-              <button type="button" onClick={onDuplicate} style={secondaryButtonStyle}>{t('accion.duplicar')}</button>
+              <button type="button" onClick={onDuplicate} style={secondaryButtonStyle}>{t('action.duplicate')}</button>
             )}
             {onDelete && (
               <button type="button" onClick={onDelete} style={{ ...secondaryButtonStyle, color: 'var(--danger-text)' }}>
-                {t('accion.eliminar')}
+                {t('action.delete')}
               </button>
             )}
           </div>

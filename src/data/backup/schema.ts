@@ -1,7 +1,7 @@
 /**
- * Esquema de validacion del backup. Nunca escribimos nada a la base de
- * datos sin pasar por aqui primero — un JSON corrupto o de otra app no
- * debe poder romper IndexedDB.
+ * Backup validation schema. We never write anything to the database
+ * without going through here first — a corrupt JSON, or one from another
+ * app, must not be able to break IndexedDB.
  */
 import { z } from 'zod';
 
@@ -9,36 +9,37 @@ const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha invalida');
 
 const SettingsBase = z.object({
   id: z.literal('singleton'),
-  // Opcionales con default: un backup exportado antes de que existieran
-  // estos campos tiene que seguir importandose sin error.
+  // Optional with a default: a backup exported before these fields
+  // existed still has to import without error.
   displayName: z.string().default(''),
   onboardedAt: z.string().nullable().default(null),
   updatedAt: z.string().default(''),
   currency: z.string().min(1),
   locale: z.string().min(1),
-  // Lista, no tupla: uno = te pagan una vez al mes, dos = quincenal.
-  diasDePago: z.array(z.number().int().min(1).max(31)).min(1).max(4).default([10, 25]),
+  // List, not a tuple: one = you get paid once a month, two = biweekly.
+  payDays: z.array(z.number().int().min(1).max(31)).min(1).max(4).default([10, 25]),
   defaultPaymentMethodId: z.string().nullable(),
   reminderDefaultDaysBefore: z.number().int().min(0),
   theme: z.enum(['system', 'light', 'dark']),
 });
 
 /**
- * Un respaldo hecho antes de este cambio guarda los dias con el nombre
- * viejo, `quincenaStartDays`. Sin traducirlo, el default de arriba se
- * activaria y quien tuviera quincenas en, digamos, el 5 y el 20 las
- * recuperaria como 10 y 25 sin enterarse: sus movimientos se reagruparian
- * solos al restaurar.
+ * Older backups store the days under an older name: `quincenaStartDays`
+ * first, then `diasDePago`. Without translating them, the default above
+ * would kick in and anyone with pay dates on, say, the 5th and the 20th
+ * would get them back as 10 and 25 without noticing: their transactions
+ * would silently regroup themselves on restore.
  */
-export const SettingsSchema = z.preprocess((valor) => {
-  if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
-    const obj = valor as Record<string, unknown>;
-    if (obj.diasDePago === undefined && Array.isArray(obj.quincenaStartDays)) {
-      const { quincenaStartDays, ...resto } = obj;
-      return { ...resto, diasDePago: quincenaStartDays };
+export const SettingsSchema = z.preprocess((value) => {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    if (obj.payDays === undefined) {
+      const { quincenaStartDays, diasDePago, ...rest } = obj;
+      const old = diasDePago ?? quincenaStartDays;
+      if (Array.isArray(old)) return { ...rest, payDays: old };
     }
   }
-  return valor;
+  return value;
 }, SettingsBase);
 
 export const CategorySchema = z.object({
@@ -60,7 +61,7 @@ export const PaymentMethodSchema = z.object({
   updatedAt: z.string().default(''),
   cutoffDay: z.number().int().min(1).max(31).optional(),
   paymentDay: z.number().int().min(1).max(31).optional(),
-  // Opcional: los backups hechos antes del cupo siguen importando.
+  // Optional: backups made before the credit limit field existed still import.
   creditLimit: z.number().int().min(0).optional(),
 });
 
@@ -76,7 +77,7 @@ export const TransactionSchema = z.object({
   notes: z.string().optional(),
   cycleCutoffDate: isoDate.optional(),
   cyclePaymentDate: isoDate.optional(),
-  // Diferidos. Opcionales: los backups anteriores siguen importando.
+  // Installments. Optional: older backups still import.
   installmentGroupId: z.string().min(1).optional(),
   installmentNumber: z.number().int().min(1).optional(),
   installmentCount: z.number().int().min(1).optional(),
@@ -110,8 +111,8 @@ export const BudgetSchema = z.object({
   year: z.number().int(),
   month: z.number().int().min(1).max(12),
   amount: z.number(),
-  // default(''): un respaldo hecho antes de que los presupuestos se
-  // sincronizaran no trae este campo, y tiene que seguir restaurandose.
+  // default(''): a backup made before budgets were synced doesn't carry
+  // this field, and it still has to restore.
   updatedAt: z.string().default(''),
 });
 

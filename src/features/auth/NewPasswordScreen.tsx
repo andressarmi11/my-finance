@@ -1,55 +1,55 @@
 import { IconKey } from '@tabler/icons-react';
 import { useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
-import { salirDeRecuperacion } from './recovery';
-import { botonStyle, enlaceStyle, inputStyle, MIN_CLAVE, traducirError } from './authStyles';
+import { exitRecovery } from './recovery';
+import { buttonStyle, linkStyle, inputStyle, MIN_PASSWORD, translateError } from './authStyles';
 
 /**
- * Se muestra al abrir el enlace de "olvidé mi contraseña", ANTES de dejar
- * entrar a la app.
+ * Shown when opening the "forgot my password" link, BEFORE letting
+ * the user into the app.
  *
- * El enlace abre sesión por su cuenta, así que sin esta pantalla el efecto
- * era entrar directo y no poder cambiar nada — que es justo lo que uno fue
- * a hacer. Ver recovery.ts.
+ * The link opens a session on its own, so without this screen the effect
+ * was going straight in and not being able to change anything — which is
+ * exactly what the user came to do. See recovery.ts.
  */
 export function NewPasswordScreen() {
-  const [clave, setClave] = useState('');
+  const [key, setClave] = useState('');
   const [repetir, setRepetir] = useState('');
-  const [ocupado, setOcupado] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [listo, setListo] = useState(false);
 
-  const coinciden = clave.length > 0 && clave === repetir;
-  const puedeGuardar = clave.length >= MIN_CLAVE && coinciden && !ocupado;
+  const matches = key.length > 0 && key === repetir;
+  const canSubmit = key.length >= MIN_PASSWORD && matches && !busy;
 
-  async function guardar(e: React.FormEvent) {
+  async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!puedeGuardar) return;
-    setOcupado(true);
+    if (!canSubmit) return;
+    setBusy(true);
     setError('');
     try {
       const supabase = await getSupabase();
-      const { error: err } = await supabase.auth.updateUser({ password: clave });
+      const { error: err } = await supabase.auth.updateUser({ password: key });
       if (err) throw err;
       setListo(true);
-      // Un respiro para que se lea el mensaje antes de que aparezca la app.
-      setTimeout(salirDeRecuperacion, 1200);
+      // A breather so the message gets read before the app shows up.
+      setTimeout(exitRecovery, 1200);
     } catch (e) {
-      setError(traducirError(e));
+      setError(translateError(e));
     } finally {
-      setOcupado(false);
+      setBusy(false);
     }
   }
 
-  async function cancelar() {
-    // Cerrar sesión a propósito: la sesión de recuperación entró sin que
-    // nadie escribiera una contraseña. Dejarla abierta sería una puerta
-    // sin llave para quien tenga el enlace del correo.
+  async function cancel() {
+    // Signing out on purpose: the recovery session opened without
+    // anyone typing a password. Leaving it open would be an unlocked
+    // door for whoever has the email link.
     try {
       const supabase = await getSupabase();
       await supabase.auth.signOut();
     } finally {
-      salirDeRecuperacion();
+      exitRecovery();
     }
   }
 
@@ -71,11 +71,11 @@ export function NewPasswordScreen() {
             Contraseña actualizada. Entrando…
           </p>
         ) : (
-          <form onSubmit={guardar}>
+          <form onSubmit={save}>
             <input
-              type="password" required autoFocus autoComplete="new-password" minLength={MIN_CLAVE}
-              value={clave} onChange={(e) => setClave(e.target.value)}
-              placeholder={`Contraseña nueva (mínimo ${MIN_CLAVE})`}
+              type="password" required autoFocus autoComplete="new-password" minLength={MIN_PASSWORD}
+              value={key} onChange={(e) => setClave(e.target.value)}
+              placeholder={`Contraseña nueva (mínimo ${MIN_PASSWORD})`}
               aria-label="Contraseña nueva"
               style={inputStyle}
             />
@@ -86,23 +86,23 @@ export function NewPasswordScreen() {
               aria-label="Repetir la contraseña"
               style={{
                 ...inputStyle,
-                borderColor: repetir.length > 0 && !coinciden ? 'var(--danger)' : 'var(--line-strong)',
+                borderColor: repetir.length > 0 && !matches ? 'var(--danger)' : 'var(--line-strong)',
               }}
             />
-            {repetir.length > 0 && !coinciden && (
+            {repetir.length > 0 && !matches && (
               <p style={{ margin: '-4px 0 10px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>
                 Las dos contraseñas no son iguales.
               </p>
             )}
 
-            <button type="submit" disabled={!puedeGuardar} style={{ ...botonStyle, opacity: puedeGuardar ? 1 : 0.5 }}>
-              {ocupado ? 'Guardando…' : 'Guardar contraseña'}
+            <button type="submit" disabled={!canSubmit} style={{ ...buttonStyle, opacity: canSubmit ? 1 : 0.5 }}>
+              {busy ? 'Guardando…' : 'Guardar contraseña'}
             </button>
           </form>
         )}
 
         {!listo && (
-          <button type="button" onClick={cancelar} style={enlaceStyle}>
+          <button type="button" onClick={cancel} style={linkStyle}>
             Cancelar y volver a entrar
           </button>
         )}

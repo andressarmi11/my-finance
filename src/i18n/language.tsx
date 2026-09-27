@@ -1,79 +1,82 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { TEXTOS, type ClaveTexto } from './textos';
-import { setMesesLocales } from '@/lib/formatShortDate';
-import { setNombresDeMes } from '@/components/ui/MonthNav';
-import { setIdiomaDePeriodo } from './periodo';
+import { TEXTS, type TextKey } from './texts';
+import { setShortMonthNames } from '@/lib/formatShortDate';
+import { setMonthNames } from '@/components/ui/MonthNav';
+import { setPeriodLabelLanguage } from './periodLabels';
 
-export type Idioma = 'es' | 'en';
+export type Language = 'es' | 'en';
 
-const CLAVE_GUARDADA = 'step-up:idioma';
+const STORAGE_KEY = 'step-up:language';
+/** What the key used to be called. Read as a fallback so nobody's choice is
+ *  forgotten by a rename; the next change writes the current key. */
+const LEGACY_STORAGE_KEY = 'step-up:idioma';
 
 /**
- * Idioma de la interfaz.
+ * Interface language.
  *
- * Vive en localStorage y NO en Settings —que si se sincroniza— a proposito:
- * el idioma es una preferencia del dispositivo, no de la cuenta. Alguien
- * puede querer la app en ingles en el trabajo y en español en su telefono,
- * y forzar un solo idioma en todos lados seria decidir por el.
+ * It lives in localStorage and NOT in Settings —which does get synced— on
+ * purpose: language is a device preference, not an account one. Someone
+ * might want the app in English at work and in Spanish on their phone,
+ * and forcing a single language everywhere would be deciding for them.
  *
- * Lo que NO cambia con el idioma: la moneda y el formato de los montos.
- * Esos salen de Settings.currency porque son una propiedad de tu plata, no
- * del idioma en que la lees — un colombiano que pone la app en ingles
- * sigue teniendo pesos.
+ * What does NOT change with the language: the currency and the amount
+ * format. Those come from Settings.currency because they're a property of
+ * your money, not of the language you read it in — a Colombian who
+ * switches the app to English still has pesos.
  */
-function idiomaInicial(): Idioma {
+function initialLanguage(): Language {
   try {
-    const guardado = localStorage.getItem(CLAVE_GUARDADA);
-    if (guardado === 'es' || guardado === 'en') return guardado;
-  } catch { /* modo privado o storage bloqueado */ }
-  // Del navegador, si se entiende. Ante la duda, español: es el idioma en
-  // que esta pensada la app (quincenas, pesos, el dictado en español).
+    const stored = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (stored === 'es' || stored === 'en') return stored;
+  } catch { /* private mode or storage blocked */ }
+  // From the browser, if it's understood. When in doubt, Spanish: it's the
+  // language the app is designed around (pay periods, pesos, dictation in Spanish).
   return typeof navigator !== 'undefined' && navigator.language?.startsWith('en') ? 'en' : 'es';
 }
 
-interface Contexto {
-  idioma: Idioma;
-  setIdioma: (i: Idioma) => void;
-  /** Traduce una clave. Si falta en el idioma activo, cae al español. */
-  t: (clave: ClaveTexto) => string;
+interface LanguageContextValue {
+  language: Language;
+  setLanguage: (i: Language) => void;
+  /** Translates a key. If it's missing in the active language, it falls back to Spanish. */
+  t: (key: TextKey) => string;
 }
 
-const IdiomaContext = createContext<Contexto | null>(null);
+const LanguageContext = createContext<LanguageContextValue | null>(null);
 
-export function IdiomaProvider({ children }: { children: ReactNode }) {
-  const [idioma, setIdiomaEstado] = useState<Idioma>(idiomaInicial);
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(initialLanguage);
 
   useEffect(() => {
-    // lang en el <html>: lo usan los lectores de pantalla para elegir voz
-    // y el navegador para la division silabica. Sin esto, un lector leeria
-    // el ingles con fonetica española.
-    document.documentElement.lang = idioma === 'en' ? 'en' : 'es-CO';
-    setMesesLocales(idioma);
-    setNombresDeMes(idioma);
-    setIdiomaDePeriodo(idioma);
-  }, [idioma]);
+    // lang on the <html>: screen readers use it to pick a voice
+    // and the browser to hyphenate. Without this, a screen reader would read
+    // English with Spanish phonetics.
+    document.documentElement.lang = language === 'en' ? 'en' : 'es-CO';
+    setShortMonthNames(language);
+    setMonthNames(language);
+    setPeriodLabelLanguage(language);
+  }, [language]);
 
-  const setIdioma = useCallback((i: Idioma) => {
-    setIdiomaEstado(i);
-    try { localStorage.setItem(CLAVE_GUARDADA, i); } catch { /* no-op */ }
+  const setLanguage = useCallback((i: Language) => {
+    setLanguageState(i);
+    try { localStorage.setItem(STORAGE_KEY, i); } catch { /* no-op */ }
   }, []);
 
   const t = useCallback(
-    (clave: ClaveTexto) => TEXTOS[idioma][clave] ?? TEXTOS.es[clave] ?? clave,
-    [idioma],
+    (key: TextKey) => TEXTS[language][key] ?? TEXTS.es[key] ?? key,
+    [language],
   );
 
-  const valor = useMemo(() => ({ idioma, setIdioma, t }), [idioma, setIdioma, t]);
-  return <IdiomaContext.Provider value={valor}>{children}</IdiomaContext.Provider>;
+  const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
-export function useIdioma(): Contexto {
-  const ctx = useContext(IdiomaContext);
-  if (!ctx) throw new Error('useIdioma fuera de IdiomaProvider');
+export function useLanguage(): LanguageContextValue {
+  const ctx = useContext(LanguageContext);
+  if (!ctx) throw new Error('useLanguage used outside LanguageProvider');
   return ctx;
 }
 
-/** Atajo para cuando solo hace falta traducir. */
-export function useT(): (clave: ClaveTexto) => string {
-  return useIdioma().t;
+/** Shortcut for when only translating is needed. */
+export function useT(): (key: TextKey) => string {
+  return useLanguage().t;
 }

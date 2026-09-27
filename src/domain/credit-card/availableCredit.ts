@@ -1,106 +1,109 @@
 /**
- * Cupo y disponible de una tarjeta, y los saldos que quedaron sin pagar.
+ * A card's limit and available credit, and the balances left unpaid.
  *
- * El disponible sale de los propios movimientos, no de un saldo que el
- * usuario escriba a mano ni de una integracion bancaria: cupo menos lo
- * comprado que todavia no esta marcado como pagado.
+ * The available amount comes from the transactions themselves, not from
+ * a balance the user types in by hand nor from a bank integration: limit
+ * minus what's been bought that isn't marked paid yet.
  *
- * Eso implica que el numero depende de que el usuario marque los ciclos
- * como pagados. Por eso existe saldosSinPagar() y por eso el dashboard lo
- * muestra: si nadie recuerda marcar, el disponible se desvia en silencio.
+ * That means the number depends on the user marking cycles as paid. That's
+ * why unpaidBalances() exists and why the dashboard shows it: if nobody
+ * remembers to mark it, the available amount drifts silently.
  */
 import type { ISODate, PaymentMethod, Transaction } from '../types';
 
-export interface Disponible {
+export interface AvailableCredit {
   cupo: number;
-  usado: number;
-  /** cupo - usado. Negativo = sobrecupo, y se muestra asi. */
-  disponible: number;
+  used: number;
+  /** cupo - usado. Negative = over the limit, and shown as such. */
+  available: number;
 }
 
 /**
- * `null` cuando la tarjeta no tiene cupo configurado: no hay disponible
- * que mostrar, y devolver cupo 0 seria mentir.
+ * `null` when the card has no limit configured: there's no available
+ * amount to show, and returning a 0 limit would be a lie.
  *
- * Solo cuenta compras con fecha <= hoy. Sin ese filtro las recurrentes
- * —que materialize.ts siembra con status 'pending' hasta unos tres meses
- * adelante— apareceran como cupo consumido por compras que todavia no se
- * han hecho. Una compra futura no consume cupo.
+ * Only counts purchases dated <= today. Without that filter, recurring
+ * transactions — which materialize.ts seeds with status 'pending' up to
+ * about three months ahead — would show up as limit consumed by
+ * purchases that haven't happened yet. A future purchase doesn't
+ * consume the limit.
  */
-export function calcularDisponible(
-  tarjeta: PaymentMethod,
+export function calculateAvailableCredit(
+  card: PaymentMethod,
   transacciones: Transaction[],
-  hoy: ISODate,
-): Disponible | null {
-  if (tarjeta.creditLimit === undefined) return null;
+  today: ISODate,
+): AvailableCredit | null {
+  if (card.creditLimit === undefined) return null;
 
-  let usado = 0;
+  let used = 0;
   for (const tx of transacciones) {
-    if (!consumeCupo(tx, tarjeta.id, hoy)) continue;
-    usado += tx.amount;
+    if (!usesCredit(tx, card.id, today)) continue;
+    used += tx.amount;
   }
 
-  return { cupo: tarjeta.creditLimit, usado, disponible: tarjeta.creditLimit - usado };
+  return { cupo: card.creditLimit, used, available: card.creditLimit - used };
 }
 
-function consumeCupo(tx: Transaction, tarjetaId: string, hoy: ISODate): boolean {
+function usesCredit(tx: Transaction, cardId: string, today: ISODate): boolean {
   return (
-    tx.paymentMethodId === tarjetaId &&
+    tx.paymentMethodId === cardId &&
     tx.type === 'expense' &&
     tx.status !== 'paid' &&
     tx.status !== 'cancelled' &&
-    // purchaseDate y no date: una compra diferida bloquea el cupo entero
-    // el dia que la pasas, no cuota a cuota — es lo que hace el banco. La
-    // cuota 7 tiene fecha futura pero su compra ya ocurrio. El ?? deja
-    // intacto todo lo que no es diferido.
-    (tx.purchaseDate ?? tx.date) <= hoy
+    // purchaseDate, not date: an instalment purchase locks the whole
+    // limit the day you swipe the card, not instalment by instalment —
+    // that's what the bank does. Instalment 7 has a future date but its
+    // purchase already happened. The ?? leaves anything that isn't an
+    // instalment purchase untouched.
+    (tx.purchaseDate ?? tx.date) <= today
   );
 }
 
-export interface SaldoSinPagar {
-  tarjeta: PaymentMethod;
+export interface UnpaidBalance {
+  card: PaymentMethod;
   paymentDate: ISODate;
   total: number;
   count: number;
 }
 
 /**
- * Los ciclos cuya fecha de pago YA paso y siguen sin marcarse pagados.
+ * The cycles whose payment date has ALREADY passed and are still not
+ * marked paid.
  *
- * No reutiliza domain/totals/porPagar.ts a proposito: aquel mira el mes en
- * curso y mezcla pendientes, programados y tarjeta. Este mira hacia atras,
- * solo tarjeta y solo vencido. Son preguntas distintas.
+ * Deliberately doesn't reuse domain/totals/outstanding.ts: that one looks
+ * at the current month and mixes pending, scheduled and card. This one
+ * looks backward, card only and overdue only. They're different questions.
  *
- * Ordenados del mas viejo al mas nuevo: el que lleva mas tiempo sin pagar
- * es el que mas urge.
+ * Sorted oldest to newest: whatever's been unpaid the longest is the
+ * most urgent.
  */
-export function saldosSinPagar(
-  tarjetas: PaymentMethod[],
+export function unpaidBalances(
+  cards: PaymentMethod[],
   transacciones: Transaction[],
-  hoy: ISODate,
-): SaldoSinPagar[] {
-  const porTarjeta = new Map(tarjetas.map((t) => [t.id, t]));
-  // Una tarjeta y un ciclo identifican el saldo; dos tarjetas pueden pagar
-  // el mismo dia y no deben sumarse en una sola fila.
-  const acumulado = new Map<string, SaldoSinPagar>();
+  today: ISODate,
+): UnpaidBalance[] {
+  const byCard = new Map(cards.map((t) => [t.id, t]));
+  // A card and a cycle together identify the balance; two cards can have
+  // the same payment date and must not be added together in one row.
+  const running = new Map<string, UnpaidBalance>();
 
   for (const tx of transacciones) {
-    const vencimiento = tx.cyclePaymentDate;
-    if (!vencimiento || vencimiento > hoy) continue;
+    const dueDate = tx.cyclePaymentDate;
+    if (!dueDate || dueDate > today) continue;
     if (tx.type !== 'expense' || tx.status === 'paid' || tx.status === 'cancelled') continue;
 
-    const tarjeta = tx.paymentMethodId ? porTarjeta.get(tx.paymentMethodId) : undefined;
-    if (!tarjeta) continue;
+    const card = tx.paymentMethodId ? byCard.get(tx.paymentMethodId) : undefined;
+    if (!card) continue;
 
-    const clave = `${tarjeta.id}|${vencimiento}`;
-    const previo = acumulado.get(clave);
-    if (previo) {
-      previo.total += tx.amount;
-      previo.count += 1;
+    const key = `${card.id}|${dueDate}`;
+    const previous = running.get(key);
+    if (previous) {
+      previous.total += tx.amount;
+      previous.count += 1;
     } else {
-      acumulado.set(clave, { tarjeta, paymentDate: vencimiento, total: tx.amount, count: 1 });
+      running.set(key, { card, paymentDate: dueDate, total: tx.amount, count: 1 });
     }
   }
 
-  return [...acumulado.values()].sort((a, b) => a.paymentDate.localeCompare(b.paymentDate));
+  return [...running.values()].sort((a, b) => a.paymentDate.localeCompare(b.paymentDate));
 }

@@ -1,16 +1,16 @@
 /**
- * Convierte REGLAS recurrentes en INSTANCIAS reales dentro de una ventana
- * de tiempo.
+ * Turns recurring RULES into real INSTANCES within a time window.
  *
- * Nunca toca una instancia que ya existe (no pisa si el usuario ya la
- * marco pagada o la edito) — solo agrega las que faltan. La proteccion
- * real contra duplicados es el indice UNICO [recurringRuleId+periodKey]
- * en Dexie (ver data/db.ts); esto solo evita el trabajo de mas.
+ * Never touches an instance that already exists (won't overwrite if the
+ * user already marked it paid or edited it) — only adds the ones that are
+ * missing. The real protection against duplicates is the UNIQUE index
+ * [recurringRuleId+periodKey] in Dexie (see data/db.ts); this just avoids
+ * doing extra work.
  *
- * La ventana es un parametro. Antes era fija en +95 dias desde hoy, asi
- * que una regla "sin fecha limite" creada en septiembre se cortaba en
- * diciembre y los meses siguientes salian vacios. Ahora la pantalla pide
- * explicitamente el mes que esta mirando (ensureMonthMaterialized).
+ * The window is a parameter. It used to be fixed at +95 days from today,
+ * so a "no end date" rule created in September would get cut off in
+ * December and the following months would come up empty. Now the screen
+ * explicitly asks for the month it's looking at (ensureMonthMaterialized).
  */
 import { addDays, daysInMonth, parseISO, toISO } from '@/domain/dates';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
@@ -20,21 +20,22 @@ import { nowISO, todayISO } from '@/lib/todayISO';
 import { db } from '../db';
 import { deletedIdsOf } from '../sync/tombstones';
 
-const WINDOW_BEFORE_DAYS = 31; // por si una regla quedo sin materializar el mes pasado
-const WINDOW_AFTER_DAYS = 95; // ~3 meses hacia adelante, para "proximos pagos"
+const WINDOW_BEFORE_DAYS = 31; // in case a rule was left unmaterialized last month
+const WINDOW_AFTER_DAYS = 95; // ~3 months ahead, for "upcoming payments"
 
 /**
- * El id de una instancia recurrente ES su identidad: regla + periodo.
+ * A recurring instance's id IS its identity: rule + period.
  *
- * Antes era un randomUUID(). Eso hacia imposible respetar un borrado: la
- * lapida guarda el id de la fila, y con un id aleatorio no habia forma de
- * saber a que ocurrencia pertenecia una vez borrada. Resultado: borrabas
- * "Arriendo septiembre" y al siguiente arranque volvia a nacer.
+ * It used to be a randomUUID(). That made it impossible to honor a
+ * deletion: the tombstone stores the row's id, and with a random id there
+ * was no way to know which occurrence it belonged to once it was deleted.
+ * The result: you deleted "Rent, September" and it was reborn on the next
+ * start-up.
  *
- * Siendo deterministico, la lapida ya dice cual ocurrencia murio, y viaja
- * entre dispositivos sin necesidad de una columna nueva.
+ * Being deterministic, the tombstone already says which occurrence died,
+ * and it travels between devices without needing a new column.
  *
- * Sigue sin ser adivinable desde fuera: ruleId es un randomUUID.
+ * It's still not guessable from the outside: ruleId is a randomUUID.
  */
 export function occurrenceId(ruleId: string, periodKey: string): string {
   return `${ruleId}:${periodKey}`;
@@ -45,7 +46,7 @@ export interface Range {
   to: ISODate;
 }
 
-/** La ventana por defecto del arranque: el mes pasado y los ~3 siguientes. */
+/** The default window at start-up: last month and the ~3 following ones. */
 export function defaultRange(today = todayISO()): Range {
   const t = parseISO(today);
   return {
@@ -64,26 +65,28 @@ export async function materializeRecurringRules(range: Range = defaultRange()): 
 
   const methodById = new Map(paymentMethods.map((m) => [m.id, m]));
 
-  // Una sola lectura de lo que ya existe, en vez de un query por ocurrencia.
-  // Con una ventana de un año son ~12 ocurrencias por regla y antes eso
-  // eran 12 round-trips a IndexedDB por regla, en cada cambio de mes.
+  // A single read of what already exists, instead of a query per
+  // occurrence. With a one-year window that's ~12 occurrences per rule,
+  // and before that meant 12 round-trips to IndexedDB per rule, on every
+  // month change.
   const existing = new Set<string>();
   await db.transactions.each((tx) => {
     if (tx.recurringRuleId && tx.periodKey) existing.add(`${tx.recurringRuleId}|${tx.periodKey}`);
   });
 
-  // Y lo que el usuario BORRO. Sin esto, materializar es una maquina de
-  // resucitar: la instancia borrada ya no esta entre las vivas, asi que
-  // se volvia a crear en el siguiente arranque o al navegar de mes.
-  const borradas = deletedIdsOf(await db.deletions.toArray(), 'transactions');
+  // And what the user DELETED. Without this, materializing becomes a
+  // resurrection machine: the deleted instance is no longer among the
+  // live ones, so it got recreated on the next start-up or when
+  // navigating between months.
+  const deletedIds = deletedIdsOf(await db.deletions.toArray(), 'transactions');
 
-  const nuevas: Transaction[] = [];
+  const fresh: Transaction[] = [];
   for (const rule of rules) {
     const method = rule.paymentMethodId ? methodById.get(rule.paymentMethodId) : undefined;
     for (const occ of expandRecurringRule(rule, range)) {
       if (existing.has(`${rule.id}|${occ.periodKey}`)) continue;
       const id = occurrenceId(rule.id, occ.periodKey);
-      if (borradas.has(id)) continue;
+      if (deletedIds.has(id)) continue;
       existing.add(`${rule.id}|${occ.periodKey}`);
 
       const cycle = method?.type === 'credit'
@@ -91,7 +94,7 @@ export async function materializeRecurringRules(range: Range = defaultRange()): 
         : null;
 
       const now = nowISO();
-      nuevas.push({
+      fresh.push({
         id,
         type: rule.type,
         concept: rule.name,
@@ -111,22 +114,22 @@ export async function materializeRecurringRules(range: Range = defaultRange()): 
     }
   }
 
-  if (nuevas.length === 0) return 0;
-  // bulkAdd tolerante: si otra pestaña metio la misma instancia primero,
-  // el indice unico rechaza esa fila sola en vez de tumbar todo el lote.
-  await db.transactions.bulkAdd(nuevas).catch((e: unknown) => {
+  if (fresh.length === 0) return 0;
+  // Tolerant bulkAdd: if another tab put the same instance in first, the
+  // unique index rejects just that row instead of taking down the whole batch.
+  await db.transactions.bulkAdd(fresh).catch((e: unknown) => {
     if (!(e instanceof Error) || !e.name.includes('Bulk')) throw e;
   });
-  return nuevas.length;
+  return fresh.length;
 }
 
 /**
- * Asegura que un mes concreto tenga sus instancias recurrentes. Lo llaman
- * Inicio y Movimientos cada vez que cambia el mes visible, para que
- * navegar a marzo del año que viene muestre el arriendo igual que hoy.
+ * Ensures a specific month has its recurring instances. Called by
+ * Dashboard and Transactions every time the visible month changes, so
+ * navigating to next year's March shows the rent just like today.
  *
- * Se pide el mes entero mas un colchon de 10 dias a cada lado: la
- * "quincena del 25" de un mes se estira hasta el 9 del siguiente.
+ * The whole month is requested plus a 10-day cushion on each side: the
+ * "25th pay period" of one month stretches into the 9th of the next.
  */
 export async function ensureMonthMaterialized(year: number, month: number): Promise<number> {
   const from = toISO(addDays({ y: year, m: month, d: 1 }, -10));

@@ -14,8 +14,8 @@ import { CreditCardScreen } from '@/features/credit-card/CreditCardScreen';
 import { BudgetsScreen } from '@/features/budgets/BudgetsScreen';
 import { LegalDocScreen, LegalIndexScreen } from '@/features/legal/LegalScreen';
 
-// Recharts es pesado (~500kb) y solo lo necesita esta pantalla: se separa
-// en su propio chunk para no inflar la carga inicial de la app.
+// Recharts is heavy (~500kb) and only this screen needs it: it's split off
+// into its own chunk so it doesn't bloat the app's initial load.
 const AnalyticsScreen = lazy(() =>
   import('@/features/analytics/AnalyticsScreen').then((m) => ({ default: m.AnalyticsScreen })),
 );
@@ -42,10 +42,10 @@ export const router = createBrowserRouter(
         { path: 'ajustes/presupuestos', element: <BudgetsScreen /> },
       ],
     },
-    // Lo legal va FUERA de AppLayout, o sea fuera de AuthGate y de
-    // OnboardingGate, a proposito: los terminos y la politica de privacidad
-    // tienen que poder leerse ANTES de crear una cuenta. Tenerlos detras
-    // del login es pedirle a alguien que acepte algo que no puede ver.
+    // Legal lives OUTSIDE AppLayout, i.e. outside AuthGate and
+    // OnboardingGate, on purpose: the terms and the privacy policy
+    // need to be readable BEFORE creating an account. Putting them behind
+    // login is asking someone to accept something they can't see.
     {
       path: '/legal',
       element: <ErrorBoundary><LegalLayout /></ErrorBoundary>,

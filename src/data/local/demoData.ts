@@ -1,8 +1,8 @@
 /**
- * Datos de EJEMPLO (Fase 0, seccion 33). A proposito usa montos ficticios
- * distintos a los reales del usuario — el pedido explicito fue "no
- * inventes mis finanzas reales", asi que estos numeros son solo para
- * mostrar como se ve la app funcionando.
+ * SAMPLE data (Phase 0, section 33). Deliberately uses fictional amounts
+ * different from the user's real ones — the explicit request was "don't
+ * make up my real finances," so these numbers are only there to show the
+ * app working.
  */
 import { addDays, parseISO, toISO } from '@/domain/dates';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';

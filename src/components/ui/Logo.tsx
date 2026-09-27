@@ -1,26 +1,26 @@
 import { useId } from 'react';
 
 /**
- * La marca: tres escalones que suben. Es literal ("Step up") y al mismo
- * tiempo el gráfico de barras de cualquier app de plata — el mismo dibujo
- * dice "escalera" y dice "esto crece", que es justo lo que la app promete.
+ * The brand: three steps going up. It's literal ("Step up") and at the
+ * same time the bar chart of any money app — the same drawing
+ * says "staircase" and says "this grows", which is exactly what the app promises.
  *
- * Los dos primeros escalones van en el azul de quincena y el último en el
- * naranja: son los DOS colores con los que la app ya separa la quincena del
- * 10 de la del 25 (ver tokens.css), así que la marca no estrena paleta, usa
- * la que el usuario ya aprendió.
+ * The first two steps use the pay-period blue and the last one the
+ * orange: those are the SAME two colors the app already uses to tell the
+ * 10th's pay period apart from the 25th's (see tokens.css), so the brand
+ * doesn't debut a new palette, it uses the one the user already learned.
  *
- * Es SVG inline y no un .png: escala a cualquier tamaño sin verse borroso,
- * sigue el modo oscuro solo (lee los tokens) y no agrega un archivo más que
- * pedir por red. Los .png de public/icons — que sí hacen falta, porque el
- * manifest y iOS no aceptan SVG — se generan de acá con
- * `node scripts/generar-iconos.mjs`.
+ * It's inline SVG and not a .png: it scales to any size without looking
+ * blurry, it follows dark mode on its own (it reads the tokens) and it doesn't
+ * add one more file to request over the network. The .png files in public/icons
+ * — which ARE needed, because the manifest and iOS don't accept SVG — are
+ * generated from this with `node scripts/generar-iconos.mjs`.
  */
 export function Logo({ size = 24, tile = false, title }: {
   size?: number;
-  /** Versión "ícono de app": los escalones calados sobre un cuadro azul. */
+  /** "App icon" version: the steps cut out over a blue square. */
   tile?: boolean;
-  /** Si va acompañado del texto "Step up", dejalo vacío: es decorativo. */
+  /** If it's shown alongside the "Step up" text, leave it empty: it's decorative. */
   title?: string;
 }) {
   const gid = useId();
@@ -28,21 +28,21 @@ export function Logo({ size = 24, tile = false, title }: {
     ? ({ role: 'img' as const, 'aria-label': title })
     : ({ 'aria-hidden': true as const, focusable: 'false' as const });
 
-  // Tres barras de ancho igual y altura creciente (+5 cada una), apoyadas en
-  // la misma línea de piso. El salto constante es lo que se lee como escalón;
-  // si las alturas fueran arbitrarias sería un gráfico cualquiera.
-  const escalones = (colores: [string, string, string]) => (
+  // Three bars of equal width and increasing height (+5 each), resting on
+  // the same floor line. The constant jump is what reads as a step;
+  // if the heights were arbitrary it would just be any old chart.
+  const steps = (colors: [string, string, string]) => (
     <>
-      <rect x="2"  y="13" width="6" height="8"  rx="2" fill={colores[0]} />
-      <rect x="9"  y="8"  width="6" height="13" rx="2" fill={colores[1]} />
-      <rect x="16" y="3"  width="6" height="18" rx="2" fill={colores[2]} />
+      <rect x="2"  y="13" width="6" height="8"  rx="2" fill={colors[0]} />
+      <rect x="9"  y="8"  width="6" height="13" rx="2" fill={colors[1]} />
+      <rect x="16" y="3"  width="6" height="18" rx="2" fill={colors[2]} />
     </>
   );
 
   if (!tile) {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" {...a11y}>
-        {escalones(['var(--q10)', 'var(--q10)', 'var(--q25)'])}
+        {steps(['var(--q10)', 'var(--q10)', 'var(--q25)'])}
       </svg>
     );
   }
@@ -55,11 +55,11 @@ export function Logo({ size = 24, tile = false, title }: {
           <stop offset="1" stopColor="#0051D5" />
         </linearGradient>
       </defs>
-      {/* rx 14 de 64 ≈ el redondeo de un ícono de iOS */}
+      {/* rx 14 of 64 ≈ the rounding of an iOS icon */}
       <rect width="64" height="64" rx="14" fill={`url(#${gid})`} />
-      {/* El glifo de 24 centrado y a escala 1.6 deja el aire que pide Apple. */}
+      {/* The 24 glyph, centered and scaled 1.6, leaves the breathing room Apple asks for. */}
       <g transform="translate(12.8 12.8) scale(1.6)">
-        {escalones(['#FFFFFF', '#FFFFFF', '#FFB340'])}
+        {steps(['#FFFFFF', '#FFFFFF', '#FFB340'])}
       </g>
     </svg>
   );

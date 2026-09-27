@@ -1,29 +1,29 @@
 import { Link } from 'react-router-dom';
-import { useT } from '@/i18n/idioma';
-import { SLUGS, type SlugLegal } from './documentos';
+import { useT } from '@/i18n/language';
+import { SLUGS, type LegalSlug } from './documents';
 
-const CLAVE: Record<SlugLegal, Parameters<ReturnType<typeof useT>>[0]> = {
-  aviso: 'legal.aviso',
-  privacidad: 'legal.privacidad',
-  terminos: 'legal.terminos',
+const DOC_KEY: Record<LegalSlug, Parameters<ReturnType<typeof useT>>[0]> = {
+  aviso: 'legal.notice',
+  privacidad: 'legal.privacy',
+  terminos: 'legal.terms',
   cookies: 'legal.cookies',
-  propiedad: 'legal.propiedad',
+  propiedad: 'legal.property',
 };
 
 /**
- * Los enlaces legales, al pie de toda la app.
+ * The legal links, at the foot of the whole app.
  *
- * Siempre visibles y no escondidos en Ajustes: es donde la gente los busca
- * y, para terminos y privacidad, es donde deben estar — tienen que
- * alcanzarse sin navegar un menu.
+ * Always visible and not tucked away in Settings: that's where people look
+ * for them and, for terms and privacy, that's where they belong — they have
+ * to be reachable without navigating a menu.
  *
- * Va DENTRO del contenido que hace scroll, no fijo: un pie fijo en un
- * telefono se come alto util de pantalla toda la sesion para algo que se
- * consulta una vez.
+ * It sits INSIDE the scrolling content, not fixed: a fixed footer on a
+ * phone eats usable screen height for the whole session for something
+ * that's read once.
  */
 export function LegalFooter() {
   const t = useT();
-  const anio = new Date().getFullYear();
+  const year = new Date().getFullYear();
 
   return (
     <footer
@@ -36,7 +36,7 @@ export function LegalFooter() {
       }}
     >
       <nav
-        aria-label={t('legal.titulo')}
+        aria-label={t('legal.title')}
         style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', marginBottom: 10 }}
       >
         {SLUGS.map((slug) => (
@@ -49,12 +49,12 @@ export function LegalFooter() {
               textDecoration: 'none',
             }}
           >
-            {t(CLAVE[slug])}
+            {t(DOC_KEY[slug])}
           </Link>
         ))}
       </nav>
       <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-        © {anio} Step up
+        © {year} Step up
       </p>
     </footer>
   );

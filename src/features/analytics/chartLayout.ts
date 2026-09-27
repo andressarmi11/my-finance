@@ -1,84 +1,87 @@
 /**
- * Que graficos se ven en Analisis, y en que orden.
+ * Which charts show up in Analytics, and in what order.
  *
- * Vive en localStorage y no en Settings —que si se sincroniza— por lo
- * mismo que el idioma: es una preferencia de como MIRAS la app en este
- * dispositivo, no un dato de tu plata. En una tablet puedes querer otro
- * orden que en el telefono.
+ * Lives in localStorage and not in Settings — which does sync — for the
+ * same reason as the language: it's a preference about how you LOOK AT
+ * the app on this device, not data about your money. On a tablet you
+ * might want a different order than on the phone.
  *
- * Las claves se guardan por id y no por indice: agregar un grafico nuevo
- * en el futuro no desordena lo que el usuario ya acomodo, y un id que ya
- * no exista simplemente se ignora al leer.
+ * Keys are saved by id and not by index: adding a new chart in the
+ * future doesn't scramble what the user already arranged, and an id that
+ * no longer exists is simply ignored on read.
  */
-export type GraficoId =
-  | 'balance-categoria'
-  | 'presupuestos'
-  | 'distribucion'
-  | 'ingresos-gastos'
-  | 'fijos-variables'
-  | 'debito-credito';
+export type ChartId =
+  | 'balance-by-category'
+  | 'budgets'
+  | 'distribution'
+  | 'income-vs-expenses'
+  | 'fixed-vs-variable'
+  | 'debit-vs-credit';
 
-export interface Grafico {
-  id: GraficoId;
-  titulo: string;
+export interface Chart {
+  id: ChartId;
+  title: string;
 }
 
-/** El orden de fabrica. Presupuestos va justo despues del balance. */
-export const ORDEN_POR_DEFECTO: GraficoId[] = [
-  'balance-categoria',
-  'presupuestos',
-  'distribucion',
-  'ingresos-gastos',
-  'fijos-variables',
-  'debito-credito',
+/** The factory order. Budgets goes right after the balance. */
+export const DEFAULT_ORDER: ChartId[] = [
+  'balance-by-category',
+  'budgets',
+  'distribution',
+  'income-vs-expenses',
+  'fixed-vs-variable',
+  'debit-vs-credit',
 ];
 
-const CLAVE = 'step-up:analisis-disposicion';
+const STORAGE_KEY = 'step-up:analytics-layout';
+/** The key this used to be saved under. Read once, so nobody's arrangement
+ *  disappears because the key got renamed; the next save moves it over. */
+const LEGACY_STORAGE_KEY = 'step-up:analisis-disposicion';
 
-export interface Disposicion {
-  orden: GraficoId[];
-  ocultos: GraficoId[];
+export interface ChartLayout {
+  order: ChartId[];
+  hiddenIds: ChartId[];
 }
 
-const VACIA: Disposicion = { orden: ORDEN_POR_DEFECTO, ocultos: [] };
+const EMPTY_LAYOUT: ChartLayout = { order: DEFAULT_ORDER, hiddenIds: [] };
 
 /**
- * Lee lo guardado y lo RECONCILIA con los graficos que existen hoy:
- * descarta ids desconocidos y agrega al final los que aparecieron despues
- * de que el usuario guardo. Sin esto, agregar un grafico nuevo lo dejaria
- * invisible para quien ya hubiera tocado el orden alguna vez.
+ * Reads what's saved and RECONCILES it with the charts that exist today:
+ * discards unknown ids and appends at the end the ones that showed up
+ * after the user saved. Without this, adding a new chart would leave it
+ * invisible to anyone who had ever touched the order.
  */
-export function leerDisposicion(): Disposicion {
-  let guardada: Partial<Disposicion> | null = null;
+export function readChartLayout(): ChartLayout {
+  let stored: Partial<ChartLayout> | null = null;
   try {
-    const crudo = localStorage.getItem(CLAVE);
-    if (crudo) guardada = JSON.parse(crudo) as Partial<Disposicion>;
-  } catch { /* storage bloqueado o JSON corrupto: se usa el de fabrica */ }
-  if (!guardada) return VACIA;
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (raw) stored = JSON.parse(raw) as Partial<ChartLayout>;
+  } catch { /* storage blocked or corrupt JSON: fall back to the factory one */ }
+  if (!stored) return EMPTY_LAYOUT;
 
-  const conocidos = new Set<string>(ORDEN_POR_DEFECTO);
-  const orden = (guardada.orden ?? []).filter((id): id is GraficoId => conocidos.has(id));
-  for (const id of ORDEN_POR_DEFECTO) {
-    if (!orden.includes(id)) orden.push(id);
+  const known = new Set<string>(DEFAULT_ORDER);
+  const order = (stored.order ?? []).filter((id): id is ChartId => known.has(id));
+  for (const id of DEFAULT_ORDER) {
+    if (!order.includes(id)) order.push(id);
   }
-  const ocultos = (guardada.ocultos ?? []).filter((id): id is GraficoId => conocidos.has(id));
-  return { orden, ocultos };
+  const hiddenIds = (stored.hiddenIds ?? []).filter((id): id is ChartId => known.has(id));
+  return { order, hiddenIds };
 }
 
-export function guardarDisposicion(d: Disposicion): void {
-  try { localStorage.setItem(CLAVE, JSON.stringify(d)); } catch { /* no-op */ }
+export function saveChartLayout(d: ChartLayout): void {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch { /* no-op */ }
 }
 
-/** Mueve un grafico una posicion arriba o abajo. Los bordes no se mueven. */
-export function mover(orden: GraficoId[], id: GraficoId, delta: -1 | 1): GraficoId[] {
-  const i = orden.indexOf(id);
-  const destino = i + delta;
-  if (i === -1 || destino < 0 || destino >= orden.length) return orden;
-  const copia = [...orden];
-  [copia[i], copia[destino]] = [copia[destino]!, copia[i]!];
-  return copia;
+/** Moves a chart one position up or down. The edges don't move. */
+export function move(order: ChartId[], id: ChartId, delta: -1 | 1): ChartId[] {
+  const i = order.indexOf(id);
+  const target = i + delta;
+  if (i === -1 || target < 0 || target >= order.length) return order;
+  const copy = [...order];
+  [copy[i], copy[target]] = [copy[target]!, copy[i]!];
+  return copy;
 }
 
-export function alternarOculto(ocultos: GraficoId[], id: GraficoId): GraficoId[] {
-  return ocultos.includes(id) ? ocultos.filter((o) => o !== id) : [...ocultos, id];
+export function toggleHidden(hiddenIds: ChartId[], id: ChartId): ChartId[] {
+  return hiddenIds.includes(id) ? hiddenIds.filter((o) => o !== id) : [...hiddenIds, id];
 }

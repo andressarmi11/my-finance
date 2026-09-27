@@ -1,25 +1,25 @@
 /**
- * Ciclo de tarjeta de credito.
+ * Credit card cycle.
  *
- * Regla (generica, NUNCA hardcodeada para un año):
- *  - Una compra hecha el dia D pertenece al corte de este mes si D <= cutoffDay
- *    (clampeado al ultimo dia del mes). Si D > cutoffDay, pertenece al corte
- *    del mes siguiente.
- *  - El pago cae el paymentDay del mes SIGUIENTE al corte.
+ * Rule (generic, NEVER hardcoded for a given year):
+ *  - A purchase made on day D belongs to this month's cutoff if D <= cutoffDay
+ *    (clamped to the last day of the month). If D > cutoffDay, it belongs to
+ *    next month's cutoff.
+ *  - Payment falls on paymentDay of the month AFTER the cutoff.
  *
- * Ejemplo con cutoffDay=15, paymentDay=2:
- *   14 ene -> corte 15 ene -> pago 2 feb
- *   16 ene -> corte 15 feb -> pago 2 mar
+ * Example with cutoffDay=15, paymentDay=2:
+ *   14 Jan -> cutoff 15 Jan -> payment 2 Feb
+ *   16 Jan -> cutoff 15 Feb -> payment 2 Mar
  */
 import { addDays, clampDay, parseISO, shiftMonth, toISO } from '../dates';
 import type { ISODate } from '../types';
 
 export interface CreditCardCycle {
-  /** Primer dia del ciclo al que pertenece la compra. */
+  /** First day of the cycle the purchase belongs to. */
   cycleStart: ISODate;
-  /** Fecha de corte del ciclo (el dia D queda incluido si D <= cutoffDay). */
+  /** Cutoff date of the cycle (day D is included if D <= cutoffDay). */
   cycleCutoff: ISODate;
-  /** Fecha en la que ese ciclo se paga. */
+  /** Date on which that cycle is paid. */
   paymentDate: ISODate;
 }
 

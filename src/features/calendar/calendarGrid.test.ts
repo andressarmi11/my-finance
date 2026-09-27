@@ -6,7 +6,7 @@ describe('buildCalendarGrid', () => {
     expect(buildCalendarGrid(2026, 9)).toHaveLength(42);
   });
 
-  it('las celdas dentro del mes son exactamente los dias de ese mes', () => {
+  it("the in-month cells are exactly that month's days", () => {
     const cells = buildCalendarGrid(2026, 9);
     const inMonth = cells.filter((c) => c.inMonth);
     expect(inMonth).toHaveLength(30);
@@ -14,7 +14,7 @@ describe('buildCalendarGrid', () => {
     expect(inMonth[inMonth.length - 1]?.date).toBe('2026-09-30');
   });
 
-  it('las fechas son consecutivas de principio a fin', () => {
+  it('the dates are consecutive from start to finish', () => {
     const cells = buildCalendarGrid(2026, 9);
     for (let i = 1; i < cells.length; i++) {
       const prev = new Date(cells[i - 1]!.date);
@@ -23,14 +23,14 @@ describe('buildCalendarGrid', () => {
     }
   });
 
-  it('funciona en febrero de un año bisiesto', () => {
+  it('works in a leap-year February', () => {
     const inMonth = buildCalendarGrid(2024, 2).filter((c) => c.inMonth);
     expect(inMonth).toHaveLength(29);
   });
 });
 
 describe('shiftMonthISO', () => {
-  it('cruza de año hacia adelante y hacia atras', () => {
+  it('crosses the year both forwards and backwards', () => {
     expect(shiftMonthISO(2026, 12, 1)).toEqual({ year: 2027, month: 1 });
     expect(shiftMonthISO(2026, 1, -1)).toEqual({ year: 2025, month: 12 });
   });

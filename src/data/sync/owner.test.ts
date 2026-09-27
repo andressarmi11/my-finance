@@ -1,31 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { debeLimpiar } from './dueno';
+import { shouldWipe } from './owner';
 
 /**
- * La tabla de decisión completa. El caso que importa es el tercero: sin
- * él, los movimientos de una persona terminaban subidos a la cuenta de
- * otra que usara el mismo navegador.
+ * The full decision table. The case that matters is the third one:
+ * without it, one person's transactions would end up uploaded to another
+ * account using the same browser.
  */
-describe('debeLimpiar — de quién son los datos de este dispositivo', () => {
-  it('sin marca previa NO borra: es quien usó la app sin cuenta y ahora se registra', () => {
-    expect(debeLimpiar(null, 'ana')).toBe(false);
+describe('debeLimpiar — who owns the data on this device', () => {
+  it('with no previous marker, does NOT wipe: it is someone who used the app without an account and is now signing up', () => {
+    expect(shouldWipe(null, 'ana')).toBe(false);
   });
 
-  it('la misma persona volviendo a entrar NO borra', () => {
-    expect(debeLimpiar('ana', 'ana')).toBe(false);
+  it('the same person signing back in does NOT wipe', () => {
+    expect(shouldWipe('ana', 'ana')).toBe(false);
   });
 
-  it('otra persona SÍ borra', () => {
-    expect(debeLimpiar('ana', 'beto')).toBe(true);
+  it('another person DOES wipe', () => {
+    expect(shouldWipe('ana', 'beto')).toBe(true);
   });
 
-  it('distingue ids parecidos: no alcanza con que empiecen igual', () => {
-    expect(debeLimpiar('user-1', 'user-10')).toBe(true);
-    expect(debeLimpiar('user-10', 'user-1')).toBe(true);
+  it('distinguishes similar ids: starting the same is not enough', () => {
+    expect(shouldWipe('user-1', 'user-10')).toBe(true);
+    expect(shouldWipe('user-10', 'user-1')).toBe(true);
   });
 
-  it('la cadena vacía es una marca válida, no un "no hay marca"', () => {
-    // Si se tratara como ausente, un id vacío adoptaría datos ajenos.
-    expect(debeLimpiar('', 'ana')).toBe(true);
+  it('the empty string is a valid marker, not a "no marker"', () => {
+    // If treated as absent, an empty id would adopt someone else's data.
+    expect(shouldWipe('', 'ana')).toBe(true);
   });
 });

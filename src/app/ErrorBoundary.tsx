@@ -1,25 +1,25 @@
 import { Component, type ReactNode } from 'react';
 
 /**
- * Convierte una pantalla en blanco en un mensaje que se puede resolver.
+ * Turns a blank screen into a message that can be resolved.
  *
- * Nace de un caso concreto: Analisis es la unica ruta que se carga con
- * lazy(), su archivo lleva un hash que cambia en cada despliegue, y la app
- * es una PWA que cachea. Un navegador con el indice viejo pedia un archivo
- * que ya no existia, el import fallaba, y como no habia ningun limite de
- * error React desmontaba TODO el arbol: pantalla en blanco, sin mensaje,
- * sin forma de salir salvo cerrar y volver a abrir.
+ * Born from a concrete case: Analytics is the only route loaded with
+ * lazy(), its file carries a hash that changes on every deploy, and the app
+ * is a PWA that caches. A browser with the old index would request a file
+ * that no longer existed, the import would fail, and since there was no
+ * error boundary React would unmount the WHOLE tree: blank screen, no
+ * message, no way out except closing and reopening.
  *
- * Ante ese caso puntual —un chunk que ya no esta— recarga sola una vez,
- * porque el arreglo real es traer el indice nuevo y no hay nada que el
- * usuario pueda decidir ahi. Para cualquier otro error muestra el mensaje
- * y deja el boton, sin recargar en bucle.
+ * For that specific case —a chunk that's gone— it reloads itself once,
+ * because the real fix is fetching the new index and there's nothing the
+ * user can decide there. For any other error it shows the message
+ * and leaves the button, without reloading in a loop.
  */
 
-const MARCA_RECARGA = 'myfinance:recarga-por-chunk';
+const RELOAD_MARK = 'myfinance:recarga-por-chunk';
 
-/** ¿Es el fallo de "el archivo que pedi ya no existe"? */
-function esChunkViejo(error: unknown): boolean {
+/** Is this the "the file I requested no longer exists" failure? */
+function isStaleChunk(error: unknown): boolean {
   const m = error instanceof Error ? `${error.name} ${error.message}` : String(error);
   return /ChunkLoadError|Loading chunk|dynamically imported module|Importing a module script failed|Failed to fetch dynamically/i.test(m);
 }
@@ -35,14 +35,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    if (!esChunkViejo(error)) return;
-    // Una sola vez: si recargar no lo arregla, mejor mostrar el mensaje
-    // que dejar al usuario en un bucle de recargas.
+    if (!isStaleChunk(error)) return;
+    // Only once: if reloading doesn't fix it, better to show the message
+    // than to leave the user in a reload loop.
     try {
-      if (sessionStorage.getItem(MARCA_RECARGA)) return;
-      sessionStorage.setItem(MARCA_RECARGA, '1');
+      if (sessionStorage.getItem(RELOAD_MARK)) return;
+      sessionStorage.setItem(RELOAD_MARK, '1');
     } catch {
-      return; // sin sessionStorage no arriesgamos el bucle
+      return; // without sessionStorage we won't risk the loop
     }
     window.location.reload();
   }
@@ -51,22 +51,22 @@ export class ErrorBoundary extends Component<Props, State> {
     const { error } = this.state;
     if (!error) return this.props.children;
 
-    const porActualizacion = esChunkViejo(error);
+    const byUpdate = isStaleChunk(error);
     return (
       <div style={{ padding: 'var(--gap-l)', maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
         <p style={{ fontSize: 34, margin: '24px 0 8px' }} aria-hidden>🌀</p>
         <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: '0 0 6px' }}>
-          {porActualizacion ? 'La app se actualizó' : 'Algo se rompió acá'}
+          {byUpdate ? 'La app se actualizó' : 'Algo se rompió acá'}
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)', margin: '0 0 18px', lineHeight: 'var(--lh-normal)' }}>
-          {porActualizacion
+          {byUpdate
             ? 'Tu navegador tenía guardada una versión anterior. Recarga y listo.'
             : 'Tus datos están a salvo: esto es solo esta pantalla. Recarga para volver.'}
         </p>
         <button
           type="button"
           onClick={() => {
-            try { sessionStorage.removeItem(MARCA_RECARGA); } catch { /* no pasa nada */ }
+            try { sessionStorage.removeItem(RELOAD_MARK); } catch { /* no big deal */ }
             window.location.reload();
           }}
           style={{
@@ -76,7 +76,7 @@ export class ErrorBoundary extends Component<Props, State> {
         >
           Recargar
         </button>
-        {!porActualizacion && (
+        {!byUpdate && (
           <details style={{ marginTop: 16, textAlign: 'left' }}>
             <summary style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', cursor: 'pointer' }}>
               Detalle técnico

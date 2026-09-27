@@ -3,8 +3,9 @@ import type {
 } from '@/domain/types';
 
 /**
- * Una sola interfaz. Fase 1-12 la implementa IndexedDB (LocalRepository).
- * Fase 13 la implementa Supabase. La UI nunca sabe cual esta usando.
+ * A single interface. Phases 1-12 implement it with IndexedDB
+ * (LocalRepository). Phase 13 implements it with Supabase. The UI never
+ * knows which one it's using.
  */
 export interface Repository {
   getSettings(): Promise<Settings>;

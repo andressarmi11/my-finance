@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { calcularDisponible, saldosSinPagar } from './disponible';
+import { calculateAvailableCredit, unpaidBalances } from './availableCredit';
 import type { PaymentMethod, Transaction } from '../types';
 
-const HOY = '2026-09-26';
+const TODAY = '2026-09-26';
 
-function tarjeta(over: Partial<PaymentMethod> = {}): PaymentMethod {
+function card(over: Partial<PaymentMethod> = {}): PaymentMethod {
   return {
     id: 'tc-1', type: 'credit', name: 'Visa', isDefault: false,
     cutoffDay: 15, paymentDay: 2, creditLimit: 5_000_000, updatedAt: '', ...over,
   };
 }
 
-function gasto(over: Partial<Transaction> = {}): Transaction {
+function expense(over: Partial<Transaction> = {}): Transaction {
   return {
     id: Math.random().toString(36), type: 'expense', concept: 'x', amount: 100_000,
     date: '2026-09-20', categoryId: null, paymentMethodId: 'tc-1', status: 'pending',
@@ -19,71 +19,71 @@ function gasto(over: Partial<Transaction> = {}): Transaction {
   };
 }
 
-describe('calcularDisponible', () => {
-  it('descuenta del cupo lo comprado y no pagado', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ amount: 1_200_000 })], HOY)!;
-    expect(d).toEqual({ cupo: 5_000_000, usado: 1_200_000, disponible: 3_800_000 });
+describe('calculateAvailableCredit', () => {
+  it('deducts what has been bought and not paid from the limit', () => {
+    const d = calculateAvailableCredit(card(), [expense({ amount: 1_200_000 })], TODAY)!;
+    expect(d).toEqual({ cupo: 5_000_000, used: 1_200_000, available: 3_800_000 });
   });
 
-  /* La gotera que motiva el filtro de fecha: materialize.ts siembra las
-     recurrentes con status 'pending' hasta ~3 meses adelante. Sin esto, una
-     suscripcion de diciembre te comeria cupo hoy. */
-  it('una compra futura todavia no consume cupo', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ date: '2026-12-01', amount: 900_000 })], HOY)!;
-    expect(d.usado).toBe(0);
-    expect(d.disponible).toBe(5_000_000);
+  /* The leak that motivates the date filter: materialize.ts seeds
+     recurring transactions with status 'pending' up to ~3 months ahead.
+     Without this, a December subscription would eat into today's limit. */
+  it('a future purchase does not consume the limit yet', () => {
+    const d = calculateAvailableCredit(card(), [expense({ date: '2026-12-01', amount: 900_000 })], TODAY)!;
+    expect(d.used).toBe(0);
+    expect(d.available).toBe(5_000_000);
   });
 
-  it('la compra de hoy si consume cupo', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ date: HOY, amount: 400_000 })], HOY)!;
-    expect(d.usado).toBe(400_000);
+  it('a purchase made today does consume the limit', () => {
+    const d = calculateAvailableCredit(card(), [expense({ date: TODAY, amount: 400_000 })], TODAY)!;
+    expect(d.used).toBe(400_000);
   });
 
-  it('marcar pagado libera el cupo', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ amount: 800_000, status: 'paid' })], HOY)!;
-    expect(d.usado).toBe(0);
+  it('marking it paid frees up the limit', () => {
+    const d = calculateAvailableCredit(card(), [expense({ amount: 800_000, status: 'paid' })], TODAY)!;
+    expect(d.used).toBe(0);
   });
 
-  it('lo cancelado nunca conto', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ amount: 800_000, status: 'cancelled' })], HOY)!;
-    expect(d.usado).toBe(0);
+  it('a cancelled purchase never counted', () => {
+    const d = calculateAvailableCredit(card(), [expense({ amount: 800_000, status: 'cancelled' })], TODAY)!;
+    expect(d.used).toBe(0);
   });
 
-  it('arrastra lo viejo sin pagar, aunque sea de otro ciclo', () => {
-    const d = calcularDisponible(tarjeta(), [
-      gasto({ date: '2026-06-10', amount: 300_000 }),
-      gasto({ date: '2026-09-20', amount: 200_000 }),
-    ], HOY)!;
-    expect(d.usado).toBe(500_000);
+  it('carries forward old unpaid amounts, even from another cycle', () => {
+    const d = calculateAvailableCredit(card(), [
+      expense({ date: '2026-06-10', amount: 300_000 }),
+      expense({ date: '2026-09-20', amount: 200_000 }),
+    ], TODAY)!;
+    expect(d.used).toBe(500_000);
   });
 
-  it('el sobrecupo se muestra negativo, no recortado a cero', () => {
-    const d = calcularDisponible(tarjeta({ creditLimit: 1_000_000 }), [gasto({ amount: 1_500_000 })], HOY)!;
-    expect(d.disponible).toBe(-500_000);
+  it('being over the limit shows as negative, not clamped to zero', () => {
+    const d = calculateAvailableCredit(card({ creditLimit: 1_000_000 }), [expense({ amount: 1_500_000 })], TODAY)!;
+    expect(d.available).toBe(-500_000);
   });
 
-  it('sin cupo puesto devuelve null: no hay nada que mostrar', () => {
-    expect(calcularDisponible(tarjeta({ creditLimit: undefined }), [gasto()], HOY)).toBeNull();
+  it('with no limit set returns null: there is nothing to show', () => {
+    expect(calculateAvailableCredit(card({ creditLimit: undefined }), [expense()], TODAY)).toBeNull();
   });
 
-  it('no cuenta lo de otra tarjeta', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ paymentMethodId: 'tc-2', amount: 999_999 })], HOY)!;
-    expect(d.usado).toBe(0);
+  it("does not count another card's purchases", () => {
+    const d = calculateAvailableCredit(card(), [expense({ paymentMethodId: 'tc-2', amount: 999_999 })], TODAY)!;
+    expect(d.used).toBe(0);
   });
 
-  it('un ingreso a la tarjeta no consume cupo', () => {
-    const d = calcularDisponible(tarjeta(), [gasto({ type: 'income', amount: 500_000 })], HOY)!;
-    expect(d.usado).toBe(0);
+  it('an income posted to the card does not consume the limit', () => {
+    const d = calculateAvailableCredit(card(), [expense({ type: 'income', amount: 500_000 })], TODAY)!;
+    expect(d.used).toBe(0);
   });
 });
 
-describe('calcularDisponible con compras diferidas', () => {
-  /* Una nevera a 12 cuotas comprada hoy bloquea el cupo ENTERO hoy, no de
-     a 100.000 por mes: es lo que hace el banco al pasar la tarjeta. Las
-     cuotas futuras tienen fecha futura, asi que sin mirar purchaseDate
-     quedarian fuera del filtro `<= hoy`. */
-  it('bloquea el cupo completo el dia de la compra, no cuota a cuota', () => {
-    const cuotas = Array.from({ length: 12 }, (_, i) => gasto({
+describe('calculateAvailableCredit with instalment purchases', () => {
+  /* A fridge bought today in 12 instalments locks the WHOLE limit today,
+     not 100,000 a month: that's what the bank does when you swipe the
+     card. Future instalments have a future date, so without looking at
+     purchaseDate they would fall outside the `<= today` filter. */
+  it('locks the whole limit on the day of the purchase, not instalment by instalment', () => {
+    const installments = Array.from({ length: 12 }, (_, i) => expense({
       amount: 100_000,
       date: `2026-${String(9 + i > 12 ? 9 + i - 12 : 9 + i).padStart(2, '0')}-20`,
       purchaseDate: '2026-09-20',
@@ -91,66 +91,66 @@ describe('calcularDisponible con compras diferidas', () => {
       installmentNumber: i + 1,
       installmentCount: 12,
     }));
-    const d = calcularDisponible(tarjeta(), cuotas, HOY)!;
-    expect(d.usado).toBe(1_200_000);
-    expect(d.disponible).toBe(3_800_000);
+    const d = calculateAvailableCredit(card(), installments, TODAY)!;
+    expect(d.used).toBe(1_200_000);
+    expect(d.available).toBe(3_800_000);
   });
 
-  it('marcar una cuota pagada libera solo esa', () => {
-    const cuotas = [
-      gasto({ amount: 100_000, date: '2026-09-20', purchaseDate: '2026-09-20', status: 'paid' }),
-      gasto({ amount: 100_000, date: '2026-10-20', purchaseDate: '2026-09-20' }),
-      gasto({ amount: 100_000, date: '2026-11-20', purchaseDate: '2026-09-20' }),
+  it('marking one instalment paid frees up only that one', () => {
+    const installments = [
+      expense({ amount: 100_000, date: '2026-09-20', purchaseDate: '2026-09-20', status: 'paid' }),
+      expense({ amount: 100_000, date: '2026-10-20', purchaseDate: '2026-09-20' }),
+      expense({ amount: 100_000, date: '2026-11-20', purchaseDate: '2026-09-20' }),
     ];
-    expect(calcularDisponible(tarjeta(), cuotas, HOY)!.usado).toBe(200_000);
+    expect(calculateAvailableCredit(card(), installments, TODAY)!.used).toBe(200_000);
   });
 
-  it('un diferido que todavia no compraste no consume nada', () => {
-    const futuro = gasto({ amount: 900_000, date: '2026-12-20', purchaseDate: '2026-12-20' });
-    expect(calcularDisponible(tarjeta(), [futuro], HOY)!.usado).toBe(0);
+  it('an instalment purchase not made yet consumes nothing', () => {
+    const future = expense({ amount: 900_000, date: '2026-12-20', purchaseDate: '2026-12-20' });
+    expect(calculateAvailableCredit(card(), [future], TODAY)!.used).toBe(0);
   });
 });
 
-describe('saldosSinPagar', () => {
-  const visa = tarjeta({ id: 'tc-1', name: 'Visa' });
-  const amex = tarjeta({ id: 'tc-2', name: 'Amex' });
+describe('unpaidBalances', () => {
+  const visa = card({ id: 'tc-1', name: 'Visa' });
+  const amex = card({ id: 'tc-2', name: 'Amex' });
 
-  it('lista los ciclos cuya fecha de pago ya paso y siguen sin pagar', () => {
-    const saldos = saldosSinPagar([visa], [
-      gasto({ amount: 300_000, cyclePaymentDate: '2026-08-02' }),
-      gasto({ amount: 200_000, cyclePaymentDate: '2026-08-02' }),
-    ], HOY);
-    expect(saldos).toHaveLength(1);
-    expect(saldos[0]).toMatchObject({ paymentDate: '2026-08-02', total: 500_000, count: 2 });
-    expect(saldos[0]!.tarjeta.name).toBe('Visa');
+  it('lists the cycles whose payment date has passed and are still unpaid', () => {
+    const balances = unpaidBalances([visa], [
+      expense({ amount: 300_000, cyclePaymentDate: '2026-08-02' }),
+      expense({ amount: 200_000, cyclePaymentDate: '2026-08-02' }),
+    ], TODAY);
+    expect(balances).toHaveLength(1);
+    expect(balances[0]).toMatchObject({ paymentDate: '2026-08-02', total: 500_000, count: 2 });
+    expect(balances[0]!.card.name).toBe('Visa');
   });
 
-  it('un ciclo que todavia no vence no es un saldo vencido', () => {
-    expect(saldosSinPagar([visa], [gasto({ cyclePaymentDate: '2026-11-02' })], HOY)).toEqual([]);
+  it('a cycle not due yet is not an overdue balance', () => {
+    expect(unpaidBalances([visa], [expense({ cyclePaymentDate: '2026-11-02' })], TODAY)).toEqual([]);
   });
 
-  it('un ciclo ya pagado desaparece del aviso', () => {
-    const saldos = saldosSinPagar([visa], [
-      gasto({ cyclePaymentDate: '2026-08-02', status: 'paid' }),
-    ], HOY);
-    expect(saldos).toEqual([]);
+  it('a cycle already paid disappears from the alert', () => {
+    const balances = unpaidBalances([visa], [
+      expense({ cyclePaymentDate: '2026-08-02', status: 'paid' }),
+    ], TODAY);
+    expect(balances).toEqual([]);
   });
 
-  it('separa por tarjeta aunque compartan fecha de pago', () => {
-    const saldos = saldosSinPagar([visa, amex], [
-      gasto({ paymentMethodId: 'tc-1', amount: 100_000, cyclePaymentDate: '2026-08-02' }),
-      gasto({ paymentMethodId: 'tc-2', amount: 700_000, cyclePaymentDate: '2026-08-02' }),
-    ], HOY);
-    expect(saldos).toHaveLength(2);
-    expect(saldos.map((s) => s.tarjeta.name).sort()).toEqual(['Amex', 'Visa']);
+  it('separates by card even when they share a payment date', () => {
+    const balances = unpaidBalances([visa, amex], [
+      expense({ paymentMethodId: 'tc-1', amount: 100_000, cyclePaymentDate: '2026-08-02' }),
+      expense({ paymentMethodId: 'tc-2', amount: 700_000, cyclePaymentDate: '2026-08-02' }),
+    ], TODAY);
+    expect(balances).toHaveLength(2);
+    expect(balances.map((s) => s.card.name).sort()).toEqual(['Amex', 'Visa']);
   });
 
-  it('lo mas viejo primero: es lo que mas urge', () => {
-    const saldos = saldosSinPagar([visa], [
-      gasto({ cyclePaymentDate: '2026-09-02' }),
-      gasto({ cyclePaymentDate: '2026-07-02' }),
-      gasto({ cyclePaymentDate: '2026-08-02' }),
-    ], HOY);
-    expect(saldos.map((s) => s.paymentDate)).toEqual(['2026-07-02', '2026-08-02', '2026-09-02']);
+  it('oldest first: that is the most urgent', () => {
+    const balances = unpaidBalances([visa], [
+      expense({ cyclePaymentDate: '2026-09-02' }),
+      expense({ cyclePaymentDate: '2026-07-02' }),
+      expense({ cyclePaymentDate: '2026-08-02' }),
+    ], TODAY);
+    expect(balances.map((s) => s.paymentDate)).toEqual(['2026-07-02', '2026-08-02', '2026-09-02']);
   });
 });

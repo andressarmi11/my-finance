@@ -4,27 +4,27 @@ import { useSession } from '@/features/auth/useSession';
 import { syncBidirectional } from '@/data/sync/syncService';
 
 /**
- * Solo aparece si el proyecto tiene Supabase configurado. La sincronizacion
- * ya corre sola (ver useCloudSync); esto es el boton de "ahora mismo" y el
- * lugar donde ver con que cuenta estas y cerrar sesion.
+ * Only shows up if the project has Supabase configured. Sync
+ * already runs on its own (see useCloudSync); this is the "right now" button and the
+ * place to see which account you're on and sign out.
  */
 export function CloudSection() {
-  const [ocupado, setOcupado] = useState(false);
-  const [mensaje, setMensaje] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
   const { session } = useSession();
 
   if (!isSupabaseConfigured()) return null;
 
-  async function sincronizarAhora() {
-    setOcupado(true);
-    setMensaje('');
+  async function syncNow() {
+    setBusy(true);
+    setMessage('');
     try {
       const r = await syncBidirectional();
-      setMensaje(`Listo. Subidos ${r.pushed}, bajados ${r.pulled}${r.deleted ? `, borrados ${r.deleted}` : ''}.`);
+      setMessage(`Listo. Subidos ${r.pushed}, bajados ${r.pulled}${r.deleted ? `, borrados ${r.deleted}` : ''}.`);
     } catch (e) {
-      setMensaje(e instanceof Error ? e.message : 'No se pudo sincronizar.');
+      setMessage(e instanceof Error ? e.message : 'No se pudo sincronizar.');
     } finally {
-      setOcupado(false);
+      setBusy(false);
     }
   }
 
@@ -39,8 +39,8 @@ export function CloudSection() {
         </p>
       )}
 
-      <button type="button" onClick={sincronizarAhora} disabled={ocupado} style={{ ...btnStyle, width: '100%', marginBottom: 8 }}>
-        {ocupado ? 'Sincronizando…' : 'Sincronizar ahora'}
+      <button type="button" onClick={syncNow} disabled={busy} style={{ ...btnStyle, width: '100%', marginBottom: 8 }}>
+        {busy ? 'Sincronizando…' : 'Sincronizar ahora'}
       </button>
 
       <button
@@ -51,7 +51,7 @@ export function CloudSection() {
         Cerrar sesión
       </button>
 
-      {mensaje && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 8 }}>{mensaje}</p>}
+      {message && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 8 }}>{message}</p>}
     </section>
   );
 }

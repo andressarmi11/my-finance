@@ -2,113 +2,115 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isSupabaseConfigured } from '../supabase/client';
 import { useSession } from '@/features/auth/useSession';
 import { syncBidirectional } from './syncService';
-import { asegurarDueno } from './dueno';
+import { ensureOwner } from './owner';
 
-export type EstadoSync = 'inactivo' | 'sincronizando' | 'ok' | 'error';
+export type SyncStatus = 'inactivo' | 'sincronizando' | 'ok' | 'error';
 
 const MIN_ENTRE_SYNCS_MS = 60_000;
 
 /**
- * Forzar una subida desde fuera del arbol de React.
+ * Force a push from outside the React tree.
  *
- * Hace falta porque el sync automatico solo corre al entrar, al volver a
- * la app y al dejarla — y la configuracion inicial se completa en el
- * medio. El push que sube los Settings pasa AL ENTRAR, o sea antes de que
- * exista la configuracion, asi que subia onboardedAt = null; despues nada
- * la volvia a subir hasta que el navegador disparara un visibilitychange,
- * que al cerrar la pestaña de golpe puede no llegar nunca. Resultado: cada
- * login en un dispositivo nuevo volvia a pedir nombre, moneda y categorias.
+ * Needed because the automatic sync only runs on entry, on returning to
+ * the app, and on leaving it — and the initial setup gets completed in
+ * between. The push that uploads Settings happens ON ENTRY, i.e. before
+ * the setup exists, so it uploaded onboardedAt = null; after that,
+ * nothing pushed it again until the browser fired a visibilitychange,
+ * which, if the tab gets closed abruptly, might never arrive. The
+ * result: every login on a new device asked for name, currency and
+ * categories all over again.
  */
-let forzarSyncActual: (() => void) | null = null;
+let currentForceSync: (() => void) | null = null;
 
-export function pedirSync(): void {
-  forzarSyncActual?.();
+export function requestSync(): void {
+  currentForceSync?.();
 }
 
 /**
- * Sincroniza solo, sin que el usuario toque un boton.
+ * Syncs on its own, without the user touching a button.
  *
- * Cuando: al iniciar sesion, al volver a la app (visibilitychange) y al
- * dejarla. Ese es el ciclo que hace que "abro la app en otro dispositivo
- * y esta todo" sea cierto — con los botones manuales de Ajustes bastaba
- * con olvidarse una vez para perder el trabajo del dia.
+ * When: on login, on returning to the app (visibilitychange), and on
+ * leaving it. That's the cycle that makes "I open the app on another
+ * device and everything's there" true — with only the manual buttons in
+ * Settings, forgetting once was enough to lose a whole day's work.
  *
- * Los botones manuales siguen existiendo para forzar el sync.
+ * The manual buttons still exist to force a sync.
  */
 export function useCloudSync() {
   const { session } = useSession();
   const userId = session?.user.id ?? null;
 
-  const [estado, setEstado] = useState<EstadoSync>('inactivo');
+  const [status, setStatus] = useState<SyncStatus>('inactivo');
   const [error, setError] = useState('');
-  // La primera bajada tiene que terminar antes de decidir si mostrar la
-  // configuracion inicial: si no, un dispositivo nuevo la pregunta otra vez
-  // aunque la cuenta ya este configurada en la nube.
+  // The first pull has to finish before deciding whether to show the
+  // initial setup: otherwise a new device asks for it again even though
+  // the account is already configured in the cloud.
   const [primeraHecha, setPrimeraHecha] = useState(!isSupabaseConfigured());
-  const ultimaRef = useRef(0);
-  const corriendoRef = useRef(false);
+  const lastRef = useRef(0);
+  const runningRef = useRef(false);
 
-  const sincronizar = useCallback(async (forzar = false) => {
+  const sync = useCallback(async (forzar = false) => {
     if (!isSupabaseConfigured() || !userId) return;
-    if (corriendoRef.current) return;
+    if (runningRef.current) return;
 
-    corriendoRef.current = true;
+    runningRef.current = true;
     try {
-      // Lo PRIMERO, y aunque no haya red: si lo guardado en este
-      // dispositivo es de otra cuenta, se borra antes de que la app lo
-      // muestre o el push lo suba a la cuenta equivocada. Es local, no
-      // necesita internet, y no puede quedar detrás de ningún return.
-      await asegurarDueno(userId);
+      // FIRST thing, even with no network: if what's stored on this
+      // device belongs to another account, it gets wiped before the app
+      // shows it or push uploads it to the wrong account. It's local,
+      // needs no internet, and can't be left behind any return.
+      await ensureOwner(userId);
 
-      if (!forzar && Date.now() - ultimaRef.current < MIN_ENTRE_SYNCS_MS) return;
+      if (!forzar && Date.now() - lastRef.current < MIN_ENTRE_SYNCS_MS) return;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
-      setEstado('sincronizando');
+      setStatus('sincronizando');
       setError('');
       await syncBidirectional();
-      ultimaRef.current = Date.now();
-      setEstado('ok');
+      lastRef.current = Date.now();
+      setStatus('ok');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo sincronizar.');
-      setEstado('error');
+      setStatus('error');
     } finally {
-      corriendoRef.current = false;
-      // En TODA salida, incluida la de "no hay red": si no, la pantalla de
-      // carga se queda para siempre y una app offline-first resulta
-      // inservible justo cuando no hay internet.
+      runningRef.current = false;
+      // On EVERY exit path, including the "no network" one: otherwise the
+      // loading screen stays forever, and an offline-first app becomes
+      // unusable exactly when there's no internet.
       setPrimeraHecha(true);
     }
   }, [userId]);
 
-  // Registrar el disparador manual mientras este hook esté montado.
+  // Register the manual trigger while this hook is mounted.
   useEffect(() => {
-    const mio = () => void sincronizar(true);
-    forzarSyncActual = mio;
-    // Comparar identidad, no "hay algo seteado": si algun dia este hook se
-    // monta en dos lugares, el cleanup del primero borraria el callback que
-    // el segundo acaba de registrar y "Sincronizar ahora" quedaria mudo sin
-    // ningun error visible.
+    const mine = () => void sync(true);
+    currentForceSync = mine;
+    // Compare identity, not "something is set": if this hook ever gets
+    // mounted in two places, the first one's cleanup would erase the
+    // callback the second one just registered, and "Sync now" would go
+    // silent with no visible error.
     return () => {
-      if (forzarSyncActual === mio) forzarSyncActual = null;
+      if (currentForceSync === mine) currentForceSync = null;
     };
-  }, [sincronizar]);
+  }, [sync]);
 
-  // Al entrar la sesión: bajar todo antes de que el usuario vea nada.
+  // When the session starts: pull everything before the user sees anything.
   useEffect(() => {
     if (!userId) {
-      setEstado('inactivo');
-      setPrimeraHecha(true); // sin cuenta no hay nada que bajar
+      setStatus('inactivo');
+      setPrimeraHecha(true); // no account, nothing to pull
       return;
     }
-    void sincronizar(true);
-  }, [userId, sincronizar]);
+    void sync(true);
+  }, [userId, sync]);
 
-  // Al volver a la app y al dejarla. Lo segundo es lo que salva el caso
-  // "agregué tres gastos y cerré": sin esto se quedaban solo aquí.
+  // On returning to the app and on leaving it. The second one is what
+  // saves the "added three expenses and closed" case: without this they
+  // stayed only here.
   useEffect(() => {
     if (!userId) return;
     function onVisibility() {
-      void sincronizar(document.visibilityState === 'hidden');
+      void sync(document.visibilityState === 'hidden');
     }
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('online', onVisibility);
@@ -116,7 +118,7 @@ export function useCloudSync() {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('online', onVisibility);
     };
-  }, [userId, sincronizar]);
+  }, [userId, sync]);
 
-  return { estado, error, primeraHecha, sincronizar };
+  return { status, error, primeraHecha, sync };
 }

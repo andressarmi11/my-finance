@@ -1,17 +1,17 @@
 import { IconAlertTriangle, IconCloudUpload } from '@tabler/icons-react';
-import type { EstadoSync } from '@/data/sync/useCloudSync';
+import type { SyncStatus } from '@/data/sync/useCloudSync';
 
 /**
- * Solo aparece cuando hay algo que decir: sincronizando o fallo. En verde
- * y permanente seria ruido — que funcione es lo normal, no una noticia.
+ * Only shows up when there's something to say: syncing or a failure. Green
+ * and permanent would be noise — working is the normal state, not news.
  */
-export function SyncIndicator({ estado, error, onReintentar }: {
-  estado: EstadoSync;
+export function SyncIndicator({ status, error, onReintentar }: {
+  status: SyncStatus;
   error: string;
   onReintentar: () => void;
 }) {
-  if (estado !== 'sincronizando' && estado !== 'error') return null;
-  const esError = estado === 'error';
+  if (status !== 'sincronizando' && status !== 'error') return null;
+  const isError = status === 'error';
 
   return (
     <div
@@ -29,20 +29,20 @@ export function SyncIndicator({ estado, error, onReintentar }: {
         maxWidth: 'calc(100vw - 32px)',
         padding: '8px 14px',
         borderRadius: 999,
-        background: esError ? 'var(--danger-soft)' : 'var(--surface)',
-        border: `1px solid ${esError ? 'var(--danger)' : 'var(--line-strong)'}`,
+        background: isError ? 'var(--danger-soft)' : 'var(--surface)',
+        border: `1px solid ${isError ? 'var(--danger)' : 'var(--line-strong)'}`,
         boxShadow: 'var(--shadow-2)',
         fontSize: 'var(--text-sm)',
         color: 'var(--text)',
       }}
     >
-      {esError
+      {isError
         ? <IconAlertTriangle size={16} stroke={1.9} aria-hidden />
         : <IconCloudUpload size={16} stroke={1.9} aria-hidden />}
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {esError ? (error || 'No se pudo sincronizar') : 'Sincronizando…'}
+        {isError ? (error || 'No se pudo sincronizar') : 'Sincronizando…'}
       </span>
-      {esError && (
+      {isError && (
         <button
           type="button"
           onClick={onReintentar}

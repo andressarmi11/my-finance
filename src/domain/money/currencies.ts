@@ -1,10 +1,11 @@
 /**
- * Monedas que ofrece la configuracion inicial. Cada una trae su locale
- * porque el formato depende del par: 'es-CO' + COP da "$ 2.500.000",
- * 'en-US' + COP daria "COP 2,500,000".
+ * Currencies offered during onboarding. Each one carries its own locale
+ * because the format depends on the pair: 'es-CO' + COP gives "$ 2,500,000",
+ * 'en-US' + COP would give "COP 2,500,000".
  *
- * La lista es corta a proposito: son las de la region donde se usa la app.
- * Agregar una es una linea; un selector de las 180 de ISO 4217 no lo es.
+ * The list is deliberately short: these are the ones for the region where
+ * the app is used. Adding one is a single line; a picker for all 180 of
+ * ISO 4217 is not.
  */
 import { formatMoney } from './format';
 
@@ -12,7 +13,7 @@ export interface CurrencyOption {
   code: string;
   locale: string;
   label: string;
-  /** Monto de ejemplo, para mostrar como se vera antes de elegir. */
+  /** Sample amount, to show how it will look before choosing. */
   sampleAmount: number;
 }
 
@@ -27,10 +28,10 @@ export const CURRENCIES: CurrencyOption[] = [
 ];
 
 /**
- * El ejemplo se calcula, no se escribe a mano. Cuando estaban hardcodeados
- * uno estaba mal (decia "2.500 €" cuando el formato real era otro) y nadie
- * se enteraba: la configuracion inicial le prometia al usuario un formato
- * que la app despues no usaba.
+ * The example is computed, not written by hand. When these were hardcoded,
+ * one of them was wrong ("2.500 €" when the real format was different) and
+ * nobody noticed: onboarding promised the user a format the app didn't
+ * actually use afterwards.
  */
 export function currencySample(c: CurrencyOption): string {
   return formatMoney(c.sampleAmount, c.code);

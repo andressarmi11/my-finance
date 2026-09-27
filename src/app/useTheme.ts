@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { localRepository } from '@/data/local/localRepository';
 
-/** Aplica el tema guardado al <html>. 'system' = quita el atributo. */
+/** Applies the saved theme to <html>. 'system' = removes the attribute. */
 export function useTheme() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
   const theme = settings?.theme ?? 'system';

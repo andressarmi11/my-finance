@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { conciliarOcurrencias } from './ocurrenciasDuplicadas';
+import { reconcileOccurrences } from './duplicateOccurrences';
 import type { Transaction } from '@/domain/types';
 
 function tx(over: Partial<Transaction>): Transaction {
@@ -11,100 +11,100 @@ function tx(over: Partial<Transaction>): Transaction {
 }
 
 /**
- * El fallo real reportado en produccion:
+ * The real failure reported in production:
  *
  *   transactions.bulkPut(): 13 of 150 operations failed.
  *   ConstraintError: Unable to add key to index '[recurringRuleId+periodKey]'
  *
- * La misma ocurrencia recurrente existe con DOS ids: el UUID aleatorio de
- * antes del 2026-09-18 (que sigue en la nube) y el determinista que
- * materialize.ts crea ahora. El indice unico de Dexie las rechaza, bulkPut
- * lanza, y muere el ciclo de sync entero.
+ * The same recurring occurrence exists with TWO ids: the random UUID from
+ * before 2026-09-18 (still in the cloud) and the deterministic one
+ * materialize.ts creates now. Dexie's unique index rejects them, bulkPut
+ * throws, and the whole sync cycle dies.
  */
-describe('conciliarOcurrencias — dos ids para la misma ocurrencia', () => {
-  const PAR = { recurringRuleId: 'regla-1', periodKey: '2026-09' };
+describe('conciliarOcurrencias — two ids for the same occurrence', () => {
+  const PAIR = { recurringRuleId: 'regla-1', periodKey: '2026-09' };
 
-  it('no deja pasar la fila remota que chocaria con una local del mismo par', () => {
-    const local = [tx({ id: 'regla-1:2026-09', ...PAR })];
-    const remoto = [tx({ id: 'uuid-viejo-aleatorio', ...PAR })];
+  it('does not let through the remote row that would collide with a local one from the same pair', () => {
+    const local = [tx({ id: 'regla-1:2026-09', ...PAIR })];
+    const remoteRow = [tx({ id: 'uuid-viejo-aleatorio', ...PAIR })];
 
-    const plan = conciliarOcurrencias(remoto, local);
-    expect(plan.aGuardar.map((t) => t.id)).not.toContain('uuid-viejo-aleatorio');
+    const plan = reconcileOccurrences(remoteRow, local);
+    expect(plan.toSave.map((t) => t.id)).not.toContain('uuid-viejo-aleatorio');
   });
 
-  it('gana el id determinista, porque es el que materialize va a recrear', () => {
-    const local = [tx({ id: 'regla-1:2026-09', ...PAR, amount: 100 })];
-    const remoto = [tx({ id: 'uuid-viejo', ...PAR, amount: 999, updatedAt: '2026-09-20T00:00:00.000Z' })];
+  it('the deterministic id wins, because it is the one materialize will recreate', () => {
+    const local = [tx({ id: 'regla-1:2026-09', ...PAIR, amount: 100 })];
+    const remoteRow = [tx({ id: 'uuid-viejo', ...PAIR, amount: 999, updatedAt: '2026-09-20T00:00:00.000Z' })];
 
-    const plan = conciliarOcurrencias(remoto, local);
-    const ganador = plan.aGuardar.find((t) => t.recurringRuleId === 'regla-1');
-    expect(ganador?.id).toBe('regla-1:2026-09');
-    // ...pero con el contenido mas nuevo, que venia en la fila remota.
-    expect(ganador?.amount).toBe(999);
+    const plan = reconcileOccurrences(remoteRow, local);
+    const winner = plan.toSave.find((t) => t.recurringRuleId === 'regla-1');
+    expect(winner?.id).toBe('regla-1:2026-09');
+    // ...but with the newer content, which came in the remote row.
+    expect(winner?.amount).toBe(999);
   });
 
-  it('el id perdedor se marca para borrar, o revive en el siguiente ciclo', () => {
-    const local = [tx({ id: 'regla-1:2026-09', ...PAR })];
-    const remoto = [tx({ id: 'uuid-viejo', ...PAR })];
+  it('the losing id gets marked for deletion, or it comes back on the next cycle', () => {
+    const local = [tx({ id: 'regla-1:2026-09', ...PAIR })];
+    const remoteRow = [tx({ id: 'uuid-viejo', ...PAIR })];
 
-    expect(conciliarOcurrencias(remoto, local).aBorrar).toEqual(['uuid-viejo']);
+    expect(reconcileOccurrences(remoteRow, local).toDelete).toEqual(['uuid-viejo']);
   });
 
-  it('si lo local es mas nuevo, el contenido local se conserva', () => {
-    const local = [tx({ id: 'regla-1:2026-09', ...PAR, amount: 777, updatedAt: '2026-09-25T00:00:00.000Z' })];
-    const remoto = [tx({ id: 'uuid-viejo', ...PAR, amount: 111, updatedAt: '2026-09-01T00:00:00.000Z' })];
+  it('if the local one is newer, the local content is kept', () => {
+    const local = [tx({ id: 'regla-1:2026-09', ...PAIR, amount: 777, updatedAt: '2026-09-25T00:00:00.000Z' })];
+    const remoteRow = [tx({ id: 'uuid-viejo', ...PAIR, amount: 111, updatedAt: '2026-09-01T00:00:00.000Z' })];
 
-    const ganador = conciliarOcurrencias(remoto, local).aGuardar.find((t) => t.recurringRuleId === 'regla-1');
-    expect(ganador?.amount).toBe(777);
+    const winner = reconcileOccurrences(remoteRow, local).toSave.find((t) => t.recurringRuleId === 'regla-1');
+    expect(winner?.amount).toBe(777);
   });
 
-  it('dos filas remotas del mismo par tampoco pueden pasar juntas', () => {
-    const plan = conciliarOcurrencias(
-      [tx({ id: 'a', ...PAR }), tx({ id: 'b', ...PAR, updatedAt: '2026-09-30T00:00:00.000Z' })],
+  it('two remote rows from the same pair cannot pass through together either', () => {
+    const plan = reconcileOccurrences(
+      [tx({ id: 'a', ...PAIR }), tx({ id: 'b', ...PAIR, updatedAt: '2026-09-30T00:00:00.000Z' })],
       [],
     );
-    const delPar = plan.aGuardar.filter((t) => t.recurringRuleId === 'regla-1');
+    const delPar = plan.toSave.filter((t) => t.recurringRuleId === 'regla-1');
     expect(delPar).toHaveLength(1);
-    // Se guarda bajo el id determinista, asi que MUEREN LAS DOS viejas: si
-    // sobreviviera cualquiera de ellas, volveria a chocar en el proximo ciclo.
+    // Saved under the deterministic id, so BOTH old ones DIE: if either of
+    // them survived, it would collide again on the next cycle.
     expect(delPar[0]!.id).toBe('regla-1:2026-09');
-    expect(plan.aBorrar.sort()).toEqual(['a', 'b']);
+    expect(plan.toDelete.sort()).toEqual(['a', 'b']);
   });
 });
 
-describe('conciliarOcurrencias — lo que NO debe tocar', () => {
-  it('los movimientos normales pasan intactos, aunque sean muchos', () => {
-    const remoto = Array.from({ length: 50 }, (_, i) => tx({ id: `n-${i}` }));
-    const plan = conciliarOcurrencias(remoto, []);
-    expect(plan.aGuardar).toHaveLength(50);
-    expect(plan.aBorrar).toEqual([]);
+describe('conciliarOcurrencias — what it must NOT touch', () => {
+  it('normal transactions pass through intact, even a lot of them', () => {
+    const remoteRow = Array.from({ length: 50 }, (_, i) => tx({ id: `n-${i}` }));
+    const plan = reconcileOccurrences(remoteRow, []);
+    expect(plan.toSave).toHaveLength(50);
+    expect(plan.toDelete).toEqual([]);
   });
 
-  /* En Postgres NULL != NULL, asi que mil movimientos sin regla conviven
-     bajo el unique. En IndexedDB una clave compuesta con undefined no se
-     indexa. Ninguno de los dos choca — y esta funcion no debe inventar un
-     choque donde no lo hay. */
-  it('mil movimientos sin regla no se consideran duplicados entre si', () => {
-    const remoto = Array.from({ length: 1000 }, (_, i) => tx({ id: `n-${i}` }));
-    expect(conciliarOcurrencias(remoto, []).aBorrar).toEqual([]);
+  /* In Postgres NULL != NULL, so a thousand transactions with no rule
+     coexist fine under the unique constraint. In IndexedDB a composite
+     key with undefined isn't indexed. Neither one collides — and this
+     function must not invent a collision where there isn't one. */
+  it('a thousand transactions with no rule are not considered duplicates of each other', () => {
+    const remoteRow = Array.from({ length: 1000 }, (_, i) => tx({ id: `n-${i}` }));
+    expect(reconcileOccurrences(remoteRow, []).toDelete).toEqual([]);
   });
 
-  it('ocurrencias de reglas o periodos distintos no se pisan', () => {
-    const remoto = [
+  it('occurrences from different rules or periods do not overwrite each other', () => {
+    const remoteRow = [
       tx({ id: 'r1:2026-09', recurringRuleId: 'r1', periodKey: '2026-09' }),
       tx({ id: 'r1:2026-10', recurringRuleId: 'r1', periodKey: '2026-10' }),
       tx({ id: 'r2:2026-09', recurringRuleId: 'r2', periodKey: '2026-09' }),
     ];
-    const plan = conciliarOcurrencias(remoto, []);
-    expect(plan.aGuardar).toHaveLength(3);
-    expect(plan.aBorrar).toEqual([]);
+    const plan = reconcileOccurrences(remoteRow, []);
+    expect(plan.toSave).toHaveLength(3);
+    expect(plan.toDelete).toEqual([]);
   });
 
-  it('una fila a medias (regla sin periodo) no se trata como ocurrencia', () => {
-    const remoto = [
+  it('a half-filled row (rule with no period) is not treated as an occurrence', () => {
+    const remoteRow = [
       tx({ id: 'a', recurringRuleId: 'r1' }),
       tx({ id: 'b', recurringRuleId: 'r1' }),
     ];
-    expect(conciliarOcurrencias(remoto, []).aBorrar).toEqual([]);
+    expect(reconcileOccurrences(remoteRow, []).toDelete).toEqual([]);
   });
 });

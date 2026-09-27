@@ -1,15 +1,15 @@
 /**
- * Numeros de plata escritos como los dice o los escribe una persona.
+ * Money amounts written the way a person says or types them.
  *
- * Cubre lo que sale en dictado y en SMS de banco colombiano:
+ * Covers what shows up in dictation and in Colombian bank SMS:
  *   "45000"  "45.000"  "$ 45.000"  "45 mil"  "45k"  "45 lucas"
  *   "cuarenta y cinco mil"  "un millon"  "1.2 millones"  "dos millones y medio"
  *
- * Devuelve pesos ENTEROS, como todo el dominio.
+ * Returns whole pesos, like the rest of the domain.
  */
 
 const UNIDADES: Record<string, number> = {
-  cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
+  cero: 0, un: 1, one: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
   seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12,
   trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17,
   dieciocho: 18, diecinueve: 19, veinte: 20, veintiun: 21, veintiuno: 21,
@@ -19,134 +19,135 @@ const UNIDADES: Record<string, number> = {
   ochenta: 80, noventa: 90,
 };
 
-const CIENTOS: Record<string, number> = {
+const HUNDREDS: Record<string, number> = {
   cien: 100, ciento: 100, doscientos: 200, trescientos: 300,
   cuatrocientos: 400, quinientos: 500, seiscientos: 600, setecientos: 700,
   ochocientos: 800, novecientos: 900,
 };
 
-/** 'mil'/'millon' multiplican lo acumulado a su izquierda. */
-const ESCALAS: Record<string, number> = {
+/** 'mil'/'millon' multiply whatever's accumulated to their left. */
+const SCALES: Record<string, number> = {
   mil: 1_000,
   miles: 1_000,
   millon: 1_000_000,
   millones: 1_000_000,
-  // Coloquiales colombianos: "45 lucas", "dos palos".
+  // Colombian colloquialisms: "45 lucas", "dos palos".
   luca: 1_000,
   lucas: 1_000,
   palo: 1_000_000,
   palos: 1_000_000,
 };
 
-/** Quita tildes y baja a minúsculas, sin tocar dígitos ni separadores. */
-export function normalizarTexto(t: string): string {
+/** Strips accents and lowercases, without touching digits or separators. */
+export function normalizeText(t: string): string {
   return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 /**
- * Un número escrito en dígitos: '45.000', '45,000', '1.2', '45'.
+ * A number written in digits: '45.000', '45,000', '1.2', '45'.
  *
- * Los separadores son ambiguos y hay que decidir: en Colombia el punto es
- * de miles, pero "1.2 millones" usa el punto como decimal. La regla es el
- * tamaño del último grupo — tres dígitos es miles, otra cosa es decimal.
+ * Separators are ambiguous and have to be decided: in Colombia the dot
+ * is a thousands separator, but "1.2 millones" uses the dot as a
+ * decimal point. The rule is the size of the last group — three digits
+ * means thousands, anything else means decimal.
  */
-function digitosANumero(raw: string): number | null {
-  const limpio = raw.replace(/\s/g, '');
-  if (!/^\d[\d.,]*$/.test(limpio)) return null;
+function digitsToNumber(raw: string): number | null {
+  const clean = raw.replace(/\s/g, '');
+  if (!/^\d[\d.,]*$/.test(clean)) return null;
 
-  const separadores = limpio.match(/[.,]/g) ?? [];
-  if (separadores.length === 0) return Number(limpio);
+  const separators = clean.match(/[.,]/g) ?? [];
+  if (separators.length === 0) return Number(clean);
 
-  const ultimo = limpio.lastIndexOf(separadores[separadores.length - 1]!);
-  const cola = limpio.slice(ultimo + 1);
+  const last = clean.lastIndexOf(separators[separators.length - 1]!);
+  const queue = clean.slice(last + 1);
 
-  // Grupo final de 3 dígitos y más de un separador => todos son de miles.
-  if (cola.length === 3) return Number(limpio.replace(/[.,]/g, ''));
-  // Si no, el último separador es decimal.
-  const entero = limpio.slice(0, ultimo).replace(/[.,]/g, '');
-  return Number(`${entero || '0'}.${cola}`);
+  // Final group of 3 digits with more than one separator => all are thousands.
+  if (queue.length === 3) return Number(clean.replace(/[.,]/g, ''));
+  // Otherwise, the last separator is decimal.
+  const integer = clean.slice(0, last).replace(/[.,]/g, '');
+  return Number(`${integer || '0'}.${queue}`);
 }
 
-/** Palabras sueltas a número: ['cuarenta','y','cinco','mil'] -> 45000 */
-function palabrasANumero(palabras: string[]): number | null {
+/** Loose words to a number: ['cuarenta','y','cinco','mil'] -> 45000 */
+function wordsToNumber(words: string[]): number | null {
   let total = 0;
-  let parcial = 0;
-  let vioAlgo = false;
+  let partial = 0;
+  let sawSomething = false;
 
-  for (const p of palabras) {
+  for (const p of words) {
     if (p === 'y') continue;
     if (p === 'medio' || p === 'media') {
-      // "dos millones y medio": medio aplica a la última escala usada.
+      // "dos millones y medio": medio applies to the last scale used.
       continue;
     }
     if (p in UNIDADES) {
-      parcial += UNIDADES[p]!;
-      vioAlgo = true;
-    } else if (p in CIENTOS) {
-      parcial += CIENTOS[p]!;
-      vioAlgo = true;
-    } else if (p in ESCALAS) {
-      const escala = ESCALAS[p]!;
-      // "mil" solo, sin nada antes, vale 1000.
-      total += (parcial === 0 ? 1 : parcial) * escala;
-      parcial = 0;
-      vioAlgo = true;
+      partial += UNIDADES[p]!;
+      sawSomething = true;
+    } else if (p in HUNDREDS) {
+      partial += HUNDREDS[p]!;
+      sawSomething = true;
+    } else if (p in SCALES) {
+      const scale = SCALES[p]!;
+      // "mil" alone, with nothing before it, is worth 1000.
+      total += (partial === 0 ? 1 : partial) * scale;
+      partial = 0;
+      sawSomething = true;
     } else {
       return null;
     }
   }
-  if (!vioAlgo) return null;
-  return total + parcial;
+  if (!sawSomething) return null;
+  return total + partial;
 }
 
-export interface MontoEncontrado {
-  valor: number;
-  /** El trozo de texto que lo produjo, para poder sacarlo del concepto. */
-  texto: string;
+export interface FoundAmount {
+  value: number;
+  /** The piece of text that produced it, so it can be stripped from the concept. */
+  text: string;
 }
 
 /**
- * Busca el primer monto del texto. Devuelve null si no hay ninguno.
+ * Finds the first amount in the text. Returns null if there is none.
  */
-export function buscarMonto(textoOriginal: string): MontoEncontrado | null {
-  const texto = normalizarTexto(textoOriginal);
+export function findAmount(originalText: string): FoundAmount | null {
+  const text = normalizeText(originalText);
 
-  // 1. Dígitos, con escala opcional: "45.000", "$45.000", "45 mil", "1.2 millones", "45k"
-  // Las alternativas van de la MAS LARGA a la mas corta a proposito: la
-  // alternancia de regex es ordenada, asi que 'mil' antes que 'millones'
-  // hacia que '2 millones' matcheara 'mil' y diera 2.000.
-  const conDigitos = /\$?\s*(\d[\d.,]*)\s*(millon(?:es)?|milesimo|mil(?:es)?|luca(?:s)?|palo(?:s)?|k)?(\s+y\s+medio)?/i;
-  const m = conDigitos.exec(texto);
+  // 1. Digits, with an optional scale: "45.000", "$45.000", "45 mil", "1.2 millones", "45k"
+  // The alternatives go from LONGEST to shortest on purpose: regex
+  // alternation is ordered, so having 'mil' before 'millones' made
+  // '2 millones' match 'mil' and give 2,000.
+  const withDigits = /\$?\s*(\d[\d.,]*)\s*(millon(?:es)?|milesimo|mil(?:es)?|luca(?:s)?|palo(?:s)?|k)?(\s+y\s+medio)?/i;
+  const m = withDigits.exec(text);
   if (m) {
-    const base = digitosANumero(m[1]!);
+    const base = digitsToNumber(m[1]!);
     if (base !== null) {
-      let valor = base;
-      const escala = m[2];
-      if (escala === 'k') valor = base * 1_000;
-      else if (escala) valor = base * (ESCALAS[escala] ?? 1);
-      if (m[3]) valor += (escala ? (ESCALAS[escala] ?? (escala === 'k' ? 1000 : 1)) : 1) / 2;
-      return { valor: Math.round(valor), texto: m[0]!.trim() };
+      let value = base;
+      const scale = m[2];
+      if (scale === 'k') value = base * 1_000;
+      else if (scale) value = base * (SCALES[scale] ?? 1);
+      if (m[3]) value += (scale ? (SCALES[scale] ?? (scale === 'k' ? 1000 : 1)) : 1) / 2;
+      return { value: Math.round(value), text: m[0]!.trim() };
     }
   }
 
-  // 2. Todo en palabras: "cuarenta y cinco mil", "dos millones y medio"
-  const tokens = texto.split(/\s+/);
-  for (let inicio = 0; inicio < tokens.length; inicio++) {
-    // Ventana acotada: una cifra hablada en español nunca pasa de unas
-    // ocho palabras ("doscientos cuarenta y cinco mil quinientos"). Sin
-    // cota esto era O(n^3) sobre el texto completo, y 2000 caracteres de
-    // palabras numericas tardaban ~380 ms por llamada — que se multiplica
-    // por cada entrada de la bandeja, en cada render.
-    for (let fin = Math.min(tokens.length, inicio + 8); fin > inicio; fin--) {
-      const trozo = tokens.slice(inicio, fin);
-      // Al menos una escala o un número; evita capturar "y" sueltas.
-      if (!trozo.some((p) => p in UNIDADES || p in CIENTOS || p in ESCALAS)) continue;
-      const valor = palabrasANumero(trozo);
-      if (valor !== null && valor > 0) {
-        const mitad = trozo.includes('medio') || trozo.includes('media');
-        const escalaUsada = trozo.find((p) => p in ESCALAS);
-        const extra = mitad && escalaUsada ? (ESCALAS[escalaUsada]! / 2) : 0;
-        return { valor: Math.round(valor + extra), texto: trozo.join(' ') };
+  // 2. Fully in words: "cuarenta y cinco mil", "dos millones y medio"
+  const tokens = text.split(/\s+/);
+  for (let start = 0; start < tokens.length; start++) {
+    // Bounded window: a figure spoken in Spanish never goes past about
+    // eight words ("doscientos cuarenta y cinco mil quinientos"). Without
+    // a cap this was O(n^3) over the whole text, and 2000 characters of
+    // number words took ~380 ms per call — which multiplies across every
+    // inbox entry, on every render.
+    for (let end = Math.min(tokens.length, start + 8); end > start; end--) {
+      const chunk = tokens.slice(start, end);
+      // At least one scale or number; avoids capturing lone "y"s.
+      if (!chunk.some((p) => p in UNIDADES || p in HUNDREDS || p in SCALES)) continue;
+      const value = wordsToNumber(chunk);
+      if (value !== null && value > 0) {
+        const half = chunk.includes('medio') || chunk.includes('media');
+        const usedScale = chunk.find((p) => p in SCALES);
+        const extra = half && usedScale ? (SCALES[usedScale]! / 2) : 0;
+        return { value: Math.round(value + extra), text: chunk.join(' ') };
       }
     }
   }

@@ -1,187 +1,187 @@
 /**
- * Convierte el backup en filas legibles para Excel.
+ * Turns the backup into rows readable by Excel.
  *
- * Separado de quien escribe el archivo a proposito: esto es la parte que
- * puede equivocarse (resolver ids a nombres, traducir estados, decidir que
- * va como numero y que como texto) y se prueba sin generar un zip. Que el
- * .xlsx sea un zip valido lo garantiza la libreria; probarlo seria probar
- * la libreria.
+ * Kept separate from whoever writes the file, on purpose: this is the
+ * part that can go wrong (resolving ids to names, translating statuses,
+ * deciding what goes as a number vs. as text) and it's tested without
+ * generating a zip. That the .xlsx is a valid zip is the library's job to
+ * guarantee; testing that would be testing the library.
  *
- * REGLA CENTRAL: los montos van como NUMERO y las fechas como FECHA, nunca
- * como texto. Un "$ 1.200.000" en una celda es inerte — Excel no lo suma —
- * y sumar es exactamente para lo que la gente abre esto.
+ * CENTRAL RULE: amounts go as NUMBER and dates as DATE, never as text. A
+ * "$ 1,200,000" in a cell is inert — Excel won't sum it — and summing is
+ * exactly what people open this for.
  */
-// import TYPE: se borra al compilar, asi que no arrastra la libreria al
-// bundle. Usar sus tipos y no unos propios garantiza que las celdas que
-// armamos aca sean exactamente las que la libreria acepta.
+// import TYPE: erased at compile time, so it doesn't drag the library into
+// the bundle. Using its types instead of our own guarantees that the
+// cells we build here are exactly what the library accepts.
 import type { CellObject, SheetData } from 'write-excel-file/browser';
 import type { Backup } from './schema';
 import type { Transaction } from '@/domain/types';
 
-export const ESTADOS: Record<string, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   paid: 'Pagado',
   pending: 'Pendiente',
   scheduled: 'Programado',
   cancelled: 'Cancelado',
 };
 
-const TIPOS_METODO: Record<string, string> = {
+const METHOD_TYPE_LABELS: Record<string, string> = {
   debit: 'Débito', credit: 'Crédito', cash: 'Efectivo', transfer: 'Transferencia',
 };
 
-/** 'YYYY-MM-DD' -> Date, en UTC para que no se corra un dia por zona horaria. */
-function comoFecha(iso: string | undefined): Date | undefined {
+/** 'YYYY-MM-DD' -> Date, in UTC so it doesn't shift a day due to timezone. */
+function asDate(iso: string | undefined): Date | undefined {
   if (!iso) return undefined;
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return undefined;
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-export type Celda = CellObject;
+export type Cell = CellObject;
 
-const FORMATO_MONEDA = '#,##0';
-const FORMATO_FECHA = 'dd/mm/yyyy';
+const MONEY_FORMAT = '#,##0';
+const DATE_FORMAT = 'dd/mm/yyyy';
 
-// Celda vacia es `undefined`, no `null`: es lo que la libreria entiende.
-function texto(value: string | null | undefined): Celda {
+// An empty cell is `undefined`, not `null`: that's what the library understands.
+function text(value: string | null | undefined): Cell {
   return { value: value ?? undefined, type: String };
 }
-function numero(value: number | null | undefined): Celda {
-  return { value: value ?? undefined, type: Number, format: FORMATO_MONEDA };
+function toNumber(value: number | null | undefined): Cell {
+  return { value: value ?? undefined, type: Number, format: MONEY_FORMAT };
 }
-function fecha(iso: string | undefined): Celda {
-  return { value: comoFecha(iso), type: Date, format: FORMATO_FECHA };
+function date(iso: string | undefined): Cell {
+  return { value: asDate(iso), type: Date, format: DATE_FORMAT };
 }
-function entero(value: number | null | undefined): Celda {
+function integer(value: number | null | undefined): Cell {
   return { value: value ?? undefined, type: Number };
 }
 
-/** El nombre, o vacio si el id ya no existe. Nunca el UUID crudo. */
-function nombreDe(mapa: Map<string, string>, id: string | null | undefined): string | undefined {
+/** The name, or empty if the id no longer exists. Never the raw UUID. */
+function nameOf(mapa: Map<string, string>, id: string | null | undefined): string | undefined {
   if (!id) return undefined;
   return mapa.get(id);
 }
 
-export function filasDeMovimientos(backup: Backup): SheetData {
-  const categorias = new Map(backup.categories.map((c) => [c.id, c.name]));
-  const metodos = new Map(backup.paymentMethods.map((m) => [m.id, m.name]));
+export function transactionRows(backup: Backup): SheetData {
+  const cats = new Map(backup.categories.map((c) => [c.id, c.name]));
+  const methodRows = new Map(backup.paymentMethods.map((m) => [m.id, m.name]));
 
-  const cabecera = [
+  const header = [
     'Fecha', 'Tipo', 'Concepto', 'Categoría', 'Método', 'Estado', 'Valor',
     'Se paga el', 'Cuota', 'Notas',
-  ].map(texto);
+  ].map(text);
 
-  const filas = backup.transactions
+  const rows = backup.transactions
     .slice()
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((t: Transaction) => [
-      fecha(t.date),
-      texto(t.type === 'income' ? 'Ingreso' : 'Gasto'),
-      texto(t.concept),
-      texto(nombreDe(categorias, t.categoryId)),
-      texto(nombreDe(metodos, t.paymentMethodId)),
-      texto(ESTADOS[t.status] ?? t.status),
-      numero(t.amount),
-      fecha(t.cyclePaymentDate),
-      // El numero de cuota va en su columna, no pegado al concepto.
-      texto(t.installmentCount && t.installmentCount > 1
+      date(t.date),
+      text(t.type === 'income' ? 'Ingreso' : 'Gasto'),
+      text(t.concept),
+      text(nameOf(cats, t.categoryId)),
+      text(nameOf(methodRows, t.paymentMethodId)),
+      text(STATUS_LABELS[t.status] ?? t.status),
+      toNumber(t.amount),
+      date(t.cyclePaymentDate),
+      // The installment number goes in its own column, not glued to the concept.
+      text(t.installmentCount && t.installmentCount > 1
         ? `${t.installmentNumber} de ${t.installmentCount}`
         : undefined),
-      texto(t.notes),
+      text(t.notes),
     ]);
 
-  return [cabecera, ...filas];
+  return [header, ...rows];
 }
 
-export function filasDeCategorias(backup: Backup): SheetData {
-  const aplica: Record<string, string> = { expense: 'Gastos', income: 'Ingresos', both: 'Ambos' };
+export function categoryRows(backup: Backup): SheetData {
+  const applies: Record<string, string> = { expense: 'Gastos', income: 'Ingresos', both: 'Ambos' };
   return [
-    ['Nombre', 'Ícono', 'Aplica a', 'Archivada'].map(texto),
+    ['Nombre', 'Ícono', 'Aplica a', 'Archivada'].map(text),
     ...backup.categories.map((c) => [
-      texto(c.name), texto(c.icon), texto(aplica[c.kind] ?? c.kind),
-      texto(c.isArchived ? 'Sí' : 'No'),
+      text(c.name), text(c.icon), text(applies[c.kind] ?? c.kind),
+      text(c.isArchived ? 'Sí' : 'No'),
     ]),
   ];
 }
 
-export function filasDeMetodos(backup: Backup): SheetData {
+export function paymentMethodRows(backup: Backup): SheetData {
   return [
-    ['Nombre', 'Tipo', 'Día de corte', 'Día de pago', 'Cupo'].map(texto),
+    ['Nombre', 'Tipo', 'Día de corte', 'Día de pago', 'Cupo'].map(text),
     ...backup.paymentMethods.map((m) => [
-      texto(m.name), texto(TIPOS_METODO[m.type] ?? m.type),
-      entero(m.cutoffDay),
-      entero(m.paymentDay),
-      numero(m.creditLimit),
+      text(m.name), text(METHOD_TYPE_LABELS[m.type] ?? m.type),
+      integer(m.cutoffDay),
+      integer(m.paymentDay),
+      toNumber(m.creditLimit),
     ]),
   ];
 }
 
-export function filasDePresupuestos(backup: Backup): SheetData {
-  const categorias = new Map(backup.categories.map((c) => [c.id, c.name]));
+export function budgetRows(backup: Backup): SheetData {
+  const cats = new Map(backup.categories.map((c) => [c.id, c.name]));
   return [
-    ['Año', 'Mes', 'Categoría', 'Monto'].map(texto),
+    ['Año', 'Mes', 'Categoría', 'Monto'].map(text),
     ...backup.budgets.map((b) => [
-      entero(b.year),
-      entero(b.month),
-      texto(nombreDe(categorias, b.categoryId)),
-      numero(b.amount),
+      integer(b.year),
+      integer(b.month),
+      text(nameOf(cats, b.categoryId)),
+      toNumber(b.amount),
     ]),
   ];
 }
 
-export function filasDeRecurrentes(backup: Backup): SheetData {
-  const categorias = new Map(backup.categories.map((c) => [c.id, c.name]));
-  const metodos = new Map(backup.paymentMethods.map((m) => [m.id, m.name]));
-  const frecuencias: Record<string, string> = {
+export function recurringRows(backup: Backup): SheetData {
+  const cats = new Map(backup.categories.map((c) => [c.id, c.name]));
+  const methodRows = new Map(backup.paymentMethods.map((m) => [m.id, m.name]));
+  const frequencies: Record<string, string> = {
     monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', yearly: 'Anual',
   };
   return [
-    ['Nombre', 'Tipo', 'Valor', 'Frecuencia', 'Día', 'Categoría', 'Método', 'Activa', 'Desde', 'Hasta'].map(texto),
+    ['Nombre', 'Tipo', 'Valor', 'Frecuencia', 'Día', 'Categoría', 'Método', 'Activa', 'Desde', 'Hasta'].map(text),
     ...backup.recurringRules.map((r) => [
-      texto(r.name),
-      texto(r.type === 'income' ? 'Ingreso' : 'Gasto'),
-      numero(r.amount),
-      texto(frecuencias[r.frequency] ?? r.frequency),
-      entero(r.dayOfMonth),
-      texto(nombreDe(categorias, r.categoryId)),
-      texto(nombreDe(metodos, r.paymentMethodId)),
-      texto(r.isActive ? 'Sí' : 'No'),
-      fecha(r.startDate),
-      fecha(r.endDate),
+      text(r.name),
+      text(r.type === 'income' ? 'Ingreso' : 'Gasto'),
+      toNumber(r.amount),
+      text(frequencies[r.frequency] ?? r.frequency),
+      integer(r.dayOfMonth),
+      text(nameOf(cats, r.categoryId)),
+      text(nameOf(methodRows, r.paymentMethodId)),
+      text(r.isActive ? 'Sí' : 'No'),
+      date(r.startDate),
+      date(r.endDate),
     ]),
   ];
 }
 
-export function filasDeRecordatorios(backup: Backup): SheetData {
-  const conceptos = new Map(backup.transactions.map((t) => [t.id, t.concept]));
+export function reminderRows(backup: Backup): SheetData {
+  const concepts = new Map(backup.transactions.map((t) => [t.id, t.concept]));
   return [
-    ['Movimiento', 'Cuándo', 'Estado'].map(texto),
+    ['Movimiento', 'Cuándo', 'Estado'].map(text),
     ...backup.reminders.map((r) => [
-      texto(nombreDe(conceptos, r.transactionId)),
-      texto(r.remindAt),
-      texto(r.status),
+      text(nameOf(concepts, r.transactionId)),
+      text(r.remindAt),
+      text(r.status),
     ]),
   ];
 }
 
-export function filasDeConfiguracion(backup: Backup): SheetData {
+export function settingsRows(backup: Backup): SheetData {
   const s = backup.settings[0];
   return [
-    ['Ajuste', 'Valor'].map(texto),
-    [texto('Nombre'), texto(s?.displayName ?? '')],
-    [texto('Moneda'), texto(s?.currency ?? '')],
-    [texto('Días de pago'), texto((s?.diasDePago ?? []).join(', '))],
-    [texto('Tema'), texto(s?.theme ?? '')],
-    [texto('Exportado'), texto(backup.exportedAt)],
+    ['Ajuste', 'Valor'].map(text),
+    [text('Nombre'), text(s?.displayName ?? '')],
+    [text('Moneda'), text(s?.currency ?? '')],
+    [text('Días de pago'), text((s?.payDays ?? []).join(', '))],
+    [text('Tema'), text(s?.theme ?? '')],
+    [text('Exportado'), text(backup.exportedAt)],
   ];
 }
 
-export const HOJAS = [
-  { nombre: 'Movimientos', filas: filasDeMovimientos },
-  { nombre: 'Categorías', filas: filasDeCategorias },
-  { nombre: 'Métodos de pago', filas: filasDeMetodos },
-  { nombre: 'Presupuestos', filas: filasDePresupuestos },
-  { nombre: 'Recurrentes', filas: filasDeRecurrentes },
-  { nombre: 'Recordatorios', filas: filasDeRecordatorios },
-  { nombre: 'Configuración', filas: filasDeConfiguracion },
+export const SHEETS = [
+  { name: 'Movimientos', rows: transactionRows },
+  { name: 'Categorías', rows: categoryRows },
+  { name: 'Métodos de pago', rows: paymentMethodRows },
+  { name: 'Presupuestos', rows: budgetRows },
+  { name: 'Recurrentes', rows: recurringRows },
+  { name: 'Recordatorios', rows: reminderRows },
+  { name: 'Configuración', rows: settingsRows },
 ] as const;

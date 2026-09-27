@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('ver la fecha de pago de una compra con TC en la pantalla de tarjeta', async ({ page }) => {
+test('shows the payment date of a card purchase on the card screen', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Zapatos');

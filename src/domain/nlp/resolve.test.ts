@@ -1,44 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { categoriaFinal, metodoPorTipo } from './resolve';
+import { finalCategory, methodByType } from './resolve';
 import type { PaymentMethod } from '../types';
 
-const METODOS: PaymentMethod[] = [
+const METHOD_KEYWORDS: PaymentMethod[] = [
   { id: 'pm-debito', type: 'debit', name: 'Débito', isDefault: true, updatedAt: '' },
   { id: 'pm-tc', type: 'credit', name: 'Tarjeta de crédito', isDefault: false, updatedAt: '' },
 ];
 
 describe('metodoPorTipo', () => {
-  it('encuentra el método real del usuario', () => {
-    expect(metodoPorTipo(METODOS, 'credit')).toBe('pm-tc');
-    expect(metodoPorTipo(METODOS, 'debit')).toBe('pm-debito');
+  it("finds the user's real method", () => {
+    expect(methodByType(METHOD_KEYWORDS, 'credit')).toBe('pm-tc');
+    expect(methodByType(METHOD_KEYWORDS, 'debit')).toBe('pm-debito');
   });
 
-  it('sin mención, no elige nada: manda el default del form', () => {
-    expect(metodoPorTipo(METODOS, null)).toBeNull();
+  it("with no mention it picks nothing: the form's default wins", () => {
+    expect(methodByType(METHOD_KEYWORDS, null)).toBeNull();
   });
 
-  it('un tipo que el usuario no tiene configurado no inventa uno', () => {
-    expect(metodoPorTipo(METODOS, 'cash')).toBeNull();
+  it("a type the user hasn't set up doesn't invent one", () => {
+    expect(methodByType(METHOD_KEYWORDS, 'cash')).toBeNull();
   });
 });
 
 describe('categoriaFinal', () => {
-  const existentes = ['cat-alimentacion', 'cat-transporte'];
+  const existingRows = ['cat-alimentacion', 'cat-transporte'];
 
-  it('lo aprendido le gana a la palabra clave', () => {
-    expect(categoriaFinal('cat-transporte', 'cat-alimentacion', existentes)).toBe('cat-transporte');
+  it('what was learned beats the keyword', () => {
+    expect(finalCategory('cat-transporte', 'cat-alimentacion', existingRows)).toBe('cat-transporte');
   });
 
-  it('sin nada aprendido usa la palabra clave', () => {
-    expect(categoriaFinal(null, 'cat-alimentacion', existentes)).toBe('cat-alimentacion');
+  it('with nothing learned it uses the keyword', () => {
+    expect(finalCategory(null, 'cat-alimentacion', existingRows)).toBe('cat-alimentacion');
   });
 
-  it('no propone una categoría que el usuario borró', () => {
-    expect(categoriaFinal('cat-viajes', 'cat-alimentacion', existentes)).toBe('cat-alimentacion');
-    expect(categoriaFinal(null, 'cat-viajes', existentes)).toBeNull();
+  it("it doesn't propose a category the user deleted", () => {
+    expect(finalCategory('cat-viajes', 'cat-alimentacion', existingRows)).toBe('cat-alimentacion');
+    expect(finalCategory(null, 'cat-viajes', existingRows)).toBeNull();
   });
 
-  it('sin nada, no propone nada', () => {
-    expect(categoriaFinal(null, null, existentes)).toBeNull();
+  it('with nothing at all, it proposes nothing', () => {
+    expect(finalCategory(null, null, existingRows)).toBeNull();
   });
 });

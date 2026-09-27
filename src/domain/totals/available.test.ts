@@ -20,7 +20,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('calculateMonthFlow', () => {
-  it('separa recibido / por recibir / pagado / por pagar', () => {
+  it('splits received / to receive / paid / to pay', () => {
     const f = calculateMonthFlow([
       tx({ type: 'income', amount: 3_000_000, status: 'paid' }),
       tx({ type: 'income', amount: 1_000_000, status: 'pending' }),
@@ -28,31 +28,31 @@ describe('calculateMonthFlow', () => {
       tx({ type: 'expense', amount: 500_000, status: 'scheduled' }),
     ]);
     expect(f).toMatchObject({
-      recibido: 3_000_000, porRecibir: 1_000_000, pagado: 800_000, porPagar: 500_000,
+      received: 3_000_000, toReceive: 1_000_000, paid: 800_000, toPay: 500_000,
     });
   });
 
   it('ignora cancelados', () => {
     const f = calculateMonthFlow([tx({ type: 'expense', amount: 999, status: 'cancelled' })]);
-    expect(f.pagado).toBe(0);
-    expect(f.porPagar).toBe(0);
+    expect(f.paid).toBe(0);
+    expect(f.toPay).toBe(0);
   });
 
-  it('enCaja es lo ya ejecutado y proyectado es el mes completo', () => {
+  it("netSoFar is what's already happened and projected is the whole month", () => {
     const f = calculateMonthFlow([
       tx({ type: 'income', amount: 2_000_000, status: 'paid' }),
       tx({ type: 'income', amount: 2_000_000, status: 'pending' }),
       tx({ type: 'expense', amount: 3_000_000, status: 'paid' }),
       tx({ type: 'expense', amount: 500_000, status: 'pending' }),
     ]);
-    expect(f.enCaja).toBe(-1_000_000);
-    expect(f.proyectado).toBe(500_000);
+    expect(f.netSoFar).toBe(-1_000_000);
+    expect(f.projected).toBe(500_000);
   });
 
-  it('los cuatro componentes nunca son negativos', () => {
+  it('none of the four components is ever negative', () => {
     const f = calculateMonthFlow([
       tx({ type: 'expense', amount: 100, status: 'pending' }),
     ]);
-    for (const n of [f.recibido, f.porRecibir, f.pagado, f.porPagar]) expect(n).toBeGreaterThanOrEqual(0);
+    for (const n of [f.received, f.toReceive, f.paid, f.toPay]) expect(n).toBeGreaterThanOrEqual(0);
   });
 });

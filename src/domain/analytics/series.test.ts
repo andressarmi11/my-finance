@@ -11,7 +11,7 @@ function tx(overrides: Partial<Transaction>): Transaction {
 }
 
 describe('monthlySeries', () => {
-  it('suma ingresos y gastos por mes calendario, en orden cronologico', () => {
+  it('adds up income and expenses per calendar month, in chronological order', () => {
     const points = monthlySeries([
       tx({ date: '2026-08-15', type: 'income', amount: 1_000_000 }),
       tx({ date: '2026-09-01', type: 'expense', amount: 200_000 }),
@@ -23,14 +23,14 @@ describe('monthlySeries', () => {
     ]);
   });
 
-  it('ignora canceladas (no genera ni un punto vacío)', () => {
+  it("ignores cancelled ones (it doesn't even emit an empty point)", () => {
     const points = monthlySeries([tx({ amount: 999_999, status: 'cancelled' })]);
     expect(points).toEqual([]);
   });
 });
 
 describe('calculateFixedVsVariable', () => {
-  it('separa por si tiene recurringRuleId', () => {
+  it('splits on whether it has a recurringRuleId', () => {
     const result = calculateFixedVsVariable([
       tx({ amount: 2_500_000, recurringRuleId: 'r1' }),
       tx({ amount: 85_000 }),
@@ -40,7 +40,7 @@ describe('calculateFixedVsVariable', () => {
 });
 
 describe('calculateDebitVsCredit', () => {
-  it('separa por metodo de pago', () => {
+  it('splits by payment method', () => {
     const creditIds = new Set(['pm-tc']);
     const result = calculateDebitVsCredit([
       tx({ amount: 100_000, paymentMethodId: 'pm-debito' }),

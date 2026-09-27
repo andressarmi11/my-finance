@@ -165,7 +165,7 @@ Al guardar con cuotas > 1 se crean N transacciones en un solo `bulkPut`,
 todas con `status: 'pending'` — coherente con lo que ya se corrigió en la
 spec 1: una compra con tarjeta no está pagada el día que la pasas.
 
-`src/data/local/diferidos.ts` arma el lote. Ids:
+`src/data/local/installmentPlans.ts` arma el lote. Ids:
 `grupoId = crypto.randomUUID()`, y cada cuota `${grupoId}:cuota-${n}`.
 
 ### El concepto se guarda limpio

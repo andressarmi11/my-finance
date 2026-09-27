@@ -5,68 +5,68 @@ import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
-import { cerrarEntrada, type EntradaBandeja } from '@/data/supabase/inbox';
+import { closeEntry, type InboxEntry } from '@/data/supabase/inbox';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
-import { describir } from '@/domain/nlp/describe';
-import { interpretarTexto } from '@/domain/nlp/interpretar';
+import { describeParsed } from '@/domain/nlp/describe';
+import { interpretText } from '@/domain/nlp/interpret';
 import type { Transaction } from '@/domain/types';
 import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
-const ICONO_ORIGEN: Record<string, ComponentType<IconProps>> = {
+const ICON_SOURCE: Record<string, ComponentType<IconProps>> = {
   sms: IconMessage,
-  dictado: IconMicrophone,
+  dictation: IconMicrophone,
   atajo: IconBolt,
 };
 
 /**
- * Lo que llegó solo, esperando un toque.
+ * What arrived on its own, waiting for a tap.
  *
- * Confirmar en vez de guardar directo es a propósito: lo que entra acá lo
- * escribió un banco, no el usuario. Un monto mal leído que se guarda sin
- * que nadie lo mire es peor que teclearlo.
+ * Confirming instead of saving directly is on purpose: what comes in here was
+ * written by a bank, not the user. A misread amount that gets saved without
+ * anyone looking at it is worse than typing it in.
  */
 export function InboxSheet({ entradas, onClose, onCambio }: {
-  entradas: EntradaBandeja[];
+  entradas: InboxEntry[];
   onClose: () => void;
   onCambio: () => void;
 }) {
-  const [procesando, setProcesando] = useState<string | null>(null);
+  const [processing, setProcesando] = useState<string | null>(null);
 
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
-  const categorias = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const metodos = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
-  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? VACIO;
-  const hoy = todayISO();
-  const idsCategorias = useMemo(() => categorias.map((c) => c.id), [categorias]);
+  const cats = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const methodRows = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
+  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? EMPTY;
+  const today = todayISO();
+  const categoryIds = useMemo(() => cats.map((c) => c.id), [cats]);
 
-  function interpretar(entrada: EntradaBandeja) {
-    // Misma interpretación que la entrada rápida y el enlace del Atajo.
-    const { parsed, categoryId, paymentMethodId, vieneDeAprendizaje } = interpretarTexto(entrada.texto, hoy, {
+  function interpret(entrada: InboxEntry) {
+    // Same interpretation as quick entry and the Shortcut link.
+    const { parsed, categoryId, paymentMethodId, fromLearning } = interpretText(entrada.text, today, {
       conceptIndex,
-      idsCategorias,
-      metodos,
-      metodoPorDefecto: settings.defaultPaymentMethodId ?? null,
+      categoryIds,
+      methodRows,
+      defaultMethodId: settings.defaultPaymentMethodId ?? null,
     });
-    const desc = describir(parsed, {
-      hoy, categoryId, categorias, paymentMethodId, metodos,
-      aprendida: vieneDeAprendizaje,
+    const desc = describeParsed(parsed, {
+      today, categoryId, cats, paymentMethodId, methodRows,
+      learned: fromLearning,
     });
     return { parsed, categoryId, paymentMethodId, desc };
   }
 
-  async function anotar(entrada: EntradaBandeja) {
-    const { parsed, categoryId, paymentMethodId } = interpretar(entrada);
+  async function record(entrada: InboxEntry) {
+    const { parsed, categoryId, paymentMethodId } = interpret(entrada);
     if (parsed.amount == null || !parsed.concept) return;
 
     setProcesando(entrada.id);
     try {
-      const metodo = metodos.find((m) => m.id === paymentMethodId);
-      const ciclo = metodo?.type === 'credit'
-        ? calculateCreditCardCycle(parsed.date, metodo.cutoffDay, metodo.paymentDay)
+      const method = methodRows.find((m) => m.id === paymentMethodId);
+      const cycle = method?.type === 'credit'
+        ? calculateCreditCardCycle(parsed.date, method.cutoffDay, method.paymentDay)
         : null;
-      const ahora = nowISO();
+      const now = nowISO();
       const tx: Transaction = {
         id: crypto.randomUUID(),
         type: parsed.type,
@@ -77,13 +77,13 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
         paymentMethodId,
         status: parsed.yaOcurrio ? 'paid' : 'pending',
         quincenaKey: null,
-        cycleCutoffDate: ciclo?.cycleCutoff,
-        cyclePaymentDate: ciclo?.paymentDate,
-        createdAt: ahora,
-        updatedAt: ahora,
+        cycleCutoffDate: cycle?.cycleCutoff,
+        cyclePaymentDate: cycle?.paymentDate,
+        createdAt: now,
+        updatedAt: now,
       };
       await localRepository.saveTransaction(tx);
-      await cerrarEntrada(entrada.id, 'done');
+      await closeEntry(entrada.id, 'done');
       haptic('medium');
       onCambio();
     } finally {
@@ -91,10 +91,10 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
     }
   }
 
-  async function descartar(entrada: EntradaBandeja) {
+  async function descartar(entrada: InboxEntry) {
     setProcesando(entrada.id);
     try {
-      await cerrarEntrada(entrada.id, 'discarded');
+      await closeEntry(entrada.id, 'discarded');
       haptic('light');
       onCambio();
     } finally {
@@ -102,10 +102,10 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
     }
   }
 
-  const refDialogo = useDialogo(onClose);
+  const dialogRef = useDialogo(onClose);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label="Por confirmar"
       onClick={onClose}
@@ -135,9 +135,9 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
         )}
 
         {entradas.map((e) => {
-          const { parsed, desc } = interpretar(e);
-          const completo = parsed.amount != null && parsed.concept.length > 0;
-          const ocupado = procesando === e.id;
+          const { parsed, desc } = interpret(e);
+          const full = parsed.amount != null && parsed.concept.length > 0;
+          const busy = processing === e.id;
           return (
             <div
               key={e.id}
@@ -147,44 +147,44 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
               }}
             >
               <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 6 }}>
-                {(() => { const I = ICONO_ORIGEN[e.origen] ?? IconBolt; return <I size={17} stroke={1.75} aria-hidden />; })()}
-                <span style={{ flex: 1, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.resumen}</span>
+                {(() => { const I = ICON_SOURCE[e.origen] ?? IconBolt; return <I size={17} stroke={1.75} aria-hidden />; })()}
+                <span style={{ flex: 1, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</span>
               </div>
-              {desc.falta && (
+              {desc.missing && (
                 <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>
-                  {desc.falta} No pude sacarlo del mensaje.
+                  {desc.missing} No pude sacarlo del mensaje.
                 </p>
               )}
-              {desc.nota && !desc.falta && (
-                <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{desc.nota}</p>
+              {desc.note && !desc.missing && (
+                <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{desc.note}</p>
               )}
               <details style={{ marginBottom: 10 }}>
                 <summary style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', cursor: 'pointer' }}>
                   Ver el mensaje original
                 </summary>
                 <p style={{ margin: '6px 0 0', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
-                  {e.texto}
+                  {e.text}
                 </p>
               </details>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="button"
-                  onClick={() => anotar(e)}
-                  disabled={!completo || ocupado}
+                  onClick={() => record(e)}
+                  disabled={!full || busy}
                   style={{
                     flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
-                    background: completo ? 'var(--q10)' : 'var(--surface-sunken)',
-                    color: completo ? '#fff' : 'var(--text-faint)',
-                    fontWeight: 700, cursor: completo ? 'pointer' : 'not-allowed',
+                    background: full ? 'var(--q10)' : 'var(--surface-sunken)',
+                    color: full ? '#fff' : 'var(--text-faint)',
+                    fontWeight: 700, cursor: full ? 'pointer' : 'not-allowed',
                     fontSize: 'var(--text-base)',
                   }}
                 >
-                  {ocupado ? '…' : 'Anotar'}
+                  {busy ? '…' : 'Anotar'}
                 </button>
                 <button
                   type="button"
                   onClick={() => descartar(e)}
-                  disabled={ocupado}
+                  disabled={busy}
                   style={{
                     flex: 'none', minWidth: 110, minHeight: 44, borderRadius: 'var(--radius-s)',
                     border: '1px solid var(--line-strong)', background: 'var(--surface)',

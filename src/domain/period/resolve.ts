@@ -1,68 +1,70 @@
 /**
- * Puente entre "a que periodo pertenece esta transaccion" y "sumar por
- * periodo". Vive separado de balance.ts para que aquel se pueda probar con
- * datos de fixture sin depender del calculo de fechas.
+ * The bridge between "which period does this transaction belong to" and
+ * "add up by period". It lives apart from balance.ts so that one can be
+ * tested with fixture data without depending on date arithmetic.
  *
- * Una transaccion cae en DOS periodos distintos, y confundirlos era el bug:
+ * A transaction falls into TWO different periods, and confusing them was
+ * the bug:
  *
- *   REGISTRO — cuando la hiciste. Es lo que ordena la lista y el calendario.
- *              Sale de tx.date.
- *   CARGO    — cuando sale la plata. Es lo que descuenta del restante.
- *              Para una compra con tarjeta de credito es el dia en que se
- *              paga el extracto, que puede ser dos meses despues.
+ *   RECORD — when you made it. This is what orders the list and the
+ *            calendar. It comes from tx.date.
+ *   CHARGE — when the money leaves. This is what comes off the remainder.
+ *            For a credit-card purchase it's the day the statement gets
+ *            paid, which can be two months later.
  *
- * Para todo lo que no es tarjeta los dos coinciden, que es por lo que la
- * distincion no hacia falta hasta ahora.
+ * For everything that isn't a card the two coincide, which is why the
+ * distinction wasn't needed until now.
  */
-import { calcularPeriodo, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } from './periodo';
-import type { QuincenaKey, Transaction } from '../types';
+import { calculatePeriod, DEFAULT_PAY_DAYS, type PayDays } from './period';
+import type { PeriodKey, Transaction } from '../types';
 
 /**
- * Donde se REGISTRA: la quincena o el mes en que la hiciste.
+ * Where it is RECORDED: the pay period or month in which you made it.
  *
- * tx.quincenaKey manda si esta puesta a mano; si no, se calcula.
+ * tx.quincenaKey wins if it was set by hand; otherwise it's calculated.
  *
- * El nombre del campo sigue siendo quincenaKey porque asi se llama la
- * columna en Postgres y renombrarla pediria una migracion sin ganar nada:
- * el contenido es, y siempre fue, la clave del periodo.
+ * The field is still called quincenaKey because that's the column's name in
+ * Postgres, and renaming it would need a migration for no gain: its content
+ * is, and always was, the period key.
  */
-export function resolverPeriodo(tx: Transaction, dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO): QuincenaKey {
-  return tx.quincenaKey ?? calcularPeriodo(tx.date, dias).key;
+export function resolveRecordPeriod(tx: Transaction, payDays: PayDays = DEFAULT_PAY_DAYS): PeriodKey {
+  return tx.quincenaKey ?? calculatePeriod(tx.date, payDays).key;
 }
 
 /**
- * Donde se CARGA: el periodo del que sale la plata.
+ * Where it is CHARGED: the period the money comes out of.
  *
- * Una compra con tarjeta no toca tu bolsillo el dia que la haces, sino el
- * dia que pagas el extracto — por eso se resuelve sobre cyclePaymentDate,
- * que ya viene calculado y guardado en la transaccion desde que se crea
- * (ver domain/credit-card/cycle.ts). El periodo sale del MISMO
- * calcularPeriodo de siempre, asi que la regla de bordes ya estaba bien:
- * un pago el 2 de noviembre cae en la quincena del 25 de octubre, que va
- * del 25 al 9; si te pagan una vez al mes, cae en noviembre completo.
+ * A card purchase doesn't touch your pocket the day you make it, but the
+ * day you pay the statement — which is why it resolves over
+ * cyclePaymentDate, already calculated and stored on the transaction from
+ * the moment it's created (see domain/credit-card/cycle.ts). The period
+ * comes out of the SAME calculatePeriod as always, so the edge rule was
+ * already right: a payment on November 2nd falls in the October 25th pay
+ * period, which runs from the 25th to the 9th; if you get paid once a
+ * month, it falls in November as a whole.
  *
- * quincenaKey sigue mandando: si moviste el movimiento a mano, esa decision
- * pesa mas que el ciclo de la tarjeta — y es la valvula de escape para
- * cualquier caso raro (un diferido, una compra que acordaste pagar aparte).
+ * quincenaKey still wins: if you moved the transaction by hand, that
+ * decision outweighs the card's cycle — and it's the escape hatch for any
+ * odd case (an instalment plan, a purchase you agreed to pay separately).
  */
-export function resolverPeriodoDeCargo(tx: Transaction, dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO): QuincenaKey {
-  return tx.quincenaKey ?? calcularPeriodo(tx.cyclePaymentDate ?? tx.date, dias).key;
+export function resolveChargePeriod(tx: Transaction, payDays: PayDays = DEFAULT_PAY_DAYS): PeriodKey {
+  return tx.quincenaKey ?? calculatePeriod(tx.cyclePaymentDate ?? tx.date, payDays).key;
 }
 
-export interface PeriodosResueltos {
-  /** Donde se lista. */
-  resolvedQuincenaKey: QuincenaKey;
-  /** De donde sale la plata. Distinto del anterior solo en compras con TC. */
-  resolvedCargoKey: QuincenaKey;
+export interface ResolvedPeriods {
+  /** Where it gets listed. */
+  recordPeriodKey: PeriodKey;
+  /** Where the money comes from. Differs from the above only for card purchases. */
+  chargePeriodKey: PeriodKey;
 }
 
-export function conPeriodoResuelto<T extends Transaction>(
+export function withResolvedPeriods<T extends Transaction>(
   transactions: T[],
-  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
-): Array<T & PeriodosResueltos> {
+  payDays: PayDays = DEFAULT_PAY_DAYS,
+): Array<T & ResolvedPeriods> {
   return transactions.map((tx) => ({
     ...tx,
-    resolvedQuincenaKey: resolverPeriodo(tx, dias),
-    resolvedCargoKey: resolverPeriodoDeCargo(tx, dias),
+    recordPeriodKey: resolveRecordPeriod(tx, payDays),
+    chargePeriodKey: resolveChargePeriod(tx, payDays),
   }));
 }

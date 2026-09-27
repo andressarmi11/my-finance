@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
-import { useIdioma } from '@/i18n/idioma';
+import { useLanguage } from '@/i18n/language';
 import { exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
 import type { Backup } from '@/data/backup/schema';
 import type { Settings } from '@/domain/types';
@@ -21,7 +21,7 @@ const THEMES: Array<{ value: Settings['theme']; label: string }> = [
 
 export function SettingsScreen() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
-  const { idioma, setIdioma, t } = useIdioma();
+  const { language, setLanguage, t } = useLanguage();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importState, setImportState] = useState<
@@ -78,9 +78,9 @@ export function SettingsScreen() {
   }
 
   return (
-    <Screen title={t('ajustes.titulo')} subtitle="Tu cuenta, moneda y quincenas">
+    <Screen title={t('settings.title')} subtitle="Tu cuenta, moneda y quincenas">
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.tuNombre')}</h2>
+        <h2 style={sectionTitle}>{t('settings.yourName')}</h2>
         <input
           defaultValue={settings.displayName}
           onBlur={(e) => patch({ displayName: e.target.value.trim() })}
@@ -96,28 +96,28 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.idioma')}</h2>
+        <h2 style={sectionTitle}>{t('settings.language')}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          {([['es', 'Español'], ['en', 'English']] as const).map(([codigo, nombre]) => (
+          {([['es', 'Español'], ['en', 'English']] as const).map(([code, name]) => (
             <button
-              key={codigo}
+              key={code}
               type="button"
-              onClick={() => setIdioma(codigo)}
-              aria-pressed={idioma === codigo}
-              lang={codigo}
-              style={segmentStyle(idioma === codigo)}
+              onClick={() => setLanguage(code)}
+              aria-pressed={language === code}
+              lang={code}
+              style={segmentStyle(language === code)}
             >
-              {nombre}
+              {name}
             </button>
           ))}
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '8px 0 0' }}>
-          {t('ajustes.idiomaNota')}
+          {t('settings.languageNote')}
         </p>
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.tema')}</h2>
+        <h2 style={sectionTitle}>{t('settings.theme')}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           {THEMES.map((t) => (
             <button key={t.value} type="button" onClick={() => patch({ theme: t.value })} aria-pressed={settings.theme === t.value} style={segmentStyle(settings.theme === t.value)}>
@@ -128,27 +128,27 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.moneda')}</h2>
-        {/* Selector, no dos campos de texto: escribir 'cop' y 'es_CO' a mano
-            rompía el formato de toda la app sin decir por qué. */}
+        <h2 style={sectionTitle}>{t('settings.currency')}</h2>
+        {/* Picker, not two text fields: typing 'cop' and 'es_CO' by hand
+            broke the formatting of the whole app without saying why. */}
         <div style={{ display: 'grid', gap: 6 }}>
           {CURRENCIES.map((c) => {
-            const activa = settings.currency === c.code;
+            const isActive = settings.currency === c.code;
             return (
               <button
                 key={c.code}
                 type="button"
                 onClick={() => patch({ currency: c.code, locale: c.locale })}
-                aria-pressed={activa}
+                aria-pressed={isActive}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                   minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 'var(--radius-s)',
-                  border: `1px solid ${activa ? 'var(--q10)' : 'var(--line)'}`,
-                  background: activa ? 'var(--q10-soft)' : 'var(--surface)',
+                  border: `1px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
+                  background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
                   color: 'var(--text)', cursor: 'pointer', fontSize: 'var(--text-base)',
                 }}
               >
-                <span style={{ flex: 1, textAlign: 'left', fontWeight: activa ? 600 : 400 }}>{c.label}</span>
+                <span style={{ flex: 1, textAlign: 'left', fontWeight: isActive ? 600 : 400 }}>{c.label}</span>
                 <span className="figures" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{currencySample(c)}</span>
               </button>
             );
@@ -157,60 +157,60 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.comoTePagan')}</h2>
+        <h2 style={sectionTitle}>{t('settings.howYouGetPaid')}</h2>
         <Row label="Te entra la plata">
           <div style={{ display: 'flex', gap: 6 }}>
             {([
-              { etiqueta: 'Dos veces al mes', quincenal: true },
-              { etiqueta: 'Una vez al mes', quincenal: false },
-            ]).map((opcion) => {
-              const activa = (settings.diasDePago.length > 1) === opcion.quincenal;
+              { label: 'Dos veces al mes', biweekly: true },
+              { label: 'Una vez al mes', biweekly: false },
+            ]).map((option) => {
+              const isActive = (settings.payDays.length > 1) === option.biweekly;
               return (
                 <button
-                  key={opcion.etiqueta}
+                  key={option.label}
                   type="button"
-                  aria-pressed={activa}
+                  aria-pressed={isActive}
                   onClick={() => patch({
-                    // Mensual arranca en el día 1, el mes del calendario:
-                    // heredar el primer día quincenal le movería el mes sin
-                    // que lo haya pedido. El día se ajusta justo debajo.
-                    diasDePago: opcion.quincenal ? [10, 25] : [1],
+                    // Monthly starts on day 1, the calendar month:
+                    // inheriting the first pay-period day would shift the month without
+                    // the user having asked for it. The day gets adjusted right below.
+                    payDays: option.biweekly ? [10, 25] : [1],
                   })}
                   style={{
                     minHeight: 'var(--tap)', padding: '0 12px',
                     borderRadius: 'var(--radius-s)',
-                    border: `1.5px solid ${activa ? 'var(--q10)' : 'var(--line)'}`,
-                    background: activa ? 'var(--q10-soft)' : 'var(--surface)',
+                    border: `1.5px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
+                    background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
                     color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
                   }}
                 >
-                  {opcion.etiqueta}
+                  {option.label}
                 </button>
               );
             })}
           </div>
         </Row>
 
-        {settings.diasDePago.length > 1 ? (
+        {settings.payDays.length > 1 ? (
           <>
             <Row label="Primera empieza el día">
               <NumberInput
-                value={settings.diasDePago[0] ?? 10}
-                onCommit={(v) => patch({ diasDePago: [v, settings.diasDePago[1] ?? 25] })}
+                value={settings.payDays[0] ?? 10}
+                onCommit={(v) => patch({ payDays: [v, settings.payDays[1] ?? 25] })}
               />
             </Row>
             <Row label="Segunda empieza el día">
               <NumberInput
-                value={settings.diasDePago[1] ?? 25}
-                onCommit={(v) => patch({ diasDePago: [settings.diasDePago[0] ?? 10, v] })}
+                value={settings.payDays[1] ?? 25}
+                onCommit={(v) => patch({ payDays: [settings.payDays[0] ?? 10, v] })}
               />
             </Row>
           </>
         ) : (
           <Row label="Tu mes empieza el día">
             <NumberInput
-              value={settings.diasDePago[0] ?? 1}
-              onCommit={(v) => patch({ diasDePago: [v] })}
+              value={settings.payDays[0] ?? 1}
+              onCommit={(v) => patch({ payDays: [v] })}
             />
           </Row>
         )}
@@ -227,12 +227,12 @@ export function SettingsScreen() {
       </section>
 
       <section style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={sectionTitle}>{t('ajustes.organizar')}</h2>
-        <NavLink to="/ajustes/categorias" label={t('categorias.titulo')} />
-        <NavLink to="/ajustes/metodos" label={t('metodos.titulo')} />
-        <NavLink to="/ajustes/recurrentes" label={t('accion.nuevoRecurrente')} />
-        <NavLink to="/ajustes/presupuestos" label={t('presupuestos.titulo')} />
-        <NavLink to="/legal" label={t('ajustes.legal')} />
+        <h2 style={sectionTitle}>{t('settings.organize')}</h2>
+        <NavLink to="/ajustes/categorias" label={t('categories.title')} />
+        <NavLink to="/ajustes/metodos" label={t('methods.title')} />
+        <NavLink to="/ajustes/recurrentes" label={t('action.newRecurring')} />
+        <NavLink to="/ajustes/presupuestos" label={t('budgets.title')} />
+        <NavLink to="/legal" label={t('settings.legal')} />
       </section>
 
       <CloudSection />
@@ -240,27 +240,27 @@ export function SettingsScreen() {
       <NotificationsSection />
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('ajustes.tusDatos')}</h2>
+        <h2 style={sectionTitle}>{t('settings.yourData')}</h2>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
-          {t('ajustes.exportaCuandoQuieras')}
+          {t('settings.exportAnytime')}
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <button type="button" onClick={handleExportJSON} disabled={busy === 'json'} style={secondaryButtonStyle}>
-            {busy === 'json' ? t('ajustes.exportando') : t('ajustes.exportarJSON')}
+            {busy === 'json' ? t('settings.exporting') : t('settings.exportJSON')}
           </button>
           <button type="button" onClick={handleExportCSV} disabled={busy === 'csv'} style={secondaryButtonStyle}>
-            {busy === 'csv' ? t('ajustes.exportando') : t('ajustes.exportarCSV')}
+            {busy === 'csv' ? t('settings.exporting') : t('settings.exportCSV')}
           </button>
         </div>
         <button type="button" onClick={handleExportXLSX} disabled={busy === 'xlsx'} style={{ ...secondaryButtonStyle, width: '100%', marginBottom: 8 }}>
-          {busy === 'xlsx' ? t('ajustes.armandoExcel') : t('ajustes.exportarExcel')}
+          {busy === 'xlsx' ? t('settings.buildingExcel') : t('settings.exportExcel')}
         </button>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
           El Excel es para leer y analizar: trae una hoja por cada cosa, con
           nombres en vez de códigos. Para <strong>restaurar</strong> usa el JSON.
         </p>
         <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...secondaryButtonStyle, width: '100%' }}>
-          {t('ajustes.importar')}
+          {t('settings.import')}
         </button>
         <input ref={fileInputRef} type="file" accept="application/json" onChange={handleFileChange} style={{ display: 'none' }} />
         {importState.status === 'error' && (

@@ -2,36 +2,36 @@ import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useNavigate } from 'react-router-dom';
 import type { Transaction } from '@/domain/types';
-import type { PorPagar } from '@/domain/totals/porPagar';
+import type { Outstanding } from '@/domain/totals/outstanding';
 import { formatMoney } from '@/domain/money/format';
 
 /**
- * Sheet de desglose del chip "Por pagar".
+ * Breakdown sheet for the "Por pagar" chip.
  *
- * Recibe el desglose YA calculado, con los conjuntos disjuntos. Antes
- * recibía tres listas que se solapaban y volvía a sumarlas acá, así que
- * mostraba más plata que el número que lo abrió y listaba el mismo
- * movimiento dos veces. Ver domain/totals/porPagar.ts.
+ * Receives the breakdown ALREADY computed, with disjoint sets. It used to
+ * receive three overlapping lists and sum them again here, so it showed
+ * more money than the number that opened it and listed the same
+ * transaction twice. See domain/totals/outstanding.ts.
  */
-export function PorPagarSheet({
-  porPagar,
+export function ToPaySheet({
+  toPay,
   onClose,
 }: {
-  porPagar: PorPagar;
+  toPay: Outstanding;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
 
-  const { pendientes, programados, enTarjeta: enTC } = porPagar;
+  const { pending, scheduled, onCard: enTC } = toPay;
   const sum = (arr: Transaction[]) => arr.reduce((a, t) => a + t.amount, 0);
-  const total = porPagar.count;
-  const totalAmount = porPagar.monto;
+  const total = toPay.count;
+  const totalAmount = toPay.amount;
 
-  const refDialogo = useDialogo(onClose);
+  const dialogRef = useDialogo(onClose);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label="Por pagar — desglose"
       onClick={onClose}
@@ -84,19 +84,19 @@ export function PorPagarSheet({
         {showHelp && (
           <div style={{ background: 'var(--surface-sunken)', borderRadius: 'var(--radius-s)', padding: '12px 14px', marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Pendiente:</strong> gasto que existe pero aún no lo pagaste.
+              <strong style={{ color: 'var(--text)' }}>Pendiente:</strong> Gasto que ya existe pero aún no lo pagaste.
             </p>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Programado:</strong> gasto agendado a fecha futura.
+              <strong style={{ color: 'var(--text)' }}>Programado:</strong> Gasto agendado a fecha futura.
             </p>
             <p style={{ margin: 0 }}>
-              <strong style={{ color: 'var(--text)' }}>En tarjeta:</strong> compra con TC que se cobrará en la fecha de pago del ciclo.
+              <strong style={{ color: 'var(--text)' }}>En tarjeta:</strong> Compra con TC que se cobrará en la fecha de pago del ciclo.
             </p>
           </div>
         )}
 
-        <BreakdownRow label="Pendientes" count={pendientes.length} amount={sum(pendientes)} onClick={() => { navigate('/movimientos?estado=pending'); onClose(); }} />
-        <BreakdownRow label="Programados" count={programados.length} amount={sum(programados)} onClick={() => { navigate('/movimientos?estado=scheduled'); onClose(); }} />
+        <BreakdownRow label="Pendientes" count={pending.length} amount={sum(pending)} onClick={() => { navigate('/movimientos?estado=pending'); onClose(); }} />
+        <BreakdownRow label="Programados" count={scheduled.length} amount={sum(scheduled)} onClick={() => { navigate('/movimientos?estado=scheduled'); onClose(); }} />
         <BreakdownRow label="En tarjeta" count={enTC.length} amount={sum(enTC)} onClick={() => { navigate('/tarjeta'); onClose(); }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 8px 4px', borderTop: '1px solid var(--line-strong)', marginTop: 4 }}>

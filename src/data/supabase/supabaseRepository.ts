@@ -1,7 +1,7 @@
 /**
- * Implementa la misma interfaz Repository que LocalRepository (Fase 1),
- * pero contra Supabase/Postgres. RLS hace el filtrado por usuario en
- * lecturas; en escrituras hay que fijar user_id explicitamente.
+ * Implements the same Repository interface as LocalRepository (Phase 1),
+ * but against Supabase/Postgres. RLS handles per-user filtering on reads;
+ * on writes, user_id has to be set explicitly.
  */
 import type { Repository } from '../repository';
 import { getSupabase } from './client';
@@ -24,9 +24,9 @@ async function currentUserId(): Promise<string> {
 
 const DEFAULT_SETTINGS_BASE: Omit<Settings, 'id' | 'defaultPaymentMethodId'> = {
   displayName: '', onboardedAt: null,
-  // Vacio: una fila que no existe no puede ganarle a la local.
+  // Empty: a row that doesn't exist can't beat the local one.
   updatedAt: '',
-  currency: 'COP', locale: 'es-CO', diasDePago: [10, 25],
+  currency: 'COP', locale: 'es-CO', payDays: [10, 25],
   reminderDefaultDaysBefore: 1, theme: 'system',
 };
 
@@ -143,7 +143,7 @@ export const supabaseRepository: Repository = {
     const [settings, categories, paymentMethods, transactions, recurringRules, budgetsRes, reminders] = await Promise.all([
       this.getSettings(), this.listCategories(), this.listPaymentMethods(),
       this.listTransactions(), this.listRecurringRules(),
-      supabase.from('budgets').select('*'), // todos, sin filtrar por year/month (a diferencia de listBudgets)
+      supabase.from('budgets').select('*'), // all of them, unfiltered by year/month (unlike listBudgets)
       this.listReminders(),
     ]);
     if (budgetsRes.error) throw budgetsRes.error;

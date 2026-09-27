@@ -1,15 +1,14 @@
 /**
- * Expande una REGLA recurrente en INSTANCIAS concretas dentro de un rango
- * de fechas. Es una funcion pura: no escribe nada. El caller hace upsert
- * de cada instancia usando (recurringRuleId, periodKey) como llave —
- * ese indice UNICO en la base de datos es lo que hace imposible la
- * duplicacion, no esta funcion.
+ * Expands a recurring RULE into concrete INSTANCES within a date range.
+ * It's a pure function: it writes nothing. The caller upserts each instance
+ * using (recurringRuleId, periodKey) as the key — that UNIQUE index in the
+ * database is what makes duplication impossible, not this function.
  */
 import { addDays, clampDay, compareISO, parseISO, shiftMonth, toISO } from '../dates';
 import type { ISODate, RecurringRule } from '../types';
 
 export interface RecurringOccurrence {
-  /** Clave idempotente: 'YYYY-MM' para mensual, 'YYYY' para anual, la fecha misma para semanal/quincenal. */
+  /** Idempotent key: 'YYYY-MM' for monthly, 'YYYY' for yearly, the date itself for weekly/biweekly. */
   periodKey: string;
   date: ISODate;
 }
@@ -62,7 +61,7 @@ export function expandRecurringRule(
   const fromYMD = parseISO(effectiveFrom);
   const toYMD = parseISO(effectiveTo);
   for (let y = fromYMD.y; y <= toYMD.y; y++) {
-    const day = clampDay(y, anchor.m, anchor.d); // 29 feb -> 28 feb en año no bisiesto
+    const day = clampDay(y, anchor.m, anchor.d); // Feb 29 -> Feb 28 in a non-leap year
     const date = toISO({ y, m: anchor.m, d: day });
     if (compareISO(date, effectiveFrom) >= 0 && compareISO(date, effectiveTo) <= 0) {
       occurrences.push({ periodKey: String(y), date });

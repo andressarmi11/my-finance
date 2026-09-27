@@ -3,12 +3,12 @@ import { localRepository } from '@/data/local/localRepository';
 import { setMoneyLocale } from '@/domain/money/format';
 
 /**
- * Conecta la moneda elegida en la configuracion con formatMoney().
+ * Connects the currency chosen in settings with formatMoney().
  *
- * Se aplica DURANTE el render, no en un useEffect: los hijos formatean
- * plata en su propio render y un efecto llegaria un frame tarde — se veria
- * un parpadeo de "$" a "€" al cambiar de moneda. Es idempotente, asi que
- * repetirlo en cada render no cuesta nada.
+ * It's applied DURING render, not in a useEffect: children format
+ * money in their own render and an effect would arrive a frame late — you'd
+ * see a flicker from "$" to "€" when switching currency. It's idempotent, so
+ * repeating it on every render costs nothing.
  */
 export function useMoneyFormat() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);

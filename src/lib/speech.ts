@@ -1,14 +1,14 @@
 /**
- * Dictado por voz del navegador (Web Speech API).
+ * Browser voice dictation (Web Speech API).
  *
- * Safari lo expone como webkitSpeechRecognition y NO esta en todos lados:
- * falta en varios navegadores y es irregular dentro de una web app
- * instalada. Por eso esto devuelve `null` cuando no hay soporte y la
- * pantalla que lo usa siempre ofrece escribir — dictar es el atajo, no el
- * unico camino.
+ * Safari exposes it as webkitSpeechRecognition and it is NOT everywhere:
+ * several browsers lack it, and it's unreliable inside an installed web
+ * app. That's why this returns `null` when there's no support, and the
+ * screen using it always offers typing — dictating is the shortcut, not
+ * the only way.
  *
- * TypeScript no trae los tipos de esta API, asi que van declarados aca,
- * minimos: solo lo que se usa.
+ * TypeScript doesn't ship types for this API, so they're declared here,
+ * minimal: only what gets used.
  */
 
 interface SpeechResultAlt { transcript: string }
@@ -17,7 +17,7 @@ interface SpeechResultList { length: number; [i: number]: SpeechResult }
 interface SpeechEvent { resultIndex: number; results: SpeechResultList }
 interface SpeechErrorEvent { error: string }
 
-export interface Reconocedor {
+export interface Recognizer {
   start(): void;
   stop(): void;
 }
@@ -43,111 +43,106 @@ function constructor(): Constructor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export function hayDictado(): boolean {
+export function hasDictation(): boolean {
   return typeof window !== 'undefined' && constructor() !== null;
 }
 
 /**
- * Arranca el dictado. `onTexto` recibe el texto parcial mientras habla y
- * el final cuando termina — mostrar el parcial es lo que hace que se
- * sienta que te esta escuchando.
- */
-/**
- * El reconocedor que esta vivo ahora mismo, si hay alguno.
+ * The recognizer that is alive right now, if there is one.
  *
- * Hace falta porque start() sobre uno que ya corre lanza InvalidStateError,
- * y basta con que uno quede sin cerrar —la pestaña perdio el foco, la hoja
- * se cerro a mitad, iOS lo mato por su cuenta— para que el siguiente
- * intento falle. Antes eso se reportaba como "este navegador no deja
- * dictar", que es mentira y deja a la persona sin salida: es exactamente la
- * forma que tiene "a veces no funciona". Ahora se suelta el anterior antes
- * de pedir uno nuevo.
+ * Needed because start() on one that's already running throws
+ * InvalidStateError, and it only takes one left unclosed —the tab lost
+ * focus, the sheet closed halfway, iOS killed it on its own— for the next
+ * attempt to fail. That used to be reported as "this browser won't let you
+ * dictate", which is a lie and leaves the person with no way out: it is
+ * exactly what "sometimes it doesn't work" looks like. Now the previous one
+ * is released before asking for a new one.
  */
-let activo: { abort(): void } | null = null;
+let activeRecognizer: { abort(): void } | null = null;
 
 /**
- * Cuanto se espera sin noticias antes de darse por vencido.
+ * How long to wait with no news before giving up.
  *
- * El reconocedor deberia avisar siempre con onend o con onerror, pero no
- * siempre lo hace: si el microfono lo tiene otra app, si el permiso se
- * queda a medias, o por errores conocidos de Safari, no llega nada. Sin
- * esto el boton se queda en "Dejar de escuchar" para siempre, no hay forma
- * de recuperarlo sin recargar, y parece que la app se colgo.
+ * The recognizer should always report back through onend or onerror, but it
+ * doesn't always: if another app holds the microphone, if the permission
+ * gets stuck halfway, or because of known Safari bugs, nothing arrives.
+ * Without this the button stays on "Stop listening" forever, there's no way
+ * to recover without reloading, and it looks like the app froze.
  *
- * El contador se reinicia con cada palabra que llega, asi que solo salta
- * cuando de verdad no esta pasando nada.
+ * The timer restarts with every word that arrives, so it only fires when
+ * genuinely nothing is happening.
  *
- * Cuatro segundos. Doce se sentian eternos con el boton en rojo sin que
- * pasara nada. El precio: si alguien toca el microfono y tarda mas de eso
- * en arrancar a hablar, se cancela y tiene que volver a tocarlo.
+ * Four seconds. Twelve felt eternal with the button red and nothing
+ * happening. The price: if someone taps the microphone and takes longer
+ * than that to start speaking, it cancels and they have to tap again.
  */
-const SIN_NOTICIAS_MS = 4_000;
+const NO_NEWS_MS = 4_000;
 
-export function escuchar(opciones: {
+export function listen(options: {
   lang?: string;
-  onTexto: (texto: string, final: boolean) => void;
-  onError: (mensaje: string) => void;
-  onFin: () => void;
-}): Reconocedor | null {
+  onText: (text: string, final: boolean) => void;
+  onError: (message: string) => void;
+  onEnd: () => void;
+}): Recognizer | null {
   const Ctor = constructor();
   if (!Ctor) return null;
 
-  // Soltar el anterior pase lo que pase: abort() sobre uno ya muerto no
-  // hace nada, y dejarlo vivo es lo que rompe el siguiente intento.
+  // Release the previous one no matter what: abort() on one that's already
+  // dead does nothing, and leaving it alive is what breaks the next attempt.
   try {
-    activo?.abort();
+    activeRecognizer?.abort();
   } catch {
-    // Da igual por que fallo; lo que importa es no quedarse con la
-    // referencia vieja.
+    // It doesn't matter why it failed; what matters is not holding on to
+    // the stale reference.
   }
-  activo = null;
+  activeRecognizer = null;
 
   const rec = new Ctor();
-  rec.lang = opciones.lang ?? 'es-CO';
+  rec.lang = options.lang ?? 'es-CO';
   rec.continuous = false;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
 
-  let vigilante: ReturnType<typeof setTimeout> | undefined;
-  let terminado = false;
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  let finished = false;
 
-  function terminar() {
-    if (terminado) return;
-    terminado = true;
-    clearTimeout(vigilante);
-    if (activo === rec) activo = null;
-    opciones.onFin();
+  function finish() {
+    if (finished) return;
+    finished = true;
+    clearTimeout(watchdog);
+    if (activeRecognizer === rec) activeRecognizer = null;
+    options.onEnd();
   }
 
-  function rearmarVigilante() {
-    clearTimeout(vigilante);
-    vigilante = setTimeout(() => {
-      // Cerrar de verdad, no solo en la pantalla: si el reconocedor sigue
-      // vivo, retiene el microfono y rompe el proximo intento.
+  function rearmWatchdog() {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      // Actually close it, not just on screen: if the recognizer is still
+      // alive it holds the microphone and breaks the next attempt.
       try {
         rec.abort();
       } catch {
-        // Ya estaba muerto.
+        // It was already dead.
       }
-      opciones.onError('Se quedó esperando. Vuelve a intentarlo o escríbelo.');
-      terminar();
-    }, SIN_NOTICIAS_MS);
+      options.onError('Se quedó esperando. Vuelve a intentarlo o escríbelo.');
+      finish();
+    }, NO_NEWS_MS);
   }
 
   rec.onresult = (e) => {
-    rearmarVigilante();
-    let texto = '';
+    rearmWatchdog();
+    let text = '';
     let final = false;
     for (let i = 0; i < e.results.length; i++) {
       const r = e.results[i]!;
-      texto += r[0].transcript;
+      text += r[0].transcript;
       if (r.isFinal) final = true;
     }
-    opciones.onTexto(texto.trim(), final);
+    options.onText(text.trim(), final);
   };
 
   rec.onerror = (e) => {
-    opciones.onError(
+    options.onError(
       e.error === 'not-allowed' || e.error === 'service-not-allowed'
         ? 'No me diste permiso para usar el micrófono.'
         : e.error === 'no-speech'
@@ -158,14 +153,14 @@ export function escuchar(opciones: {
     );
   };
 
-  rec.onend = terminar;
+  rec.onend = finish;
 
   try {
     rec.start();
   } catch {
-    // Un segundo intento: el abort() de arriba puede tardar un instante en
-    // soltar el microfono, y este es justo el caso que dejaba el dictado
-    // inservible hasta recargar.
+    // A second attempt: the abort() above can take a moment to release the
+    // microphone, and this is exactly the case that left dictation unusable
+    // until a reload.
     try {
       rec.abort();
       rec.start();
@@ -174,13 +169,13 @@ export function escuchar(opciones: {
     }
   }
 
-  activo = rec;
-  rearmarVigilante();
+  activeRecognizer = rec;
+  rearmWatchdog();
 
   return {
     start: () => rec.start(),
     stop: () => {
-      clearTimeout(vigilante);
+      clearTimeout(watchdog);
       rec.stop();
     },
   };

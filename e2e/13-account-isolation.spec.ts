@@ -1,34 +1,34 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Con IndexedDB real: al entrar otra cuenta en el mismo navegador, lo de la
- * cuenta anterior NO puede sobrevivir.
+ * With a real IndexedDB: when another account signs in on the same browser,
+ * the previous account's data must NOT survive.
  *
- * Esto pasaba de verdad. La app es offline-first, así que cerrar sesión
- * borraba el token de Supabase pero dejaba Dexie intacto; el siguiente
- * login tomaba esas filas y las subía estampadas con SU user_id. No era
- * solo ver lo ajeno: quedaba copiado en la nube de la otra cuenta.
+ * This genuinely happened. The app is offline-first, so signing out cleared
+ * the Supabase token but left Dexie intact; the next login picked up those
+ * rows and uploaded them stamped with ITS user_id. It wasn't just seeing
+ * someone else's data: it ended up copied into the other account's cloud.
  *
- * Corre en el proyecto 'aislamiento' (dev server), porque importa módulos
- * fuente que el bundle del preview no expone. Ver playwright.config.ts.
+ * It runs in the 'isolation' project (dev server), because it imports source
+ * modules the preview bundle doesn't expose. See playwright.config.ts.
  */
 
-/** Lo mínimo que este test usa de una tabla de Dexie. */
+/** The bare minimum this test uses from a Dexie table. */
 interface Tabla {
   name: string;
   clear(): Promise<void>;
   count(): Promise<number>;
-  put(fila: unknown): Promise<unknown>;
+  put(row: unknown): Promise<unknown>;
 }
 interface ModuloDb {
   db: { tables: Tabla[]; transactions: Tabla; categories: Tabla };
 }
 interface ModuloDueno {
-  asegurarDueno(entrante: string): Promise<boolean>;
-  duenoLocal(): Promise<string | null>;
+  ensureOwner(entrante: string): Promise<boolean>;
+  localOwner(): Promise<string | null>;
 }
 
-test('los datos no cruzan entre cuentas', async ({ page }) => {
+test('data does not cross between accounts', async ({ page }) => {
   const errores: string[] = [];
   page.on('pageerror', (e) => errores.push(String(e)));
   await page.goto('./');
@@ -39,13 +39,13 @@ test('los datos no cruzan entre cuentas', async ({ page }) => {
     // TypeScript intentaría resolverlos en disco y no existen como esa
     // ruta.
     const rutaDb = '/step-up/src/data/db.ts';
-    const rutaDueno = '/step-up/src/data/sync/dueno.ts';
+    const rutaDueno = '/step-up/src/data/sync/owner.ts';
     const { db } = (await import(rutaDb)) as ModuloDb;
-    const { asegurarDueno, duenoLocal } = (await import(rutaDueno)) as ModuloDueno;
+    const { ensureOwner, localOwner } = (await import(rutaDueno)) as ModuloDueno;
 
-    const sembrar = async (concepto: string) => {
+    const seed = async (concept: string) => {
       await db.transactions.put({
-        id: 'tx-' + concepto, type: 'expense', concept: concepto, amount: 999, date: '2026-09-01',
+        id: 'tx-' + concept, type: 'expense', concept: concept, amount: 999, date: '2026-09-01',
         categoryId: null, paymentMethodId: null, status: 'paid',
         quincenaKey: null, createdAt: '', updatedAt: '2026-09-01T00:00:00Z',
       });
@@ -55,51 +55,51 @@ test('los datos no cruzan entre cuentas', async ({ page }) => {
       });
     };
 
-    // ── Caso 1: empezó sin cuenta y se registra. Sus datos DEBEN quedar.
+    // ── Case 1: started with no account and signs up. Their data MUST stay.
     await Promise.all(db.tables.map((t: Tabla) => t.clear()));
-    await sembrar('gasto-de-ana');
-    const limpio1 = await asegurarDueno('ana');
+    await seed('gasto-de-ana');
+    const limpio1 = await ensureOwner('ana');
     const adopta = await db.transactions.count();
 
-    // ── Caso 2: la misma persona vuelve a entrar. Nada se toca.
-    const limpio2 = await asegurarDueno('ana');
+    // ── Case 2: the same person signs in again. Nothing is touched.
+    const limpio2 = await ensureOwner('ana');
     const sigue = await db.transactions.count();
 
-    // ── Caso 3: ENTRA OTRA CUENTA. Nada de Ana puede quedar.
-    const limpio3 = await asegurarDueno('beto');
-    const conteos = await Promise.all(
+    // ── Case 3: ANOTHER ACCOUNT SIGNS IN. Nothing of Ana's may remain.
+    const limpio3 = await ensureOwner('beto');
+    const counts = await Promise.all(
       db.tables.filter((t: Tabla) => t.name !== 'meta').map((t: Tabla) => t.count()),
     );
     const restos = {
       transacciones: await db.transactions.count(),
-      categorias: await db.categories.count(),
-      // Ninguna tabla puede quedar con rastros, ni las lápidas.
-      total: conteos.reduce((a: number, b: number) => a + b, 0),
+      cats: await db.categories.count(),
+      // No table may be left with traces, tombstones included.
+      total: counts.reduce((a: number, b: number) => a + b, 0),
     };
-    const duenoAhora = await duenoLocal();
+    const ownerNow = await localOwner();
 
-    // ── Caso 4: y lo que Beto guarde después es suyo y sobrevive.
-    await sembrar('gasto-de-beto');
-    await asegurarDueno('beto');
+    // ── Case 4: and whatever Beto saves afterwards is his and survives.
+    await seed('gasto-de-beto');
+    await ensureOwner('beto');
     const deBeto = await db.transactions.count();
 
-    return { limpio1, adopta, limpio2, sigue, limpio3, restos, duenoAhora, deBeto };
+    return { limpio1, adopta, limpio2, sigue, limpio3, restos, ownerNow, deBeto };
   });
 
   expect(errores, 'sin errores de página').toEqual([]);
 
-  // Caso 1: adopta los datos de quien no tenía cuenta.
+  // Case 1: it adopts the data of someone who had no account.
   expect(r.limpio1).toBe(false);
   expect(r.adopta).toBe(1);
-  // Caso 2: el mismo usuario no pierde nada.
+  // Case 2: the same user loses nothing.
   expect(r.limpio2).toBe(false);
   expect(r.sigue).toBe(1);
-  // Caso 3: el cambio de cuenta borra TODO lo anterior.
+  // Case 3: switching accounts wipes EVERYTHING from before.
   expect(r.limpio3).toBe(true);
   expect(r.restos.transacciones).toBe(0);
-  expect(r.restos.categorias).toBe(0);
+  expect(r.restos.cats).toBe(0);
   expect(r.restos.total).toBe(0);
-  expect(r.duenoAhora).toBe('beto');
-  // Caso 4: y la cuenta nueva sí conserva lo suyo.
+  expect(r.ownerNow).toBe('beto');
+  // Case 4: and the new account does keep its own.
   expect(r.deBeto).toBe(1);
 });

@@ -1,11 +1,11 @@
 import { test, expect } from './fixtures';
 
 /**
- * La URL con parametros es la puerta de entrada de los Atajos de iOS
- * (ver docs/ATAJOS_IOS.md). Si esto se rompe, la automatizacion del
- * telefono deja de funcionar sin que nadie se entere.
+ * The URL with parameters is the way iOS Shortcuts get in (see
+ * docs/ATAJOS_IOS.md). If this breaks, the automation on the phone stops
+ * working and nobody finds out.
  */
-test('un atajo abre el formulario ya lleno', async ({ page }) => {
+test('a Shortcut opens the form already filled in', async ({ page }) => {
   await page.goto('movimientos?nuevo=1&tipo=ingreso&monto=3000000&concepto=Sueldo&pagado=1');
 
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });

@@ -1,78 +1,78 @@
 /**
- * Devuelve en español lo que la app entendió, para que el usuario pueda
- * confirmarlo de un vistazo antes de guardar.
+ * Returns, in Spanish, what the app understood, so the user can confirm
+ * it at a glance before saving.
  *
- * Es texto armado con plantillas, no generado: tiene que decir exactamente
- * lo que se va a guardar. Una respuesta "natural" que no coincida con el
- * dato guardado es peor que una seca que sí.
+ * This is text built from templates, not generated: it has to say
+ * exactly what's going to be saved. A "natural" reply that doesn't match
+ * the saved data is worse than a stiff one that does.
  */
 import { formatMoney } from '../money/format';
 import type { Category, ISODate, PaymentMethod } from '../types';
 import type { Parsed } from './parse';
 
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+const SPANISH_MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
   'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
-/** "hoy", "ayer", o "el 15 de septiembre". */
-export function describirFecha(fecha: ISODate, hoy: ISODate): string {
-  if (fecha === hoy) return 'hoy';
-  const [y, m, d] = fecha.split('-').map(Number) as [number, number, number];
-  const [hy, hm, hd] = hoy.split('-').map(Number) as [number, number, number];
-  const dias = Math.round(
+/** "hoy" (today), "ayer" (yesterday), or "el 15 de septiembre" (15 September). */
+export function describeDate(date: ISODate, today: ISODate): string {
+  if (date === today) return 'hoy';
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const [hy, hm, hd] = today.split('-').map(Number) as [number, number, number];
+  const payDays = Math.round(
     (Date.UTC(y, m - 1, d) - Date.UTC(hy, hm - 1, hd)) / 86_400_000,
   );
-  if (dias === -1) return 'ayer';
-  if (dias === -2) return 'anteayer';
-  if (dias === 1) return 'mañana';
-  return `el ${d} de ${MESES[m - 1]}`;
+  if (payDays === -1) return 'ayer';
+  if (payDays === -2) return 'anteayer';
+  if (payDays === 1) return 'mañana';
+  return `el ${d} de ${SPANISH_MONTHS[m - 1]}`;
 }
 
-export interface Descripcion {
-  /** La línea principal: qué se va a guardar. */
-  resumen: string;
-  /** Lo que falta para poder guardar, si falta algo. */
-  falta: string | null;
-  /** Por qué eligió esa categoría, cuando la eligió. */
-  nota: string | null;
+export interface Description {
+  /** The main line: what's going to be saved. */
+  summary: string;
+  /** What's missing before it can be saved, if anything is missing. */
+  missing: string | null;
+  /** Why it picked that category, when it did. */
+  note: string | null;
 }
 
-export function describir(
+export function describeParsed(
   parsed: Parsed,
   contexto: {
-    hoy: ISODate;
+    today: ISODate;
     categoryId: string | null;
-    categorias: Category[];
+    cats: Category[];
     paymentMethodId: string | null;
-    metodos: PaymentMethod[];
-    /** true si la categoría salió del historial del usuario, no de la tabla. */
-    aprendida: boolean;
+    methodRows: PaymentMethod[];
+    /** true if the category came from the user's history, not from the table. */
+    learned: boolean;
   },
-): Descripcion {
-  const verbo = parsed.type === 'income' ? 'Ingreso' : 'Gasto';
-  const cat = contexto.categorias.find((c) => c.id === contexto.categoryId);
-  const met = contexto.metodos.find((m) => m.id === contexto.paymentMethodId);
+): Description {
+  const verb = parsed.type === 'income' ? 'Ingreso' : 'Gasto';
+  const cat = contexto.cats.find((c) => c.id === contexto.categoryId);
+  const met = contexto.methodRows.find((m) => m.id === contexto.paymentMethodId);
 
-  const partes: string[] = [];
-  partes.push(parsed.amount != null ? `${verbo} de ${formatMoney(parsed.amount)}` : verbo);
-  if (parsed.concept) partes.push(`en ${parsed.concept}`);
-  partes.push(describirFecha(parsed.date, contexto.hoy));
-  if (met) partes.push(`con ${met.name}`);
+  const parts: string[] = [];
+  parts.push(parsed.amount != null ? `${verb} de ${formatMoney(parsed.amount)}` : verb);
+  if (parsed.concept) parts.push(`en ${parsed.concept}`);
+  parts.push(describeDate(parsed.date, contexto.today));
+  if (met) parts.push(`con ${met.name}`);
 
-  const resumen = `${partes.join(', ')}.`;
+  const summary = `${parts.join(', ')}.`;
 
-  const falta = parsed.amount == null
+  const missing = parsed.amount == null
     ? '¿Cuánto fue?'
     : !parsed.concept
     ? '¿En qué fue?'
     : null;
 
-  const nota = cat
-    ? contexto.aprendida
+  const note = cat
+    ? contexto.learned
       ? `Lo puse en ${cat.name}, como la última vez.`
       : `Lo puse en ${cat.name}.`
     : parsed.concept
     ? 'No le encontré categoría; elígela y la recuerdo para la próxima.'
     : null;
 
-  return { resumen, falta, nota };
+  return { summary, missing, note };
 }

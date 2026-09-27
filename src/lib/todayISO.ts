@@ -1,8 +1,8 @@
 /**
- * "Que dia es hoy" para prellenar formularios. A proposito usa la hora
- * LOCAL del dispositivo (es literalmente el hoy del usuario) — distinto
- * de domain/dates.ts, que nunca debe depender de zona horaria porque
- * calcula ciclos y quincenas a partir de una fecha ya dada.
+ * "What day is it today", for prefilling forms. It deliberately uses the
+ * device's LOCAL time (it is literally the user's today) — unlike
+ * domain/dates.ts, which must never depend on a time zone because it works
+ * out cycles and pay periods from a date it's already given.
  */
 export function todayISO(): string {
   const d = new Date();

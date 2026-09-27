@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('crear un gasto', async ({ page }) => {
+test('creates an expense', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
 
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });

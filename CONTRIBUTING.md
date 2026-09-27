@@ -1,70 +1,70 @@
-# Contribuir (guía de estilo del proyecto)
+# Contributing (the project's style guide)
 
-Este es un proyecto personal, pero estas reglas existen para que tú mismo
-(o alguien más) pueda retomarlo en seis meses sin tener que releer todo
-el código primero.
+This is a personal project, but these rules exist so that you (or someone
+else) can pick it up again in six months without having to re-read all the
+code first.
 
-## Regla no negociable: `domain/` no sabe que existe React
+## The non-negotiable rule: `domain/` doesn't know React exists
 
-Todo lo que sea una regla de negocio o un cálculo va en `src/domain/`,
-como función pura: mismos argumentos, mismo resultado, siempre. Nunca
-`new Date()` sin recibir la fecha como parámetro, nunca `import` de
-React, Dexie o Supabase. Esto es lo que permite que 104 tests corran en
-menos de 4 segundos sin levantar nada.
+Anything that is a business rule or a calculation goes in `src/domain/`, as
+a pure function: same arguments, same result, always. Never `new Date()`
+without taking the date as a parameter, never an `import` from React, Dexie
+or Supabase. That's what lets the tests run in under 4 seconds without
+starting anything up.
 
-Si estás escribiendo un cálculo dentro de un componente `.tsx`, esa es la
-señal de que debería estar en `domain/`.
+If you're writing a calculation inside a `.tsx` component, that's the sign
+it belongs in `domain/`.
 
-## Estructura de carpetas
+## Folder structure
 
 ```
 src/
-  domain/       lógica pura, con sus tests al lado (*.test.ts)
-  data/         Dexie (local), Supabase (nube), sincronización, backup
-  features/     una carpeta por pantalla/funcionalidad
-  components/ui/ piezas reutilizables entre pantallas
-  app/          router, layout, tema
-  lib/          utilidades chicas sin categoría propia (fechas de UI, etc.)
+  domain/       pure logic, with its tests next to it (*.test.ts)
+  data/         Dexie (local), Supabase (cloud), sync, backup
+  features/     one folder per screen/feature
+  components/ui/ pieces reused across screens
+  app/          router, layout, theme
+  lib/          small utilities with no category of their own (UI dates, etc.)
 ```
 
-Una función nueva de cálculo entra en `domain/<tema>/`. Un componente
-nuevo de una sola pantalla entra en `features/<pantalla>/`. Algo
-reutilizable en 3+ pantallas entra en `components/ui/`.
+A new calculation goes in `domain/<topic>/`. A new component used by a
+single screen goes in `features/<screen>/`. Something reused in 3+ screens
+goes in `components/ui/`.
 
-## Antes de un commit
+## Before a commit
 
 ```bash
 npm run typecheck
-npm run typecheck:e2e   # si tocaste algo en e2e/
+npm run typecheck:e2e   # if you touched anything in e2e/
 npm run lint
 npm run test
 npm run build
 ```
 
-Los cuatro deben pasar limpios. No hay excepciones informales tipo "ya lo
-arreglo después" — el `CHANGELOG.md` de este proyecto documenta más de
-un caso real donde correr esto encontró un bug (o un test mal escrito)
-antes de que llegara a producción.
+All of them have to pass clean. There are no informal exceptions along the
+lines of "I'll fix it later" — this project's `CHANGELOG.md` documents more
+than one real case where running this caught a bug (or a badly written
+test) before it reached production.
 
-## Agregar una función de dominio nueva
+## Adding a new domain function
 
-1. Escribe la función en `domain/<tema>/archivo.ts`, con su comentario
-   explicando el *por qué*, no solo el qué.
-2. Escribe `archivo.test.ts` al lado, con al menos: el caso normal, un
-   caso borde (fecha límite, valor cero, lista vacía), y si aplica, un
-   caso que cruce mes/año.
-3. Corre `npm run test` antes de conectarla a cualquier componente.
+1. Write the function in `domain/<topic>/file.ts`, with a comment
+   explaining the *why*, not just the what.
+2. Write `file.test.ts` next to it, covering at least: the normal case, an
+   edge case (boundary date, zero, empty list), and where it applies, a
+   case that crosses a month/year.
+3. Run `npm run test` before wiring it into any component.
 
-## Mensajes de commit
+## Commit messages
 
-Sin formato estricto tipo Conventional Commits — pero sí describe **qué
-cambió**, no "arreglos" o "cambios varios". Si arreglaste un bug que
-encontraste corriendo los tests, dilo — es información útil para el
+No strict format like Conventional Commits — but do describe **what
+changed**, not "fixes" or "various changes". If you fixed a bug you found
+by running the tests, say so — that's useful information for the
 `CHANGELOG.md`.
 
-## Ramas
+## Branches
 
-Para un proyecto de una persona, trabajar directo en `main` está bien
-siempre que cada commit pase la lista de arriba. Si quieres probar algo
-grande sin comprometerte, usa una rama y ábrele un PR a ti mismo — el CI
-correrá igual.
+For a one-person project, working directly on `main` is fine as long as
+every commit passes the list above. If you want to try something large
+without committing to it, use a branch and open a PR to yourself — CI runs
+either way.

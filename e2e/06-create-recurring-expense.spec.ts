@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures';
 
-test('crear un gasto recurrente (fijo) y ver su instancia en movimientos', async ({ page }) => {
+test('creates a recurring (fixed) expense and shows its instance in transactions', async ({ page }) => {
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
 
@@ -15,7 +15,7 @@ test('crear un gasto recurrente (fijo) y ver su instancia en movimientos', async
 
   await expect(page.getByText('Gimnasio E2E').first()).toBeVisible();
 
-  // La regla se materializa en una instancia real al guardarla.
+  // The rule materializes into a real instance when saved.
   await page.goto('movimientos');
   await expect(page.getByText('Gimnasio E2E').first()).toBeVisible();
 });

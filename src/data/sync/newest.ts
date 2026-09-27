@@ -1,15 +1,14 @@
 /**
- * Cual de dos marcas de tiempo gana en un last-write-wins.
+ * Which of two timestamps wins in a last-write-wins.
  *
- * Vive aparte para que syncService y las reglas de conciliacion de cada
- * entidad la compartan sin importarse entre si.
+ * Kept separate so syncService and each entity's reconciliation rules can
+ * share it without importing each other.
  */
-export function masNuevo(a: string, b: string): boolean {
+export function newest(a: string, b: string): boolean {
   const ta = new Date(a).getTime();
   const tb = new Date(b).getTime();
-  // Una fecha vacia o invalida nunca gana: es lo que devuelve la nube
-  // cuando todavia no hay fila, y lo que tiene una fila local que nunca
-  // se guardo.
+  // An empty or invalid date never wins: that's what the cloud returns
+  // when there's no row yet, and what a local row that was never saved has.
   if (Number.isNaN(ta)) return false;
   if (Number.isNaN(tb)) return true;
   return ta > tb;

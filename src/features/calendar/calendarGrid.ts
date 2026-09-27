@@ -1,6 +1,6 @@
 /**
- * Grilla de calendario mensual (6 semanas x 7 dias, empezando en domingo).
- * Puramente estructural — que hay en cada dia lo decide la pantalla.
+ * Monthly calendar grid (6 weeks x 7 days, starting on Sunday).
+ * Purely structural — what's in each day is decided by the screen.
  */
 import { addDays, parseISO, toISO, weekdayOf } from '@/domain/dates';
 
@@ -11,7 +11,7 @@ export interface CalendarCell {
 
 export function buildCalendarGrid(year: number, month: number): CalendarCell[] {
   const firstOfMonth = { y: year, m: month, d: 1 };
-  const startWeekday = weekdayOf(firstOfMonth); // 0 domingo .. 6 sabado
+  const startWeekday = weekdayOf(firstOfMonth); // 0 Sunday .. 6 Saturday
   const gridStart = addDays(firstOfMonth, -startWeekday);
 
   const cells: CalendarCell[] = [];

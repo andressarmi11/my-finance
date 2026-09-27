@@ -2,68 +2,68 @@ import { useSyncExternalStore } from 'react';
 import { getSupabase, isSupabaseConfigured } from '@/data/supabase/client';
 
 /**
- * Modo "cambiar contraseña", el que se activa al abrir el enlace de
- * "olvidé mi contraseña".
+ * "Change password" mode, the one that activates when opening the
+ * "forgot my password" link.
  *
- * Tiene dos trampas, y las dos estaban:
+ * It has two traps, and both were hit:
  *
- * 1. El enlace de recuperación ABRE SESIÓN. Como AuthGate mostraba la app
- *    apenas había sesión, entrabas directo y nunca te preguntaba la
- *    contraseña nueva. Por eso este estado se consulta ANTES que la sesión.
+ * 1. The recovery link OPENS A SESSION. Since AuthGate showed the app
+ *    as soon as there was a session, you'd go straight in and it would never ask for the
+ *    new password. That's why this state is checked BEFORE the session.
  *
- * 2. supabase-js procesa el token y limpia la URL al construir el cliente.
- *    Suscribirse a onAuthStateChange dentro del .then() de getSupabase()
- *    llega tarde: el evento PASSWORD_RECOVERY ya pasó. Por eso la URL se
- *    lee al cargar el módulo, de forma síncrona, antes de que nada corra.
+ * 2. supabase-js processes the token and clears the URL while building the client.
+ *    Subscribing to onAuthStateChange inside getSupabase()'s .then()
+ *    arrives too late: the PASSWORD_RECOVERY event has already happened. That's why the URL
+ *    is read when the module loads, synchronously, before anything else runs.
  */
 
-/** ¿Esta URL es la de un enlace de recuperación? Pura, para poder probarla. */
-export function esUrlDeRecuperacion(href: string): boolean {
+/** Is this URL a recovery link? Pure, so it can be tested. */
+export function isRecoveryUrl(href: string): boolean {
   let url: URL;
   try {
     url = new URL(href);
   } catch {
     return false;
   }
-  // Flujo implícito: el token viene en el fragmento (#access_token=...&type=recovery).
-  const fragmento = new URLSearchParams(url.hash.replace(/^#/, ''));
-  if (fragmento.get('type') === 'recovery') return true;
-  // Flujo PKCE: ?code=...&type=recovery
+  // Implicit flow: the token comes in the fragment (#access_token=...&type=recovery).
+  const fragment = new URLSearchParams(url.hash.replace(/^#/, ''));
+  if (fragment.get('type') === 'recovery') return true;
+  // PKCE flow: ?code=...&type=recovery
   return url.searchParams.get('type') === 'recovery';
 }
 
-let enRecuperacion =
-  typeof window !== 'undefined' && esUrlDeRecuperacion(window.location.href);
+let inRecovery =
+  typeof window !== 'undefined' && isRecoveryUrl(window.location.href);
 
-const oyentes = new Set<() => void>();
+const listeners = new Set<() => void>();
 
-function avisar() {
-  for (const o of oyentes) o();
+function notify() {
+  for (const o of listeners) o();
 }
 
-export function entrarEnRecuperacion(): void {
-  if (enRecuperacion) return;
-  enRecuperacion = true;
-  avisar();
+export function enterRecovery(): void {
+  if (inRecovery) return;
+  inRecovery = true;
+  notify();
 }
 
-/** Se llama al terminar de cambiar la contraseña, o al cancelar. */
-export function salirDeRecuperacion(): void {
-  if (!enRecuperacion) return;
-  enRecuperacion = false;
-  // Sin esto, recargar la página vuelve a entrar en modo recuperación
-  // porque el token sigue en la URL.
+/** Called when done changing the password, or when cancelling. */
+export function exitRecovery(): void {
+  if (!inRecovery) return;
+  inRecovery = false;
+  // Without this, reloading the page re-enters recovery mode
+  // because the token is still in the URL.
   if (typeof window !== 'undefined') {
     window.history.replaceState(null, '', window.location.pathname);
   }
-  avisar();
+  notify();
 }
 
-/** Segunda vía por si la URL ya venía limpia: el evento de supabase-js. */
+/** Second path in case the URL already came clean: the supabase-js event. */
 if (isSupabaseConfigured() && typeof window !== 'undefined') {
   void getSupabase().then((supabase) => {
     supabase.auth.onAuthStateChange((evento) => {
-      if (evento === 'PASSWORD_RECOVERY') entrarEnRecuperacion();
+      if (evento === 'PASSWORD_RECOVERY') enterRecovery();
     });
   });
 }
@@ -71,10 +71,10 @@ if (isSupabaseConfigured() && typeof window !== 'undefined') {
 export function useRecoveryMode(): boolean {
   return useSyncExternalStore(
     (cb) => {
-      oyentes.add(cb);
-      return () => oyentes.delete(cb);
+      listeners.add(cb);
+      return () => listeners.delete(cb);
     },
-    () => enRecuperacion,
-    () => false, // en SSR nunca hay recuperación
+    () => inRecovery,
+    () => false, // in SSR there's never a recovery
   );
 }

@@ -1,29 +1,29 @@
 /**
- * Sincronizacion entre IndexedDB (fuente de verdad offline) y Supabase.
+ * Sync between IndexedDB (offline source of truth) and Supabase.
  *
- * Estrategia: last-write-wins por updatedAt, mas lapidas para los
- * borrados (sin ellas, el dispositivo que todavia tiene la fila la
- * resucita en el siguiente push — ver tombstones.ts).
+ * Strategy: last-write-wins by updatedAt, plus tombstones for deletions
+ * (without them, the device that still has the row resurrects it on the
+ * next push — see tombstones.ts).
  *
- * Orden de un ciclo completo:
- *   1. bajar lapidas remotas y aplicarlas aca
- *   2. bajar filas y quedarse con las mas nuevas que las locales
- *   3. subir las lapidas locales y borrar esas filas alla
- *   4. subir las filas locales mas nuevas que las remotas
+ * Order of a full cycle:
+ *   1. pull remote tombstones and apply them here
+ *   2. pull rows and keep the ones newer than the local copies
+ *   3. push local tombstones and delete those rows over there
+ *   4. push local rows newer than the remote copies
  *
- * Las lapidas van ANTES que las filas en cada direccion: si no, se sube
- * una fila y acto seguido se borra, o peor, se baja una fila que ya
- * estaba borrada.
+ * Tombstones go BEFORE rows in each direction: otherwise a row gets
+ * pushed and immediately deleted, or worse, a row that was already
+ * deleted gets pulled back in.
  */
 import { db } from '../db';
 import { supabaseRepository } from '../supabase/supabaseRepository';
 import { applyRemoteDeletions, listRemoteTombstones, saveRemoteTombstones } from '../supabase/deletions';
 import { listRemoteBudgets, saveRemoteBudgets } from '../supabase/budgets';
 import { deletedIdsOf, makeTombstone, mergeTombstones, type Tombstone } from './tombstones';
-import { conciliarPresupuestos } from './presupuestos';
-import { recordatoriosASubir } from './recordatorios';
-import { masNuevo as newer } from './masNuevo';
-import { conciliarOcurrencias } from './ocurrenciasDuplicadas';
+import { reconcileBudgets } from './budgets';
+import { remindersToUpload } from './reminders';
+import { newest as newer } from './newest';
+import { reconcileOccurrences } from './duplicateOccurrences';
 import type { Settings, Transaction } from '@/domain/types';
 
 export interface SyncResult {
@@ -33,79 +33,80 @@ export interface SyncResult {
 }
 
 /**
- * Cual de las dos configuraciones se queda.
+ * Which of the two settings survives.
  *
- * Existe porque el bug mas molesto de la app salio justo de no tener esto:
- * bajar de la nube hacia `db.settings.put(remoto)` a ciegas. En el primer
- * login la nube todavia no tiene fila, el repositorio devolvia valores por
- * defecto (onboardedAt = null), eso pisaba lo local y despues se subia —
- * asi que en CADA login volvia a pedir nombre, moneda y categorias, aunque
- * ya se hubieran configurado.
+ * This exists because the app's most annoying bug came exactly from not
+ * having it: pulling from the cloud straight into `db.settings.put(remoto)`
+ * blindly. On the first login the cloud doesn't have a row yet, the
+ * repository returned default values (onboardedAt = null), that
+ * overwrote the local one and then got pushed — so EVERY login it went
+ * back to asking for name, currency and categories, even though they'd
+ * already been set up.
  *
- * Las transacciones ya se resolvian por updatedAt; los Settings no tenian
- * con que compararse.
+ * Transactions already got resolved by updatedAt; Settings had nothing to
+ * compare against.
  */
 /**
- * Cual de las dos copias de una fila se queda. Misma regla que
- * elegirSettings, separada para poder probarla sin base de datos.
+ * Which of the two copies of a row survives. Same rule as elegirSettings,
+ * kept separate so it can be tested without a database.
  */
-export function elegirFila<T extends { updatedAt: string }>(local: T | undefined, remota: T): T {
-  if (!local) return remota;
-  return newer(remota.updatedAt, local.updatedAt) ? remota : local;
+export function chooseRow<T extends { updatedAt: string }>(local: T | undefined, remoteRow: T): T {
+  if (!local) return remoteRow;
+  return newer(remoteRow.updatedAt, local.updatedAt) ? remoteRow : local;
 }
 
 /**
- * De cada fila remota, se queda la que gane contra su copia local. Las que
- * ganan localmente se devuelven tal cual estan aca, asi el bulkPut que
- * viene despues no las cambia.
+ * Of each remote row, keeps whichever wins against its local copy. The
+ * ones that win locally are returned as they already are here, so the
+ * bulkPut that follows doesn't change them.
  */
-async function conservarMasNuevo<T extends { id: string; updatedAt: string }>(
+async function keepNewest<T extends { id: string; updatedAt: string }>(
   remotas: T[],
-  buscarLocal: (id: string) => Promise<T | undefined>,
+  findLocal: (id: string) => Promise<T | undefined>,
 ): Promise<T[]> {
-  const resultado: T[] = [];
-  for (const remota of remotas) {
-    resultado.push(elegirFila(await buscarLocal(remota.id), remota));
+  const result: T[] = [];
+  for (const remoteRow of remotas) {
+    result.push(chooseRow(await findLocal(remoteRow.id), remoteRow));
   }
-  return resultado;
+  return result;
 }
 
-export function elegirSettings(local: Settings | undefined, remoto: Settings): Settings {
-  if (!local) return remoto;
-  return newer(remoto.updatedAt, local.updatedAt) ? remoto : local;
+export function chooseSettings(local: Settings | undefined, remoteRow: Settings): Settings {
+  if (!local) return remoteRow;
+  return newer(remoteRow.updatedAt, local.updatedAt) ? remoteRow : local;
 }
 
-/** Aplica localmente los borrados que vienen de otro dispositivo. */
+/** Applies locally the deletions that come from another device. */
 async function applyTombstonesLocally(tombstones: Tombstone[]): Promise<number> {
   if (tombstones.length === 0) return 0;
-  const tabla = {
+  const table = {
     transactions: db.transactions,
     categories: db.categories,
     paymentMethods: db.paymentMethods,
     recurringRules: db.recurringRules,
   } as const;
 
-  let borrados = 0;
+  let deletedCount = 0;
   for (const t of tombstones) {
-    const existe = await tabla[t.entity].get(t.entityId);
-    if (existe) {
-      await tabla[t.entity].delete(t.entityId);
-      // Igual que localRepository.deleteTransaction: el recordatorio se va
-      // con su movimiento, aunque el borrado venga de otro dispositivo.
+    const exists = await table[t.entity].get(t.entityId);
+    if (exists) {
+      await table[t.entity].delete(t.entityId);
+      // Same as localRepository.deleteTransaction: the reminder goes with
+      // its transaction, even if the deletion comes from another device.
       if (t.entity === 'transactions') {
         await db.reminders.where('transactionId').equals(t.entityId).delete();
       }
-      borrados += 1;
+      deletedCount += 1;
     }
   }
-  return borrados;
+  return deletedCount;
 }
 
 export async function pullCloudToLocal(): Promise<SyncResult> {
   const remoteTombstones = await listRemoteTombstones();
   const localTombstones = await db.deletions.toArray();
-  const todas = mergeTombstones(localTombstones, remoteTombstones);
-  await db.deletions.bulkPut(todas);
+  const all = mergeTombstones(localTombstones, remoteTombstones);
+  await db.deletions.bulkPut(all);
   const deleted = await applyTombstonesLocally(remoteTombstones);
 
   const [remoteTx, categories, methods, rules, settings, remoteBudgets, remoteReminders] = await Promise.all([
@@ -118,91 +119,91 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
     supabaseRepository.listReminders(),
   ]);
 
-  // Nada que este borrado vuelve a entrar, venga de donde venga.
-  const borradoTx = deletedIdsOf(todas, 'transactions');
-  const borradoCat = deletedIdsOf(todas, 'categories');
-  const borradoPm = deletedIdsOf(todas, 'paymentMethods');
-  const borradoRr = deletedIdsOf(todas, 'recurringRules');
+  // Nothing that's been deleted comes back in, no matter where it's from.
+  const deletedTx = deletedIdsOf(all, 'transactions');
+  const deletedCat = deletedIdsOf(all, 'categories');
+  const deletedPm = deletedIdsOf(all, 'paymentMethods');
+  const deletedRr = deletedIdsOf(all, 'recurringRules');
 
-  // Se queda el mas nuevo de cada lado, igual que con las transacciones.
+  // Keeps the newest from each side, same as with transactions.
   //
-  // Antes esto era un bulkPut ciego, y el efecto NO era solo perder un
-  // cambio hecho sin conexion: como el ciclo siempre empieza bajando y
-  // guardar no dispara una subida, renombrar una categoria, archivarla,
-  // cambiar el dia de corte de una tarjeta o apagar una regla recurrente
-  // se deshacia SOLO en el siguiente visibilitychange, con un unico
-  // dispositivo y con internet. Una fila sin updatedAt da NaN y pierde,
-  // que es el comportamiento viejo: la migracion sale gratis.
+  // This used to be a blind bulkPut, and the effect was NOT just losing a
+  // change made offline: since the cycle always starts by pulling and
+  // saving doesn't trigger a push, renaming a category, archiving it,
+  // changing a card's cutoff day, or turning off a recurring rule would
+  // undo ITSELF on the very next visibilitychange, with a single device
+  // and with internet. A row with no updatedAt gives NaN and loses, which
+  // is the old behavior: the migration comes for free.
   await db.categories.bulkPut(
-    await conservarMasNuevo(categories.filter((c) => !borradoCat.has(c.id)), (id) => db.categories.get(id)),
+    await keepNewest(categories.filter((c) => !deletedCat.has(c.id)), (id) => db.categories.get(id)),
   );
   await db.paymentMethods.bulkPut(
-    await conservarMasNuevo(methods.filter((m) => !borradoPm.has(m.id)), (id) => db.paymentMethods.get(id)),
+    await keepNewest(methods.filter((m) => !deletedPm.has(m.id)), (id) => db.paymentMethods.get(id)),
   );
   await db.recurringRules.bulkPut(
-    await conservarMasNuevo(rules.filter((r) => !borradoRr.has(r.id)), (id) => db.recurringRules.get(id)),
+    await keepNewest(rules.filter((r) => !deletedRr.has(r.id)), (id) => db.recurringRules.get(id)),
   );
-  await db.settings.put(elegirSettings(await db.settings.get('singleton'), settings));
+  await db.settings.put(chooseSettings(await db.settings.get('singleton'), settings));
 
-  // Presupuestos: se emparejan por categoria+mes, no por id — ver
-  // presupuestos.ts. Van DESPUES de las categorias porque en Postgres
-  // apuntan a ellas con una FK.
-  const planPresupuestos = conciliarPresupuestos(await db.budgets.toArray(), remoteBudgets);
-  if (planPresupuestos.borrarLocal.length > 0) await db.budgets.bulkDelete(planPresupuestos.borrarLocal);
-  if (planPresupuestos.guardarLocal.length > 0) await db.budgets.bulkPut(planPresupuestos.guardarLocal);
+  // Budgets: paired by category+month, not by id — see presupuestos.ts.
+  // They go AFTER categories because in Postgres they point to them
+  // with an FK.
+  const planBudgets = reconcileBudgets(await db.budgets.toArray(), remoteBudgets);
+  if (planBudgets.deleteLocal.length > 0) await db.budgets.bulkDelete(planBudgets.deleteLocal);
+  if (planBudgets.saveLocal.length > 0) await db.budgets.bulkPut(planBudgets.saveLocal);
 
-  // Recordatorios: last-write-wins por id a secas, sin las vueltas de los
-  // presupuestos, porque su id ES el del movimiento — dos dispositivos
-  // generan el mismo. Bajarlos importa para que el 'sent' que pone el
-  // servidor al enviar la notificacion no lo pise de vuelta esta copia.
-  const recordatoriosVivos = remoteReminders.filter((r) => !borradoTx.has(r.transactionId));
-  const recordatoriosAGuardar = await conservarMasNuevo(recordatoriosVivos, (id) => db.reminders.get(id));
-  if (recordatoriosAGuardar.length > 0) await db.reminders.bulkPut(recordatoriosAGuardar);
+  // Reminders: plain last-write-wins by id, none of the budgets' back and
+  // forth, because their id IS the transaction's — two devices generate
+  // the same one. Pulling them matters so the 'sent' the server sets when
+  // it sends the notification doesn't get overwritten back by this copy.
+  const liveReminders = remoteReminders.filter((r) => !deletedTx.has(r.transactionId));
+  const remindersToSave = await keepNewest(liveReminders, (id) => db.reminders.get(id));
+  if (remindersToSave.length > 0) await db.reminders.bulkPut(remindersToSave);
 
   const localAll = await db.transactions.toArray();
 
-  // Una ocurrencia recurrente con dos ids es la MISMA ocurrencia, y el par
-  // (recurringRuleId, periodKey) es un indice unico en Dexie: dejar pasar
-  // las dos hacia bulkPut lanzaba ConstraintError y, como esta llamada es
-  // la ultima del pull, moria el ciclo entero. Ver ocurrenciasDuplicadas.ts.
-  const plan = conciliarOcurrencias(
-    remoteTx.filter((tx) => !borradoTx.has(tx.id)),
+  // A recurring occurrence with two ids is the SAME occurrence, and the
+  // pair (recurringRuleId, periodKey) is a unique index in Dexie: letting
+  // both through to bulkPut threw ConstraintError and, since this call is
+  // the last one in the pull, killed the entire cycle. See ocurrenciasDuplicadas.ts.
+  const plan = reconcileOccurrences(
+    remoteTx.filter((tx) => !deletedTx.has(tx.id)),
     localAll,
   );
 
-  if (plan.aBorrar.length > 0) {
-    const ahora = new Date().toISOString();
-    await db.transactions.bulkDelete(plan.aBorrar);
-    // Con lapida: sin ella el otro dispositivo, que todavia tiene la fila
-    // con el id viejo, la vuelve a subir y el choque regresa.
-    await db.deletions.bulkPut(plan.aBorrar.map((id) => makeTombstone('transactions', id, ahora)));
+  if (plan.toDelete.length > 0) {
+    const now = new Date().toISOString();
+    await db.transactions.bulkDelete(plan.toDelete);
+    // With a tombstone: without it, the other device, which still has the
+    // row with the old id, uploads it again and the collision comes back.
+    await db.deletions.bulkPut(plan.toDelete.map((id) => makeTombstone('transactions', id, now)));
   }
 
   const localById = new Map(localAll.map((t) => [t.id, t]));
   const toPut: Transaction[] = [];
-  for (const tx of plan.aGuardar) {
+  for (const tx of plan.toSave) {
     const local = localById.get(tx.id);
     if (!local || newer(tx.updatedAt, local.updatedAt)) toPut.push(tx);
   }
-  if (toPut.length > 0) await guardarTolerante(toPut);
+  if (toPut.length > 0) await saveTolerant(toPut);
 
   return {
     pushed: 0,
-    pulled: toPut.length + planPresupuestos.guardarLocal.length + recordatoriosAGuardar.length,
+    pulled: toPut.length + planBudgets.saveLocal.length + remindersToSave.length,
     deleted,
   };
 }
 
 export async function pushLocalToCloud(): Promise<SyncResult> {
-  // 1. Los borrados primero: subir la lápida y borrar allá.
+  // 1. Deletions first: push the tombstone and delete over there.
   const tombstones = await db.deletions.toArray();
   await saveRemoteTombstones(tombstones);
   await applyRemoteDeletions(tombstones);
 
-  const borradoTx = deletedIdsOf(tombstones, 'transactions');
-  const borradoCat = deletedIdsOf(tombstones, 'categories');
-  const borradoPm = deletedIdsOf(tombstones, 'paymentMethods');
-  const borradoRr = deletedIdsOf(tombstones, 'recurringRules');
+  const deletedTx = deletedIdsOf(tombstones, 'transactions');
+  const deletedCat = deletedIdsOf(tombstones, 'categories');
+  const deletedPm = deletedIdsOf(tombstones, 'paymentMethods');
+  const deletedRr = deletedIdsOf(tombstones, 'recurringRules');
 
   const [localTx, remoteTx, categories, methods, rules, settings, localBudgets, remoteBudgets, localReminders, remoteReminders] = await Promise.all([
     db.transactions.toArray(),
@@ -217,23 +218,23 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
     supabaseRepository.listReminders(),
   ]);
 
-  // Categorías y métodos antes que transacciones: las FK de Postgres
-  // rechazan una transacción cuya categoría todavía no existe allá.
-  for (const c of categories.filter((c) => !borradoCat.has(c.id))) await supabaseRepository.saveCategory(c);
-  for (const m of methods.filter((m) => !borradoPm.has(m.id))) await supabaseRepository.savePaymentMethod(m);
-  for (const r of rules.filter((r) => !borradoRr.has(r.id))) await supabaseRepository.saveRecurringRule(r);
+  // Categories and methods before transactions: Postgres's FKs reject a
+  // transaction whose category doesn't exist over there yet.
+  for (const c of categories.filter((c) => !deletedCat.has(c.id))) await supabaseRepository.saveCategory(c);
+  for (const m of methods.filter((m) => !deletedPm.has(m.id))) await supabaseRepository.savePaymentMethod(m);
+  for (const r of rules.filter((r) => !deletedRr.has(r.id))) await supabaseRepository.saveRecurringRule(r);
   if (settings) await supabaseRepository.saveSettings(settings);
 
-  // Presupuestos: despues de las categorias, que es a donde apunta su FK, y
-  // solo los que ganan por fecha. Se salta el presupuesto cuya categoria fue
-  // borrada: la FK lo rechazaria y tumbaria el push entero.
-  const planPresupuestos = conciliarPresupuestos(localBudgets, remoteBudgets);
-  await saveRemoteBudgets(planPresupuestos.subir.filter((b) => !borradoCat.has(b.categoryId)));
+  // Budgets: after categories, which is what their FK points to, and only
+  // the ones that win by date. Skips the budget whose category was
+  // deleted: the FK would reject it and take down the entire push.
+  const planBudgets = reconcileBudgets(localBudgets, remoteBudgets);
+  await saveRemoteBudgets(planBudgets.subir.filter((b) => !deletedCat.has(b.categoryId)));
 
   const remoteById = new Map(remoteTx.map((t) => [t.id, t]));
   let pushed = 0;
   for (const tx of localTx) {
-    if (borradoTx.has(tx.id)) continue;
+    if (deletedTx.has(tx.id)) continue;
     const remote = remoteById.get(tx.id);
     if (!remote || newer(tx.updatedAt, remote.updatedAt)) {
       await supabaseRepository.saveTransaction(tx);
@@ -241,16 +242,16 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
     }
   }
 
-  // Recordatorios AL FINAL: su FK apunta a transactions, asi que el
-  // movimiento tiene que existir ya alla. Ver recordatorios.ts para por que
-  // se filtran los huerfanos.
-  const vivos = new Set(localTx.filter((t) => !borradoTx.has(t.id)).map((t) => t.id));
-  for (const r of recordatoriosASubir(localReminders, remoteReminders, vivos)) {
+  // Reminders LAST: their FK points to transactions, so the transaction
+  // has to already exist over there. See recordatorios.ts for why orphans
+  // get filtered out.
+  const aliveIds = new Set(localTx.filter((t) => !deletedTx.has(t.id)).map((t) => t.id));
+  for (const r of remindersToUpload(localReminders, remoteReminders, aliveIds)) {
     await supabaseRepository.saveReminder(r);
     pushed += 1;
   }
 
-  return { pushed: pushed + planPresupuestos.subir.length, pulled: 0, deleted: tombstones.length };
+  return { pushed: pushed + planBudgets.subir.length, pulled: 0, deleted: tombstones.length };
 }
 
 export async function syncBidirectional(): Promise<SyncResult> {
@@ -260,31 +261,31 @@ export async function syncBidirectional(): Promise<SyncResult> {
 }
 
 /**
- * Una fila mala no puede matar el ciclo de sync.
+ * One bad row can't kill the sync cycle.
  *
- * bulkPut lanza si CUALQUIER fila viola un indice, y como el pull termina
- * aca, un solo choque dejaba al usuario sin sincronizar nada —ni bajar ni
- * subir— y repitiendo el mismo error en cada intento.
+ * bulkPut throws if ANY row violates an index, and since the pull ends
+ * here, a single collision left the user with nothing synced —neither
+ * pull nor push— and the same error repeating on every attempt.
  *
- * conciliarOcurrencias ya quita el caso conocido; esto es el cinturon por
- * si aparece otro. Mismo criterio que el bulkAdd de materialize.ts: se
- * reintenta fila por fila y se registra lo que no entro, en vez de perder
- * las 149 que si estaban bien.
+ * conciliarOcurrencias already removes the known case; this is the belt
+ * in case another one shows up. Same approach as materialize.ts's
+ * bulkAdd: retry row by row and log whatever didn't make it in, instead
+ * of losing the 149 that were actually fine.
  */
-async function guardarTolerante(filas: Transaction[]): Promise<void> {
+async function saveTolerant(rows: Transaction[]): Promise<void> {
   try {
-    await db.transactions.bulkPut(filas);
+    await db.transactions.bulkPut(rows);
   } catch {
-    let fallidas = 0;
-    for (const fila of filas) {
+    let failed = 0;
+    for (const row of rows) {
       try {
-        await db.transactions.put(fila);
+        await db.transactions.put(row);
       } catch {
-        fallidas += 1;
+        failed += 1;
       }
     }
-    if (fallidas > 0) {
-      console.warn(`Sync: ${fallidas} de ${filas.length} movimientos no se pudieron guardar localmente.`);
+    if (failed > 0) {
+      console.warn(`Sync: ${failed} de ${rows.length} movimientos no se pudieron guardar localmente.`);
     }
   }
 }

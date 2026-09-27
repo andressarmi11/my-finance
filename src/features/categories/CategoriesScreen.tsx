@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -11,13 +11,13 @@ import { categoryColor } from '@/domain/seed/categoryColor';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import type { Category } from '@/domain/types';
 import { CategoryForm } from './CategoryForm';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
 export function CategoriesScreen() {
   const t = useT();
   const navigate = useNavigate();
-  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const [editing, setEditing] = useState<Category | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -26,7 +26,7 @@ export function CategoriesScreen() {
     return new Map(totals.map((t) => [t.categoryId, t.amount]));
   }, [transactions]);
 
-  const visible = categories.filter((c) => !c.isArchived);
+  const visibleRows = categories.filter((c) => !c.isArchived);
 
   async function handleSave(category: Category) {
     await localRepository.saveCategory(category);
@@ -41,17 +41,17 @@ export function CategoriesScreen() {
   }
 
   return (
-    <Screen title={t('categorias.titulo')}>
+    <Screen title={t('categories.title')}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
       >
-        ← {t('nav.volverAjustes')}
+        ← {t('nav.backToSettings')}
       </button>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
-        {visible.map((c) => (
+        {visibleRows.map((c) => (
           <button
             key={c.id}
             type="button"

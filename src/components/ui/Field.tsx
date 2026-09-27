@@ -1,24 +1,25 @@
 import type { ReactNode } from 'react';
 
 /**
- * Los dos rotulos de formulario de la app, para no repetir la decision
- * en cada pantalla.
+ * The app's two form labels, so the decision doesn't repeat on every
+ * screen.
  *
- * Existen porque habia 17 `<label>` sueltos y ninguno estaba asociado a
- * nada: un lector de pantalla entraba al campo y anunciaba "campo de
- * texto", sin decir cual. Y la mitad de esos `<label>` ni siquiera
- * rotulaban un campo — rotulaban un grupo de botones (Categoria, Metodo de
- * pago, Frecuencia), donde `<label>` es directamente el elemento
- * equivocado: no le falta un atributo, le falta ser otra cosa.
+ * They exist because there were 17 loose `<label>`s and none of them was
+ * associated with anything: a screen reader would enter the field and
+ * announce "text field", without saying which one. And half of those
+ * `<label>`s weren't even labeling a field — they were labeling a group of
+ * buttons (Category, Payment method, Frequency), where `<label>` is simply
+ * the wrong element: it's not missing an attribute, it's missing being
+ * something else.
  */
 
-const estiloRotulo: React.CSSProperties = {
+const labelStyle: React.CSSProperties = {
   display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600,
   color: 'var(--text-muted)', margin: '0 0 6px',
   textTransform: 'uppercase', letterSpacing: '0.03em',
 };
 
-/** Rotulo de UN control. `htmlFor` tiene que coincidir con el id del input. */
+/** Label for ONE control. `htmlFor` must match the input's id. */
 export function Field({ label, htmlFor, children }: {
   label: string;
   htmlFor: string;
@@ -26,16 +27,16 @@ export function Field({ label, htmlFor, children }: {
 }) {
   return (
     <>
-      <label htmlFor={htmlFor} style={estiloRotulo}>{label}</label>
+      <label htmlFor={htmlFor} style={labelStyle}>{label}</label>
       {children}
     </>
   );
 }
 
 /**
- * Rotulo de un GRUPO de controles (chips, segmentos). Usa role="group" +
- * aria-labelledby, que es lo que un lector de pantalla necesita para decir
- * "Categoria, grupo" antes de leer las opciones.
+ * Label for a GROUP of controls (chips, segments). Uses role="group" +
+ * aria-labelledby, which is what a screen reader needs to say
+ * "Category, group" before reading the options.
  */
 export function FieldGroup({ label, id, children, style }: {
   label: string;
@@ -45,7 +46,7 @@ export function FieldGroup({ label, id, children, style }: {
 }) {
   return (
     <>
-      <span id={`${id}-rotulo`} style={estiloRotulo}>{label}</span>
+      <span id={`${id}-rotulo`} style={labelStyle}>{label}</span>
       <div role="group" aria-labelledby={`${id}-rotulo`} style={style}>
         {children}
       </div>

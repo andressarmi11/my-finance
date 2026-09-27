@@ -1,3 +1,4 @@
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { IconMicrophone, IconPlayerStopFilled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -5,17 +6,17 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
-import { describir } from '@/domain/nlp/describe';
-import { interpretarTexto } from '@/domain/nlp/interpretar';
+import { describeParsed } from '@/domain/nlp/describe';
+import { interpretText } from '@/domain/nlp/interpret';
 import { formatMoney } from '@/domain/money/format';
 import type { Transaction } from '@/domain/types';
 import { categoryColor } from '@/domain/seed/categoryColor';
-import { escuchar, hayDictado, type Reconocedor } from '@/lib/speech';
+import { listen, hasDictation, type Recognizer } from '@/lib/speech';
 import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
-import { VACIO } from '@/lib/vacio';
+import { EMPTY } from '@/lib/empty';
 
-const EJEMPLOS = [
+const EXAMPLES = [
   'gasté 45 mil en el almuerzo',
   'pagué 120 mil de mercado con la tarjeta',
   'me llegaron 2 millones de nómina',
@@ -23,61 +24,61 @@ const EJEMPLOS = [
 ];
 
 /**
- * Contarle a la app lo que pasó, hablando o escribiendo, en una línea.
+ * Telling the app what happened, by speaking or typing, in one line.
  *
- * Todo lo que entiende sale de domain/nlp: determinístico y sin conexión.
- * Lo que aprende sale del historial del usuario — si corrige la categoría
- * acá, la próxima vez que diga ese mismo concepto ya sale bien, porque
- * guardar actualiza el índice de conceptos.
+ * Everything it understands comes from domain/nlp: deterministic and
+ * offline. What it learns comes from the user's history — if they correct
+ * the category here, next time they say that same concept it comes out
+ * right, because saving updates the concept index.
  */
-export function QuickEntrySheet({ onClose, onAjustar }: {
+export function QuickEntrySheet({ onClose, onAdjust }: {
   onClose: () => void;
-  /** Abre el formulario completo con lo ya entendido. */
-  onAjustar: (texto: string) => void;
+  /** Opens the full form with what's already been understood. */
+  onAdjust: (text: string) => void;
 }) {
-  const [texto, setTexto] = useState('');
+  const [text, setTexto] = useState('');
   const [escuchando, setEscuchando] = useState(false);
   const [error, setError] = useState('');
-  const [guardado, setGuardado] = useState<string | null>(null);
+  const [stored, setSaved] = useState<string | null>(null);
   const [categoriaElegida, setCategoriaElegida] = useState<string | null | undefined>(undefined);
-  const recRef = useRef<Reconocedor | null>(null);
+  const recRef = useRef<Recognizer | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
-  const categorias = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
-  const metodos = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
-  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? VACIO;
+  const cats = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const methodRows = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
+  const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? EMPTY;
 
-  const hoy = todayISO();
-  // Misma interpretación que la bandeja y el enlace del Atajo.
-  const leido = useMemo(
-    () => interpretarTexto(texto, hoy, {
+  const today = todayISO();
+  // Same interpretation as the inbox and the Shortcut link.
+  const read = useMemo(
+    () => interpretText(text, today, {
       conceptIndex,
-      idsCategorias: categorias.map((c) => c.id),
-      metodos,
-      metodoPorDefecto: settings.defaultPaymentMethodId ?? null,
+      categoryIds: cats.map((c) => c.id),
+      methodRows,
+      defaultMethodId: settings.defaultPaymentMethodId ?? null,
     }),
-    [texto, hoy, conceptIndex, categorias, metodos, settings.defaultPaymentMethodId],
+    [text, today, conceptIndex, cats, methodRows, settings.defaultPaymentMethodId],
   );
-  const { parsed, paymentMethodId } = leido;
+  const { parsed, paymentMethodId } = read;
 
-  // Lo que el usuario elija acá manda por encima de lo propuesto.
-  const categoryId = categoriaElegida !== undefined ? categoriaElegida : leido.categoryId;
+  // Whatever the user picks here wins over what was proposed.
+  const categoryId = categoriaElegida !== undefined ? categoriaElegida : read.categoryId;
 
-  const desc = describir(parsed, {
-    hoy,
+  const desc = describeParsed(parsed, {
+    today,
     categoryId,
-    categorias,
+    cats,
     paymentMethodId,
-    metodos,
-    aprendida: leido.vieneDeAprendizaje && categoryId === leido.categoryId,
+    methodRows,
+    learned: read.fromLearning && categoryId === read.categoryId,
   });
 
-  const puedeGuardar = parsed.amount != null && parsed.amount > 0 && parsed.concept.length > 0;
+  const canSubmit = parsed.amount != null && parsed.amount > 0 && parsed.concept.length > 0;
 
   useEffect(() => () => recRef.current?.stop(), []);
 
-  function dictar() {
+  function dictate() {
     setError('');
     if (escuchando) {
       recRef.current?.stop();
@@ -85,11 +86,11 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
     }
     haptic('light');
     setEscuchando(true);
-    const rec = escuchar({
+    const rec = listen({
       lang: settings.locale || 'es-CO',
-      onTexto: (t) => setTexto(t),
+      onText: (t) => setTexto(t),
       onError: (m) => { setError(m); setEscuchando(false); },
-      onFin: () => setEscuchando(false),
+      onEnd: () => setEscuchando(false),
     });
     if (!rec) {
       setEscuchando(false);
@@ -100,14 +101,14 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
     recRef.current = rec;
   }
 
-  async function guardar() {
-    if (!puedeGuardar || parsed.amount == null) return;
-    const metodo = metodos.find((m) => m.id === paymentMethodId);
-    const ciclo = metodo?.type === 'credit'
-      ? calculateCreditCardCycle(parsed.date, metodo.cutoffDay, metodo.paymentDay)
+  async function save() {
+    if (!canSubmit || parsed.amount == null) return;
+    const method = methodRows.find((m) => m.id === paymentMethodId);
+    const cycle = method?.type === 'credit'
+      ? calculateCreditCardCycle(parsed.date, method.cutoffDay, method.paymentDay)
       : null;
 
-    const ahora = nowISO();
+    const now = nowISO();
     const tx: Transaction = {
       id: crypto.randomUUID(),
       type: parsed.type,
@@ -116,31 +117,31 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
       date: parsed.date,
       categoryId,
       paymentMethodId,
-      // Si ya pasó, ya pasó: lo que uno cuenta hablando es algo que hizo.
+      // If it already happened, it happened: what you say out loud is something you did.
       status: parsed.yaOcurrio ? 'paid' : 'pending',
       quincenaKey: null,
-      cycleCutoffDate: ciclo?.cycleCutoff,
-      cyclePaymentDate: ciclo?.paymentDate,
-      createdAt: ahora,
-      updatedAt: ahora,
+      cycleCutoffDate: cycle?.cycleCutoff,
+      cyclePaymentDate: cycle?.paymentDate,
+      createdAt: now,
+      updatedAt: now,
     };
     await localRepository.saveTransaction(tx);
     haptic('medium');
-    setGuardado(`Anotado: ${formatMoney(parsed.amount)} en ${parsed.concept}.`);
+    setSaved(`Anotado: ${formatMoney(parsed.amount)} en ${parsed.concept}.`);
     setTexto('');
     setCategoriaElegida(undefined);
-    setTimeout(() => setGuardado(null), 2600);
+    setTimeout(() => setSaved(null), 2600);
     inputRef.current?.focus();
   }
 
-  const categoriasVisibles = categorias.filter(
+  const visibleCategories = cats.filter(
     (c) => c.kind === 'both' || c.kind === parsed.type,
   );
 
-  const refDialogo = useDialogo(onClose);
+  const dialogRef = useDialogo(onClose);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label="Contale a la app"
       onClick={onClose}
@@ -169,10 +170,10 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
           <input
             ref={inputRef}
-            value={texto}
+            value={text}
             onChange={(e) => { setTexto(e.target.value); setCategoriaElegida(undefined); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && puedeGuardar) void guardar(); }}
-            placeholder={EJEMPLOS[0]}
+            onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) void save(); }}
+            placeholder={EXAMPLES[0]}
             aria-label="Qué pasó"
             autoFocus
             style={{
@@ -181,10 +182,10 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
               background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
             }}
           />
-          {hayDictado() && (
+          {hasDictation() && (
             <button
               type="button"
-              onClick={dictar}
+              onClick={dictate}
               aria-label={escuchando ? 'Dejar de escuchar' : 'Dictar'}
               aria-pressed={escuchando}
               style={{
@@ -207,30 +208,30 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
           </p>
         )}
 
-        {texto.trim().length > 0 && (
+        {text.trim().length > 0 && (
           <div
             style={{
               background: 'var(--surface-sunken)', borderRadius: 'var(--radius-m)',
               padding: '12px 14px', marginBottom: 12,
             }}
           >
-            <p style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.resumen}</p>
-            {desc.falta && (
-              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{desc.falta}</p>
+            <p style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</p>
+            {desc.missing && (
+              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{desc.missing}</p>
             )}
-            {desc.nota && !desc.falta && (
-              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{desc.nota}</p>
+            {desc.note && !desc.missing && (
+              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{desc.note}</p>
             )}
           </div>
         )}
 
-        {texto.trim().length > 0 && parsed.concept && (
+        {text.trim().length > 0 && parsed.concept && (
           <>
             <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
               Categoría
             </p>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
-              {categoriasVisibles.map((c) => (
+              {visibleCategories.map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -245,17 +246,17 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
                     fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
-                  <span aria-hidden>{c.icon}</span>{c.name}
+                  <CategoryIcon icon={c.icon} size={15} />{c.name}
                 </button>
               ))}
             </div>
           </>
         )}
 
-        {texto.trim().length === 0 && (
+        {text.trim().length === 0 && (
           <div style={{ marginBottom: 14 }}>
             <p style={{ margin: '0 0 8px', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>Por ejemplo:</p>
-            {EJEMPLOS.map((e) => (
+            {EXAMPLES.map((e) => (
               <button
                 key={e}
                 type="button"
@@ -274,17 +275,17 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
         )}
 
         {error && <p role="alert" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{error}</p>}
-        {guardado && <p role="status" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--positive-text)', fontWeight: 600 }}>{guardado}</p>}
+        {stored && <p role="status" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--positive-text)', fontWeight: 600 }}>{stored}</p>}
 
         <button
           type="button"
-          onClick={guardar}
-          disabled={!puedeGuardar}
+          onClick={save}
+          disabled={!canSubmit}
           style={{
             width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-            background: puedeGuardar ? 'var(--q10)' : 'var(--surface-sunken)',
-            color: puedeGuardar ? '#fff' : 'var(--text-faint)',
-            fontWeight: 700, fontSize: 16, cursor: puedeGuardar ? 'pointer' : 'not-allowed',
+            background: canSubmit ? 'var(--q10)' : 'var(--surface-sunken)',
+            color: canSubmit ? '#fff' : 'var(--text-faint)',
+            fontWeight: 700, fontSize: 16, cursor: canSubmit ? 'pointer' : 'not-allowed',
           }}
         >
           Guardar
@@ -293,20 +294,20 @@ export function QuickEntrySheet({ onClose, onAjustar }: {
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
           <button
             type="button"
-            onClick={() => onAjustar(texto)}
-            disabled={texto.trim().length === 0}
-            style={secundario}
+            onClick={() => onAdjust(text)}
+            disabled={text.trim().length === 0}
+            style={secondary}
           >
             Ajustar todo
           </button>
-          <button type="button" onClick={onClose} style={secundario}>Cerrar</button>
+          <button type="button" onClick={onClose} style={secondary}>Cerrar</button>
         </div>
       </div>
     </div>
   );
 }
 
-const secundario: React.CSSProperties = {
+const secondary: React.CSSProperties = {
   flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
   background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
   fontSize: 'var(--text-base)',

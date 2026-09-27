@@ -2,35 +2,35 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 /**
- * Varias tarjetas, cada una con SU corte y SU pago.
+ * Several cards, each with ITS OWN cutoff and payment day.
  *
- * El modelo siempre lo soporto; lo que no existia era forma de crear una
- * segunda. Este test cubre justo eso de punta a punta: crearla, gastar en
- * ella, y comprobar que su ciclo sale de sus dias y no de los de la
- * primera.
+ * The model always supported it; what didn't exist was a way to create a
+ * second one. This test covers exactly that end to end: create it, spend on
+ * it, and check that its cycle comes from its own days and not the first
+ * card's.
  */
 test.use({ reducedMotion: 'reduce' });
 
-async function crearTarjeta(page: Page, nombre: string, corte: string, pago: string, cupo?: string) {
+async function crearTarjeta(page: Page, name: string, cutoff: string, payment: string, cupo?: string) {
   await page.goto('ajustes/metodos');
   await page.getByRole('button', { name: '+ Nuevo método de pago' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo método de pago' });
-  await dialog.getByLabel('Nombre').fill(nombre);
+  await dialog.getByLabel('Nombre').fill(name);
   await dialog.getByRole('button', { name: 'Crédito' }).click();
-  await dialog.getByLabel('Día de corte').fill(corte);
-  await dialog.getByLabel('Día de pago').fill(pago);
+  await dialog.getByLabel('Día de corte').fill(cutoff);
+  await dialog.getByLabel('Día de pago').fill(payment);
   if (cupo) await dialog.getByLabel('Cupo (opcional)').fill(cupo);
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 }
 
-test('se puede crear una segunda tarjeta y aparece en la lista', async ({ page }) => {
+test('a second card can be created and shows up in the list', async ({ page }) => {
   await crearTarjeta(page, 'Amex Oro', '5', '20');
   await expect(page.getByText('Amex Oro')).toBeVisible();
   await expect(page.getByText(/corte 5, paga 20/)).toBeVisible();
 });
 
-test('cada tarjeta calcula su fecha de pago con SUS días', async ({ page }) => {
+test('each card works out its payment date from ITS OWN days', async ({ page }) => {
   await crearTarjeta(page, 'Amex Oro', '5', '20');
 
   await page.goto('movimientos?nuevo=1');
@@ -39,14 +39,14 @@ test('cada tarjeta calcula su fecha de pago con SUS días', async ({ page }) => 
   await dialog.getByPlaceholder('$ 0').fill('250000');
   await dialog.getByRole('button', { name: 'Amex Oro' }).click();
 
-  // El preview sale del corte 5 / pago 20 de ESTA tarjeta, no del 15/2
-  // de la que trae la app por defecto.
+  // The preview comes from THIS card's cutoff 5 / payment 20, not the 15/2
+  // of the one the app ships with.
   await expect(dialog.getByText(/Se paga el 20/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 });
 
-test('el cupo muestra el disponible y lo descuenta', async ({ page }) => {
+test('the credit limit shows the available amount and deducts from it', async ({ page }) => {
   await crearTarjeta(page, 'Visa Cupo', '15', '2', '2000000');
 
   await page.goto('ajustes/metodos');
@@ -64,7 +64,7 @@ test('el cupo muestra el disponible y lo descuenta', async ({ page }) => {
   await expect(page.getByText('$ 1.700.000')).toBeVisible();
 });
 
-test('borrar una tarjeta deja sus movimientos sin método, no los borra', async ({ page }) => {
+test('deleting a card leaves its transactions without a method, it does not delete them', async ({ page }) => {
   await crearTarjeta(page, 'Temporal', '10', '25');
 
   await page.goto('movimientos?nuevo=1');
@@ -84,7 +84,7 @@ test('borrar una tarjeta deja sus movimientos sin método, no los borra', async 
 
   await expect(page.getByText('Temporal')).toBeHidden();
 
-  // El movimiento sigue vivo: la plata se gastó igual.
+  // The transaction is still alive: the money was spent either way.
   await page.goto('movimientos');
   await expect(page.getByText('Gasto huérfano')).toBeVisible();
 });

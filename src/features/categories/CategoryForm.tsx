@@ -1,11 +1,11 @@
-import { useT } from '@/i18n/idioma';
+import { useT } from '@/i18n/language';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category } from '@/domain/types';
 import { Field, FieldGroup } from '@/components/ui/Field';
-import { CategoryIcon, ICONOS_ELEGIBLES } from '@/components/ui/CategoryIcon';
+import { CategoryIcon, SELECTABLE_ICONS } from '@/components/ui/CategoryIcon';
 
-// Los nombres viven en components/ui/CategoryIcon.tsx: un solo registro.
+// The names live in components/ui/CategoryIcon.tsx: a single registry.
 const COLORS = ['#5B6FE0', '#E0A23B', '#3BA3E0', '#C15BD1', '#3BC1A3', '#E05B5B', '#8A5CF6', '#D18A5B', '#5B8AD1', '#B0721A', '#B3261E', '#1E8E6A', '#6C727F'];
 
 export function CategoryForm({
@@ -18,7 +18,7 @@ export function CategoryForm({
 }) {
   const t = useT();
   const [name, setName] = useState(existing?.name ?? '');
-  const [icon, setIcon] = useState<string>(existing?.icon ?? ICONOS_ELEGIBLES[0]!);
+  const [icon, setIcon] = useState<string>(existing?.icon ?? SELECTABLE_ICONS[0]!);
   const [color, setColor] = useState(existing?.color ?? COLORS[0]!);
   const [kind, setKind] = useState<Category['kind']>(existing?.kind ?? 'expense');
   const [touched, setTouched] = useState(false);
@@ -34,18 +34,18 @@ export function CategoryForm({
       icon,
       color,
       kind,
-      // La fecha real la estampa localRepository.saveCategory; acá basta
-      // con satisfacer el tipo.
+      // The real date gets stamped by localRepository.saveCategory; here it's
+      // enough to satisfy the type.
       updatedAt: existing?.updatedAt ?? '',
       isArchived: existing?.isArchived ?? false,
       sortOrder: existing?.sortOrder ?? nextSortOrder,
     });
   }
 
-  const refDialogo = useDialogo(onCancel);
+  const dialogRef = useDialogo(onCancel);
   return (
     <div
-      ref={refDialogo}
+      ref={dialogRef}
       role="dialog"
       aria-label={existing ? 'Editar categoría' : 'Nueva categoría'}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
@@ -57,13 +57,13 @@ export function CategoryForm({
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
 
-        <Field label={t('form.nombre')} htmlFor="cat-nombre">
+        <Field label={t('form.name')} htmlFor="cat-nombre">
           <input id="cat-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mascotas" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>Ponle un nombre.</p>}
 
         <FieldGroup label="Ícono" id="cat-icono" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          {ICONOS_ELEGIBLES.map((i) => (
+          {SELECTABLE_ICONS.map((i) => (
             <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i} aria-label={i}
               style={{
                 width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center',
@@ -91,7 +91,7 @@ export function CategoryForm({
           ))}
         </FieldGroup>
 
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('accion.guardar')}</button>
+        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('action.save')}</button>
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>

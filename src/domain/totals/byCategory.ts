@@ -1,6 +1,6 @@
 /**
- * Cuanto se ha gastado por categoria. Se usa tanto en la pantalla de
- * Categorias (Fase 5) como en Analisis (Fase 11).
+ * How much has been spent per category. Used both by the Categories screen
+ * and by Analytics.
  */
 import type { Id, Transaction } from '../types';
 

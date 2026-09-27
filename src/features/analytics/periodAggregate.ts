@@ -1,7 +1,7 @@
 /**
- * Agrega la serie mensual en trimestres o años. Presentacion, no dominio:
- * toma lo que ya calculo monthlySeries y lo reagrupa para la vista
- * seleccionada (Mes / Trimestre / Año).
+ * Aggregates the monthly series into quarters or years. Presentation,
+ * not domain: it takes what monthlySeries already computed and regroups
+ * it for the selected view (Month / Quarter / Year).
  */
 import type { MonthPoint } from '@/domain/analytics/series';
 
@@ -14,49 +14,49 @@ export interface PeriodPoint {
 const MONTH_ABBR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 /**
- * Corta la serie en el mes actual: el grafico se llama "historico" y estaba
- * mostrando el futuro.
+ * Cuts the series off at the current month: the chart is called
+ * "historical" and it was showing the future.
  *
- * No es un caso raro. Las reglas recurrentes se materializan por adelantado
- * (y ahora tambien al navegar a un mes lejano), asi que en la base hay
- * transacciones de 2027 aunque estemos en 2026. Como el grafico tomaba los
- * ULTIMOS seis meses de todo lo que existe, los ultimos seis eran los del
- * futuro: el "historico" mostraba meses que todavia no pasaron, y el mes en
- * curso ni aparecia.
+ * This isn't a rare case. Recurring rules get materialized ahead of time
+ * (and now also when navigating to a far-off month), so the database has
+ * 2027 transactions even while we're in 2026. Since the chart took the
+ * LAST six months of everything that exists, the last six were the
+ * future's: the "historical" chart showed months that hadn't happened
+ * yet, and the current month didn't even appear.
  */
-export function hastaHoy(points: MonthPoint[], hoy: string): MonthPoint[] {
-  const [y, m] = hoy.split('-').map(Number) as [number, number];
-  const tope = y * 12 + m;
-  return points.filter((p) => p.year * 12 + p.month <= tope);
+export function untilToday(points: MonthPoint[], today: string): MonthPoint[] {
+  const [y, m] = today.split('-').map(Number) as [number, number];
+  const cap = y * 12 + m;
+  return points.filter((p) => p.year * 12 + p.month <= cap);
 }
 
 /**
- * Rellena con ceros los meses sin movimientos que quedan ENTRE dos que si
- * tienen. Sin esto, un mes en blanco simplemente desaparecia y las barras
- * vecinas quedaban pegadas, como si el tiempo no hubiera pasado.
+ * Fills with zeros the months with no transactions that fall BETWEEN two
+ * that do have them. Without this, a blank month simply disappeared and
+ * the neighboring bars ended up touching, as if no time had passed.
  *
- * A proposito no rellena ANTES del primer mes con datos: inventar ceros
- * previos a que la persona empezara a usar la app diria "no gastaste nada",
- * que es distinto de "todavia no estabas".
+ * On purpose it does NOT fill BEFORE the first month with data:
+ * inventing zeros before the person started using the app would say
+ * "you spent nothing", which is different from "you weren't here yet".
  */
-export function rellenarHuecos(points: MonthPoint[]): MonthPoint[] {
+export function fillGaps(points: MonthPoint[]): MonthPoint[] {
   if (points.length < 2) return points;
-  const ordenados = [...points].sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
-  const porClave = new Map(ordenados.map((p) => [p.year * 12 + p.month, p]));
+  const sorted = [...points].sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
+  const byKey = new Map(sorted.map((p) => [p.year * 12 + p.month, p]));
 
-  const primero = ordenados[0]!;
-  const ultimo = ordenados[ordenados.length - 1]!;
-  const salida: MonthPoint[] = [];
-  for (let n = primero.year * 12 + primero.month; n <= ultimo.year * 12 + ultimo.month; n++) {
-    const existente = porClave.get(n);
-    if (existente) {
-      salida.push(existente);
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  const output: MonthPoint[] = [];
+  for (let n = first.year * 12 + first.month; n <= last.year * 12 + last.month; n++) {
+    const existingRow = byKey.get(n);
+    if (existingRow) {
+      output.push(existingRow);
     } else {
       const year = Math.floor((n - 1) / 12);
-      salida.push({ year, month: n - year * 12, income: 0, expense: 0 });
+      output.push({ year, month: n - year * 12, income: 0, expense: 0 });
     }
   }
-  return salida;
+  return output;
 }
 
 export function toMonthlyPoints(points: MonthPoint[]): PeriodPoint[] {
@@ -92,18 +92,18 @@ export function toYearlyPoints(points: MonthPoint[]): PeriodPoint[] {
 }
 
 /* ---------------------------------------------------------------------
-   Ventana del selector Mes / Trimestre / Año.
+   Month / Quarter / Year selector window.
 
-   Bug que arregla: el filtro anterior era solo `t.date >= inicio`, sin
-   tope superior. Como materialize.ts crea recurrentes hasta 95 dias
-   adelante, las tres opciones terminaban incluyendo el mismo futuro y
-   las tarjetas (balance por categoria, distribucion de gastos, fijos vs
-   variables) mostraban exactamente lo mismo en Mes, Trimestre y Año.
-   Con `to` acotado, cada rango cubre solo su periodo.
+   Bug this fixes: the previous filter was just `t.date >= inicio`, with
+   no upper bound. Since materialize.ts creates recurring transactions up
+   to 95 days ahead, the three options ended up including the same
+   future and the cards (balance by category, expense distribution,
+   fixed vs. variable) showed exactly the same thing under Month,
+   Quarter and Year. With `to` bounded, each range covers only its own period.
 --------------------------------------------------------------------- */
 import { daysInMonth } from '@/domain/dates';
-import { fechaDeCargo } from '@/domain/periodo/fechaDeCargo';
-import { calcularPeriodo, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } from '@/domain/periodo/periodo';
+import { chargeDate } from '@/domain/period/chargeDate';
+import { calculatePeriod, DEFAULT_PAY_DAYS, type PayDays } from '@/domain/period/period';
 import type { Transaction } from '@/domain/types';
 
 export type Range = 'quincena' | 'mes' | 'trimestre' | 'año';
@@ -113,20 +113,21 @@ function iso(y: number, m: number, d: number): string {
 }
 
 /**
- * Limites inclusivos [from, to] del rango que contiene a `today`.
+ * Inclusive [from, to] bounds of the range that contains `today`.
  *
- * Tres de los cuatro son CALENDARIO puro. 'quincena' no: sale de los dias
- * de pago del usuario, asi que la ventana del 25 se estira hasta el 9 del
- * mes siguiente. Son dos ejes distintos y conviene que se vea — no existe
- * un "trimestre de quincenas" y no se inventa uno.
+ * Three of the four are pure CALENDAR ranges. 'quincena' is not: it
+ * comes from the user's pay days, so the 25th's window stretches to the
+ * 9th of the next month. They're two different axes and it's worth
+ * keeping that visible — there's no such thing as a "quarter of pay
+ * periods" and none gets invented.
  */
 export function rangeBounds(
   range: Range,
   today: string,
-  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+  payDays: PayDays = DEFAULT_PAY_DAYS,
 ): { from: string; to: string } {
   if (range === 'quincena') {
-    const p = calcularPeriodo(today, dias);
+    const p = calculatePeriod(today, payDays);
     return { from: p.start, to: p.end };
   }
   const [y, m] = today.split('-').map(Number) as [number, number];
@@ -142,22 +143,22 @@ export function rangeBounds(
 }
 
 /**
- * Por la fecha de CARGO, no la de registro.
+ * By the CHARGE date, not the entry date.
  *
- * Antes filtraba por t.date crudo, asi que una compra con tarjeta del 20
- * de septiembre que se paga el 2 de noviembre contaba como gasto de
- * septiembre. Es el mismo bug que se arreglo en el balance (95e91ce) y que
- * sobrevivio aca porque la funcion vivia en features/dashboard.
+ * It used to filter by raw t.date, so a September 20th card purchase
+ * that gets paid on November 2nd counted as a September expense. It's
+ * the same bug that got fixed in the balance (95e91ce) and survived here
+ * because the function used to live in features/dashboard.
  */
 export function filterByRange(
   transactions: Transaction[],
   range: Range,
   today: string,
-  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+  payDays: PayDays = DEFAULT_PAY_DAYS,
 ): Transaction[] {
-  const { from, to } = rangeBounds(range, today, dias);
+  const { from, to } = rangeBounds(range, today, payDays);
   return transactions.filter((t) => {
-    const cargo = fechaDeCargo(t);
-    return cargo >= from && cargo <= to;
+    const charge = chargeDate(t);
+    return charge >= from && charge <= to;
   });
 }

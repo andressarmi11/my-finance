@@ -1,79 +1,85 @@
 /**
- * Reparte una compra diferida en N cuotas.
+ * Splits an instalment purchase into N instalments.
  *
- * A diferencia de una regla recurrente, un diferido es FINITO y se conoce
- * entero el dia de la compra: las N cuotas se calculan de una sola vez y
- * nunca hay que volver. Por eso esto no necesita el aparato de
- * data/local/materialize.ts (ventana, re-expansion, indice unico).
+ * Unlike a recurring rule, an instalment purchase is FINITE and known in
+ * full on the day of the purchase: the N instalments are calculated once
+ * and there's never a need to revisit it. That's why this doesn't need
+ * the machinery of data/local/materialize.ts (window, re-expansion,
+ * unique index).
  *
- * Funcion pura: no escribe nada. Quien llama arma las transacciones.
+ * Pure function: writes nothing. The caller assembles the transactions.
  */
 import { clampDay, parseISO, shiftMonth, toISO } from '../dates';
 import { calculateCreditCardCycle } from './cycle';
 import type { ISODate } from '../types';
 
-export interface Cuota {
+export interface Installment {
   /** 1..N */
-  numero: number;
+  toNumber: number;
   amount: number;
   date: ISODate;
   cycleCutoffDate: ISODate;
   cyclePaymentDate: ISODate;
 }
 
-export function expandirDiferido(
+export function expandInstallments(
   purchaseDate: ISODate,
   total: number,
-  cuotas: number,
+  installments: number,
   cutoffDay?: number,
   paymentDay?: number,
   /**
-   * Lo que de verdad cobra el banco por cuota, cuando hay interes. Si
-   * viene, manda sobre el reparto y la suma de las cuotas supera al total
-   * — esa diferencia ES el interes. La app no calcula tasas.
+   * What the bank actually charges per instalment, when there's interest.
+   * If provided, it overrides the split and the sum of the instalments
+   * exceeds the total — that difference IS the interest. The app does
+   * not calculate rates.
    */
-  valorCuota?: number,
-): Cuota[] {
-  // 1 o menos no es un diferido. Se tolera 0 y negativos en vez de
-  // reventar: quien llama ya decide no guardar los campos de cuotas.
-  const n = Number.isInteger(cuotas) && cuotas > 1 ? cuotas : 1;
+  installmentAmount?: number,
+): Installment[] {
+  // 1 or fewer is not an instalment purchase. 0 and negatives are
+  // tolerated instead of blowing up: the caller already decides not to
+  // save the instalment fields.
+  const n = Number.isInteger(installments) && installments > 1 ? installments : 1;
   const { y, m, d } = parseISO(purchaseDate);
 
-  const montos = valorCuota && valorCuota > 0
-    ? Array.from({ length: n }, () => valorCuota)
-    : repartir(total, n);
+  const amounts = installmentAmount && installmentAmount > 0
+    ? Array.from({ length: n }, () => installmentAmount)
+    : split(total, n);
 
-  return montos.map((amount, i) => {
-    // La cuota i+1 es la compra corrida i meses. clampDay por los meses
-    // cortos: comprar un 31 de enero pone la segunda cuota el 28 de feb.
+  return amounts.map((amount, i) => {
+    // Instalment i+1 is the purchase shifted by i months. clampDay
+    // handles short months: buying on 31 January puts the second
+    // instalment on 28 February.
     const ym = shiftMonth(y, m, i);
     const date = toISO({ ...ym, d: clampDay(ym.y, ym.m, d) });
 
-    // El ciclo sale de la fecha de CADA cuota. No hace falta aritmetica
-    // especial: compra el 20 sep con corte 15 y pago 2 da cuotas que pagan
-    // el 2 nov, 2 dic y 2 ene — consecutivas, solas.
-    const ciclo = calculateCreditCardCycle(date, cutoffDay, paymentDay);
+    // The cycle comes from the date of EACH instalment. No special
+    // arithmetic needed: a purchase on 20 Sep with cutoff 15 and payment
+    // 2 gives instalments paid on 2 Nov, 2 Dec and 2 Jan — consecutive,
+    // on their own.
+    const cycle = calculateCreditCardCycle(date, cutoffDay, paymentDay);
 
     return {
-      numero: i + 1,
+      toNumber: i + 1,
       amount,
       date,
-      cycleCutoffDate: ciclo.cycleCutoff,
-      cyclePaymentDate: ciclo.paymentDate,
+      cycleCutoffDate: cycle.cycleCutoff,
+      cyclePaymentDate: cycle.paymentDate,
     };
   });
 }
 
 /**
- * El resto va entero a la PRIMERA cuota.
+ * The remainder goes entirely to the FIRST instalment.
  *
- * La invariante que importa es que la suma sea exactamente el total: si se
- * repartiera "como caiga", la suma de las cuotas dejaria de ser la compra
- * y el cupo quedaria descuadrado por unos pesos que nadie sabria de donde
- * salieron. El dinero es entero en toda la app; aca es donde eso importa.
+ * The invariant that matters is that the sum is exactly the total: spread
+ * it "however it falls" and the instalments would no longer add up to the
+ * purchase, leaving the credit limit off by a few pesos nobody could
+ * account for. Money is an integer throughout the app; this is where
+ * that matters.
  */
-function repartir(total: number, n: number): number[] {
+function split(total: number, n: number): number[] {
   const base = Math.floor(total / n);
-  const resto = total - base * n;
-  return Array.from({ length: n }, (_, i) => (i === 0 ? base + resto : base));
+  const rest = total - base * n;
+  return Array.from({ length: n }, (_, i) => (i === 0 ? base + rest : base));
 }

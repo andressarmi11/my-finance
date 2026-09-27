@@ -1,11 +1,11 @@
 /**
- * Tipos del dominio. Esta carpeta NO importa React ni Supabase.
+ * Domain types. This folder does NOT import React or Supabase.
  *
- * Reglas duras:
- *  - El dinero es siempre un entero (pesos). Nunca float.
- *  - Las fechas de negocio son strings 'YYYY-MM-DD', nunca Date con hora.
- *    Esto evita que una compra del 15 a las 11pm caiga en el ciclo equivocado
- *    por zona horaria (Colombia = UTC-5).
+ * Hard rules:
+ *  - Money is always an integer (pesos). Never a float.
+ *  - Business dates are 'YYYY-MM-DD' strings, never a Date with a time.
+ *    This stops a purchase made at 11pm on the 15th from landing in the
+ *    wrong cycle because of timezone (Colombia = UTC-5).
  */
 
 export type ISODate = string; // 'YYYY-MM-DD'
@@ -16,35 +16,35 @@ export type TransactionStatus = 'paid' | 'pending' | 'scheduled' | 'cancelled';
 export type PaymentMethodType = 'debit' | 'credit' | 'cash' | 'transfer';
 export type Frequency = 'monthly' | 'biweekly' | 'weekly' | 'yearly';
 
-/** Ej: '2026-09-Q1' (quincena del 10) | '2026-09-Q2' (quincena del 25) */
-export type QuincenaKey = string;
+/** E.g.: '2026-09-Q1' (the 10th-of-the-month payday) | '2026-09-Q2' (the 25th) */
+export type PeriodKey = string;
 
 export interface Settings {
   id: 'singleton';
-  /** Como quiere que lo llamemos. Vacio = no preguntado todavia. */
+  /** What they want to be called. Empty = not asked yet. */
   displayName: string;
   currency: string; // 'COP'
   locale: string; // 'es-CO'
   /**
-   * Los dias del mes en que entra plata.
+   * The days of the month money comes in.
    *
-   * EL NUMERO DE DIAS ES EL MODO: uno = te pagan una vez al mes, dos =
-   * quincenal. No hay un campo aparte que diga "mensual" o "quincenal" y
-   * pueda contradecir a esta lista.
+   * THE NUMBER OF DAYS IS THE MODE: one = paid once a month, two =
+   * fortnightly. There is no separate field saying "monthly" or
+   * "fortnightly" that could contradict this list.
    *
-   * Antes era una tupla fija de dos (quincenaStartDays), que es justo lo
-   * que impedia el modo mensual. Ver domain/periodo/periodo.ts.
+   * Used to be a fixed tuple of two (quincenaStartDays), which is exactly
+   * what ruled out monthly mode. See domain/period/period.ts.
    */
-  diasDePago: number[];
+  payDays: number[];
   defaultPaymentMethodId: Id | null;
   reminderDefaultDaysBefore: number;
   theme: 'system' | 'light' | 'dark';
-  /** ISO datetime de cuando termino la configuracion inicial. null = mostrarla. */
+  /** ISO datetime of when onboarding finished. null = show it. */
   onboardedAt: string | null;
   /**
-   * Cuando se guardo por ultima vez. Lo necesita la sincronizacion: sin
-   * esto, bajar de la nube pisaba lo local a ciegas y borraba la
-   * configuracion inicial recien hecha en cada login.
+   * When this was last saved. Sync needs this: without it, pulling from
+   * the cloud blindly overwrote local data and wiped out onboarding just
+   * completed on every login.
    */
   updatedAt: string;
 }
@@ -58,10 +58,10 @@ export interface Category {
   isArchived: boolean;
   sortOrder: number;
   /**
-   * Cuando se guardo por ultima vez. Lo necesita la sincronizacion: sin
-   * esto, bajar de la nube pisaba lo local a ciegas y cada edicion se
-   * deshacia sola en el siguiente ciclo (que siempre empieza por bajar).
-   * Vacio = nunca se guardo, y pierde contra cualquier fecha real.
+   * When this was last saved. Sync needs this: without it, pulling from
+   * the cloud blindly overwrote local data and every edit undid itself
+   * on the next cycle (which always starts by pulling).
+   * Empty = never saved, and loses against any real date.
    */
   updatedAt: string;
 }
@@ -71,24 +71,25 @@ export interface PaymentMethod {
   type: PaymentMethodType;
   name: string;
   /**
-   * HEREDADO — no escribir. La fuente de verdad del metodo por defecto es
-   * Settings.defaultPaymentMethodId; este campo solo sobrevive como ultimo
-   * eslabon del ?? para quien nunca toco ese ajuste (ver
-   * TransactionsScreen: settings.defaultPaymentMethodId ?? find(isDefault)).
-   * Tener dos lugares donde vive "el por defecto" ya hacia que una casilla
-   * que escribiera aca pareciera no hacer nada.
+   * LEGACY — do not write to this. The source of truth for the default
+   * method is Settings.defaultPaymentMethodId; this field only survives
+   * as the last link in the ?? chain for anyone who never touched that
+   * setting (see TransactionsScreen:
+   * settings.defaultPaymentMethodId ?? find(isDefault)).
+   * Having two places where "the default" lived already made a checkbox
+   * that wrote here look like it did nothing.
    */
   isDefault: boolean;
-  /** Solo si type === 'credit'. Configurables, nunca hardcodeados. */
+  /** Only if type === 'credit'. Configurable, never hardcoded. */
   cutoffDay?: number; // 15
   paymentDay?: number; // 2
-  /** Cupo total en pesos enteros. Solo si type === 'credit'. */
+  /** Total limit in whole pesos. Only if type === 'credit'. */
   creditLimit?: number;
   /**
-   * Cuando se guardo por ultima vez. Lo necesita la sincronizacion: sin
-   * esto, bajar de la nube pisaba lo local a ciegas y cada edicion se
-   * deshacia sola en el siguiente ciclo (que siempre empieza por bajar).
-   * Vacio = nunca se guardo, y pierde contra cualquier fecha real.
+   * When this was last saved. Sync needs this: without it, pulling from
+   * the cloud blindly overwrote local data and every edit undid itself
+   * on the next cycle (which always starts by pulling).
+   * Empty = never saved, and loses against any real date.
    */
   updatedAt: string;
 }
@@ -97,22 +98,22 @@ export interface Transaction {
   id: Id;
   type: TransactionType;
   concept: string;
-  amount: number; // pesos enteros
-  date: ISODate; // fecha de la compra / del ingreso
+  amount: number; // whole pesos
+  date: ISODate; // date of the purchase / of the income
   categoryId: Id | null;
   paymentMethodId: Id | null;
   status: TransactionStatus;
   notes?: string;
 
-  /** Derivados de TC, persistidos para que cambiar el corte no reescriba la historia. */
+  /** Derived from the card, persisted so that changing the cutoff doesn't rewrite history. */
   cycleCutoffDate?: ISODate;
   cyclePaymentDate?: ISODate;
 
   /**
-   * Compra diferida. Las N cuotas son N transacciones que comparten grupo;
-   * el id de cada una es `${installmentGroupId}:cuota-${n}`, determinista,
-   * para que la lapida de borrado sepa cual murio (mismo razonamiento que
-   * occurrenceId en data/local/materialize.ts).
+   * Instalment purchase. The N instalments are N transactions sharing a
+   * group; each one's id is `${installmentGroupId}:cuota-${n}`,
+   * deterministic, so the delete tombstone knows which one died (same
+   * reasoning as occurrenceId in data/local/materialize.ts).
    */
   installmentGroupId?: Id;
   /** 1..N */
@@ -120,16 +121,17 @@ export interface Transaction {
   /** N */
   installmentCount?: number;
   /**
-   * Cuando se hizo la COMPRA. Distinta de `date` a partir de la cuota 2.
-   * Existe para el cupo: un diferido bloquea el cupo entero el dia de la
-   * compra, no cuota a cuota (ver credit-card/disponible.ts).
+   * When the PURCHASE was made. Differs from `date` from instalment 2
+   * onward. Exists for the credit limit: an instalment purchase locks
+   * the whole limit on the day of the purchase, not instalment by
+   * instalment (see credit-card/availableCredit.ts).
    */
   purchaseDate?: ISODate;
 
-  /** null = se calcula por fecha. Con valor = el usuario lo movio a mano. */
-  quincenaKey: QuincenaKey | null;
+  /** null = computed from the date. A value means the user moved it by hand. */
+  quincenaKey: PeriodKey | null;
 
-  /** Trazabilidad de recurrencia. UNIQUE(recurringRuleId, periodKey) en la DB. */
+  /** Recurrence traceability. UNIQUE(recurringRuleId, periodKey) in the DB. */
   recurringRuleId?: Id;
   periodKey?: string; // '2026-09'
 
@@ -151,10 +153,10 @@ export interface RecurringRule {
   endDate?: ISODate;
   isActive: boolean;
   /**
-   * Cuando se guardo por ultima vez. Lo necesita la sincronizacion: sin
-   * esto, bajar de la nube pisaba lo local a ciegas y cada edicion se
-   * deshacia sola en el siguiente ciclo (que siempre empieza por bajar).
-   * Vacio = nunca se guardo, y pierde contra cualquier fecha real.
+   * When this was last saved. Sync needs this: without it, pulling from
+   * the cloud blindly overwrote local data and every edit undid itself
+   * on the next cycle (which always starts by pulling).
+   * Empty = never saved, and loses against any real date.
    */
   updatedAt: string;
 }
@@ -166,9 +168,9 @@ export interface Budget {
   month: number; // 1-12
   amount: number;
   /**
-   * Lo estampa el repositorio al guardar. Sin esto no habia forma de
-   * sincronizarlos: el last-write-wins necesita saber cual de las dos
-   * copias es la reciente. Vacio = nunca se guardo, y pierde.
+   * Stamped by the repository on save. Without this there was no way
+   * to sync them: last-write-wins needs to know which of the two
+   * copies is the recent one. Empty = never saved, and loses.
    */
   updatedAt: string;
 }
@@ -180,9 +182,10 @@ export interface Reminder {
   status: 'scheduled' | 'sent' | 'dismissed' | 'failed';
   sentAt?: string;
   /**
-   * Igual que en Budget: sin esto no se pueden sincronizar. Hace falta
-   * porque el servidor los marca 'sent' y ese cambio tiene que poder
-   * ganarle a la copia local sin que la local lo pise de vuelta.
+   * Same as Budget: without this they can't be synced. It's needed
+   * because the server marks them 'sent' and that change has to be
+   * able to beat the local copy without the local one overwriting it
+   * back.
    */
   updatedAt: string;
 }

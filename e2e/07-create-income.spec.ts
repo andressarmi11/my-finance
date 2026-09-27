@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 
-test('crear un ingreso', async ({ page }) => {
-  // El tipo se elige por query param (?tipo=ingreso) o long-press del FAB.
-  // El toggle Gasto/Ingreso dentro del form ya no existe (Fase 3).
+test('creates an income', async ({ page }) => {
+  // The type is chosen by query param (?tipo=ingreso) or a long-press on the FAB.
+  // The Expense/Income toggle inside the form no longer exists.
   await page.goto('movimientos?nuevo=1&tipo=ingreso');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
 

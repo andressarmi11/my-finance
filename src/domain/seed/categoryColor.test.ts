@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { categoryColor, COLOR_SIN_CATEGORIA } from './categoryColor';
+import { categoryColor, UNCATEGORIZED_COLOR } from './categoryColor';
 import { DEFAULT_CATEGORIES } from './defaultCategories';
 
 describe('categoryColor', () => {
-  it('las categorías sembradas se pintan con su token, para que el modo oscuro funcione', () => {
+  it('seeded categories are painted with their token, so dark mode works', () => {
     expect(categoryColor({ id: 'cat-hogar', color: '#C24976' })).toBe('var(--cat-hogar)');
     expect(categoryColor({ id: 'cat-ahorro', color: '#B54D98' })).toBe('var(--cat-ahorro)');
   });
 
-  it('todas las sembradas tienen token, salvo "Otros"', () => {
+  it('every seeded one has a token, except "Others"', () => {
     for (const c of DEFAULT_CATEGORIES) {
-      // 'Otros' es gris neutro a propósito: no es un tema, es el cajón de
-      // lo que no encaja, y no debe competir por atención en un gráfico.
+      // 'Others' is neutral grey on purpose: it isn't a topic, it's the
+      // drawer for whatever doesn't fit, and it shouldn't compete for
+      // attention in a chart.
       if (c.id === 'cat-otros') {
         expect(categoryColor(c)).toBe(c.color);
         continue;
@@ -20,28 +21,28 @@ describe('categoryColor', () => {
     }
   });
 
-  it('una categoría creada por el usuario usa su propio color', () => {
+  it('a category the user created uses its own colour', () => {
     expect(categoryColor({ id: 'abc-123', color: '#FF00FF' })).toBe('#FF00FF');
   });
 
-  it('sin categoría no inventa un color', () => {
-    expect(categoryColor(null)).toBe(COLOR_SIN_CATEGORIA);
-    expect(categoryColor(undefined)).toBe(COLOR_SIN_CATEGORIA);
+  it("with no category it doesn't invent a colour", () => {
+    expect(categoryColor(null)).toBe(UNCATEGORIZED_COLOR);
+    expect(categoryColor(undefined)).toBe(UNCATEGORIZED_COLOR);
   });
 });
 
-describe('paleta de categorías', () => {
-  it('ninguna repite color con otra', () => {
-    const colores = DEFAULT_CATEGORIES.map((c) => c.color.toUpperCase());
-    expect(new Set(colores).size).toBe(colores.length);
+describe('category palette', () => {
+  it('no two share a colour', () => {
+    const colors = DEFAULT_CATEGORIES.map((c) => c.color.toUpperCase());
+    expect(new Set(colors).size).toBe(colors.length);
   });
 
-  it('ninguna usa los colores reservados de quincena o de estado', () => {
-    // Antes Salud era rojo (#E05B5B) y Ahorro verde (#1E8E6A): una
-    // categoría se leía como un estado.
-    const reservados = ['#007AFF', '#FF9500', '#34C759', '#FF3B30'];
+  it('none uses the reserved pay-period or status colours', () => {
+    // Health used to be red (#E05B5B) and Savings green (#1E8E6A): a
+    // category read as a status.
+    const reserved = ['#007AFF', '#FF9500', '#34C759', '#FF3B30'];
     for (const c of DEFAULT_CATEGORIES) {
-      expect(reservados).not.toContain(c.color.toUpperCase());
+      expect(reserved).not.toContain(c.color.toUpperCase());
     }
   });
 

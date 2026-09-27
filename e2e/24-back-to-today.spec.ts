@@ -2,58 +2,59 @@ import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
 
 /**
- * Volver al mes actual de un toque, desde cualquier distancia.
+ * Getting back to the current month in one tap, from any distance.
  *
- * La funcion existia a medias: el boton era la ETIQUETA del mes, que solo
- * cambiaba de color al alejarte. Nadie podia adivinarlo, y Calendario ni
- * siquiera lo tenia porque duplicaba la navegacion en vez de reusarla.
+ * The feature half-existed: the button was the month's LABEL, which only
+ * changed colour once you drifted away. Nobody could guess it, and Calendar
+ * didn't even have it because it duplicated the navigator instead of
+ * reusing it.
  */
 test.use({ reducedMotion: 'reduce' });
 
-/** Se aleja n meses tocando la flecha, como lo haria una persona. */
+/** Moves n months away by tapping the arrow, the way a person would. */
 async function avanzar(page: Page, meses: number) {
-  const siguiente = page.getByRole('button', { name: 'Mes siguiente' });
-  for (let i = 0; i < meses; i++) await siguiente.click();
+  const next = page.getByRole('button', { name: 'Mes siguiente' });
+  for (let i = 0; i < meses; i++) await next.click();
 }
 
-test.describe('movimientos', () => {
-  test('no ofrece volver si ya estás en el mes actual', async ({ page }) => {
+test.describe('transactions', () => {
+  test('does not offer to go back if you are already on the current month', async ({ page }) => {
     await page.goto('movimientos');
     await expect(page.getByRole('button', { name: 'Volver al mes actual' })).toBeHidden();
   });
 
-  test('a 14 meses de distancia, un toque devuelve al mes actual', async ({ page }) => {
+  test('14 months away, one tap returns to the current month', async ({ page }) => {
     await page.goto('movimientos');
-    const etiquetaInicial = await page.getByRole('button', { name: 'Mes anterior' })
+    const initialLabel = await page.getByRole('button', { name: 'Mes anterior' })
       .locator('xpath=following-sibling::*[1]').textContent();
 
     await avanzar(page, 14);
     expect(await page.getByRole('button', { name: 'Mes anterior' })
-      .locator('xpath=following-sibling::*[1]').textContent()).not.toBe(etiquetaInicial);
+      .locator('xpath=following-sibling::*[1]').textContent()).not.toBe(initialLabel);
 
     await page.getByRole('button', { name: 'Volver al mes actual' }).click();
     expect(await page.getByRole('button', { name: 'Mes anterior' })
-      .locator('xpath=following-sibling::*[1]').textContent()).toBe(etiquetaInicial);
+      .locator('xpath=following-sibling::*[1]').textContent()).toBe(initialLabel);
 
-    // Y al volver, el botón desaparece: ya no hay a dónde volver.
+    // And once back, the button disappears: there's nowhere left to go back to.
     await expect(page.getByRole('button', { name: 'Volver al mes actual' })).toBeHidden();
   });
 
-  test('también funciona yendo hacia atrás', async ({ page }) => {
+  test('it also works going backwards', async ({ page }) => {
     await page.goto('movimientos');
     const inicial = await page.getByRole('button', { name: 'Mes anterior' })
       .locator('xpath=following-sibling::*[1]').textContent();
 
-    const anterior = page.getByRole('button', { name: 'Mes anterior' });
-    for (let i = 0; i < 8; i++) await anterior.click();
+    const previous = page.getByRole('button', { name: 'Mes anterior' });
+    for (let i = 0; i < 8; i++) await previous.click();
 
     await page.getByRole('button', { name: 'Volver al mes actual' }).click();
-    expect(await anterior.locator('xpath=following-sibling::*[1]').textContent()).toBe(inicial);
+    expect(await previous.locator('xpath=following-sibling::*[1]').textContent()).toBe(inicial);
   });
 });
 
-test.describe('calendario', () => {
-  test('a 14 meses, vuelve al mes actual Y deja seleccionado hoy', async ({ page }) => {
+test.describe('calendar', () => {
+  test('14 months away, it returns to the current month AND leaves today selected', async ({ page }) => {
     await page.goto('calendario');
     const inicial = await page.getByRole('button', { name: 'Mes anterior' })
       .locator('xpath=following-sibling::*[1]').textContent();
@@ -64,9 +65,9 @@ test.describe('calendario', () => {
     expect(await page.getByRole('button', { name: 'Mes anterior' })
       .locator('xpath=following-sibling::*[1]').textContent()).toBe(inicial);
 
-    // Volver al mes y quedar parado en un día de otro mes seria volver a medias.
-    const hoy = new Date();
-    const dia = String(hoy.getDate());
-    await expect(page.getByRole('heading', { level: 2 })).toContainText(dia);
+    // Returning to the month but landing on another month's day would be only half a return.
+    const today = new Date();
+    const day = String(today.getDate());
+    await expect(page.getByRole('heading', { level: 2 })).toContainText(day);
   });
 });

@@ -12,10 +12,10 @@ import type {
 const USER = 'user-123';
 
 describe('settings round-trip', () => {
-  it('fila -> dominio -> fila conserva todo', () => {
+  it('row -> domain -> row keeps everything', () => {
     const settings: Settings = {
       id: 'singleton', displayName: 'Andrés', onboardedAt: '2026-09-18T10:00:00.000Z',
-      currency: 'COP', locale: 'es-CO', diasDePago: [10, 25],
+      currency: 'COP', locale: 'es-CO', payDays: [10, 25],
       defaultPaymentMethodId: 'pm-1', reminderDefaultDaysBefore: 2, theme: 'dark',
       updatedAt: '2026-09-18T12:00:00.000Z',
     };
@@ -25,7 +25,7 @@ describe('settings round-trip', () => {
 });
 
 describe('category round-trip', () => {
-  it('conserva icono, color y kind', () => {
+  it('keeps icon, color and kind', () => {
     const category: Category = {
       id: 'c1', name: 'Hogar', icon: '🏠', color: '#5B6FE0', kind: 'both', isArchived: false, sortOrder: 3, updatedAt: '2026-09-18T12:00:00.000Z',
     };
@@ -34,7 +34,7 @@ describe('category round-trip', () => {
 });
 
 describe('paymentMethod round-trip', () => {
-  it('conserva cutoffDay/paymentDay, incluso cuando estan ausentes', () => {
+  it('keeps cutoffDay/paymentDay, even when absent', () => {
     const debit: PaymentMethod = { id: 'pm-1', type: 'debit', name: 'Débito', isDefault: true, updatedAt: 'T' };
     expect(paymentMethodFromRow(paymentMethodToRow(USER, debit))).toEqual(debit);
 
@@ -44,7 +44,7 @@ describe('paymentMethod round-trip', () => {
 });
 
 describe('transaction round-trip', () => {
-  it('conserva todos los campos, incluidos los opcionales de TC y recurrencia', () => {
+  it('keeps all fields, including the optional credit-card and recurrence ones', () => {
     const tx: Transaction = {
       id: 't1', type: 'expense', concept: 'Cine', amount: 38_000, date: '2026-09-17',
       categoryId: 'cat-entretenimiento', paymentMethodId: 'pm-tc', status: 'pending', notes: 'con Ana',
@@ -54,7 +54,7 @@ describe('transaction round-trip', () => {
     expect(transactionFromRow(transactionToRow(USER, tx))).toEqual(tx);
   });
 
-  it('conserva una transaccion minima (sin campos opcionales)', () => {
+  it('keeps a minimal transaction (no optional fields)', () => {
     const tx: Transaction = {
       id: 't2', type: 'income', concept: 'Salario', amount: 3_000_000, date: '2026-09-10',
       categoryId: null, paymentMethodId: null, status: 'paid', quincenaKey: 'manual-key',
@@ -65,7 +65,7 @@ describe('transaction round-trip', () => {
 });
 
 describe('recurringRule round-trip', () => {
-  it('conserva la regla completa', () => {
+  it('keeps the full rule', () => {
     const rule: RecurringRule = {
       id: 'r1', name: 'Arriendo', type: 'expense', amount: 2_500_000, categoryId: 'cat-hogar',
       paymentMethodId: 'pm-debito', frequency: 'monthly', dayOfMonth: 1, startDate: '2026-01-01',
@@ -76,7 +76,7 @@ describe('recurringRule round-trip', () => {
 });
 
 describe('budget round-trip', () => {
-  it('conserva año, mes, monto y la fecha de modificación', () => {
+  it('keeps year, month, amount and the modification date', () => {
     const budget: Budget = {
       id: 'b1', categoryId: 'cat-hogar', year: 2026, month: 9, amount: 3_000_000,
       updatedAt: '2026-09-18T10:00:00.000Z',
@@ -84,7 +84,7 @@ describe('budget round-trip', () => {
     expect(budgetFromRow(budgetToRow(USER, budget))).toEqual(budget);
   });
 
-  it('una fila sin fecha se estampa al subir, para que no pierda siempre', () => {
+  it('a row with no date gets stamped on upload, so it never loses by default', () => {
     const budget: Budget = {
       id: 'b1', categoryId: 'cat-hogar', year: 2026, month: 9, amount: 3_000_000, updatedAt: '',
     };
@@ -93,7 +93,7 @@ describe('budget round-trip', () => {
 });
 
 describe('reminder round-trip', () => {
-  it('conserva el estado y sentAt opcional', () => {
+  it('keeps the status and optional sentAt', () => {
     const reminder: Reminder = {
       id: 'rem1', transactionId: 't1', remindAt: '2026-09-16T09:00:00Z', status: 'scheduled',
       updatedAt: '2026-09-15T08:00:00.000Z',

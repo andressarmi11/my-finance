@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-/** Contenedor estándar: un solo ancho, un solo padding, en toda la app.
- *  Header con large title iOS 18 (34pt SF Pro Rounded). Slot `right` para
- *  acciones contextuales (botones de filtro, edit, etc). */
+/** Standard container: one width, one padding, across the whole app.
+ *  Header with an iOS 18 large title (34pt SF Pro Rounded). `right` slot for
+ *  contextual actions (filter buttons, edit, etc). */
 export function Screen({ title, subtitle, right, children }: {
   title: string;
   subtitle?: string;
@@ -15,9 +15,9 @@ export function Screen({ title, subtitle, right, children }: {
         style={{
           marginBottom: 'var(--gap-l)',
           display: 'flex',
-          // wrap + una base minima para el titulo: cuando el slot derecho
-          // no cabe —por ejemplo la navegacion de mes con el boton Hoy—
-          // baja a su propia linea en vez de montarse sobre el titulo.
+          // wrap + a minimum base for the title: when the right slot
+          // doesn't fit —for example the month navigator with the Today button—
+          // it drops to its own line instead of overlapping the title.
           flexWrap: 'wrap',
           alignItems: 'flex-end',
           justifyContent: 'space-between',

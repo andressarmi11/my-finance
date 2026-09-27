@@ -1,99 +1,105 @@
 /**
- * Una ocurrencia recurrente con DOS ids es la misma ocurrencia.
+ * A recurring occurrence with TWO ids is the same occurrence.
  *
- * El bug que arregla, visto en produccion:
+ * The bug this fixes, seen in production:
  *
  *   transactions.bulkPut(): 13 of 150 operations failed.
  *   ConstraintError: Unable to add key to index '[recurringRuleId+periodKey]'
  *
- * Hasta el 2026-09-18 (commit 7c68272) las instancias recurrentes nacian
- * con crypto.randomUUID(). Desde entonces su id ES su identidad:
- * `${ruleId}:${periodKey}` (ver occurrenceId en data/local/materialize.ts).
- * Las filas viejas siguen en Postgres con el id aleatorio, y localmente
- * materialize ya creo la misma ocurrencia con el id determinista.
+ * Until 2026-09-18 (commit 7c68272) recurring instances were born with
+ * crypto.randomUUID(). Since then their id IS their identity:
+ * `${ruleId}:${periodKey}` (see occurrenceId in data/local/materialize.ts).
+ * The old rows are still in Postgres with the random id, and locally
+ * materialize has already created the same occurrence with the
+ * deterministic id.
  *
- * Al bajar, las dos quieren el mismo par (recurringRuleId, periodKey), que
- * en Dexie es un indice UNICO. La fila remota lo viola, bulkPut lanza, y
- * como esa llamada esta al final del pull, MUERE EL CICLO DE SYNC ENTERO:
- * no se sube nada y el error vuelve en cada intento.
+ * On pull, both want the same pair (recurringRuleId, periodKey), which in
+ * Dexie is a UNIQUE index. The remote row violates it, bulkPut throws, and
+ * since that call is at the end of the pull, THE ENTIRE SYNC CYCLE DIES:
+ * nothing gets uploaded and the error comes back on every retry.
  *
- * Postgres nunca tuvo las dos: su unique es
- * (user_id, recurring_rule_id, period_key) y habria rechazado la segunda.
- * Alla quedo SOLO la vieja, y aca quedo SOLO la nueva. El choque aparece
- * al juntarlas en el pull — y como el push va despues, la version con id
- * determinista nunca llegaba a subir para resolverlo sola.
+ * Postgres never had both: its unique constraint is
+ * (user_id, recurring_rule_id, period_key) and would have rejected the
+ * second one. Over there ONLY the old one survived, and here ONLY the new
+ * one did. The collision only shows up when they're brought together on
+ * pull — and since push runs afterward, the version with the
+ * deterministic id never got a chance to upload and resolve it on its own.
  *
- * Por eso el plan no alcanza con elegir una: hay que BORRAR la otra con
- * lapida, para que el borrado viaje y los dos lados converjan al mismo id.
+ * That's why the fix isn't just picking one: the other one has to be
+ * DELETED with a tombstone, so the deletion travels and both sides
+ * converge on the same id.
  *
- * Esta funcion es pura para poder probarla sin IndexedDB ni red.
+ * This function is pure so it can be tested without IndexedDB or the network.
  */
-import { masNuevo } from './masNuevo';
+import { newest } from './newest';
 import type { Transaction } from '@/domain/types';
 
-export interface PlanOcurrencias {
-  /** Las filas que si pueden entrar, ya sin pares repetidos. */
-  aGuardar: Transaction[];
-  /** Ids que hay que borrar (con lapida): son la otra cara de un duplicado. */
-  aBorrar: string[];
+export interface OccurrencesPlan {
+  /** The rows that are allowed in, with no repeated pairs left. */
+  toSave: Transaction[];
+  /** Ids that need to be deleted (with a tombstone): the other half of a duplicate. */
+  toDelete: string[];
 }
 
-/** El par identifica la ocurrencia. Sin par, no es una ocurrencia. */
+/** The pair identifies the occurrence. No pair, no occurrence. */
 function par(tx: Transaction): string | null {
   if (!tx.recurringRuleId || !tx.periodKey) return null;
   return `${tx.recurringRuleId}|${tx.periodKey}`;
 }
 
 /**
- * El id que materialize.ts va a seguir recreando. Gana siempre, aunque el
- * contenido mas nuevo venga de la otra fila: si conservaramos el aleatorio,
- * el siguiente arranque volveria a crear el determinista y a chocar.
+ * The id materialize.ts is going to keep recreating. It always wins, even
+ * if the newer content comes from the other row: if we kept the random
+ * one, the next start-up would create the deterministic one again and
+ * collide.
  */
-function idDeterminista(tx: Transaction): string {
+function deterministicId(tx: Transaction): string {
   return `${tx.recurringRuleId}:${tx.periodKey}`;
 }
 
-export function conciliarOcurrencias(
+export function reconcileOccurrences(
   remotas: Transaction[],
-  locales: Transaction[],
-): PlanOcurrencias {
-  // Las que no son ocurrencias pasan derecho: son la enorme mayoria y no
-  // tienen forma de chocar (su par tiene undefined y no se indexa).
-  const aGuardar: Transaction[] = [];
-  const porPar = new Map<string, Transaction>();
-  const idsVistos = new Map<string, Set<string>>();
+  localRows: Transaction[],
+): OccurrencesPlan {
+  // The ones that aren't occurrences pass straight through: they're the
+  // vast majority and have no way to collide (their pair has undefined
+  // and isn't indexed).
+  const toSave: Transaction[] = [];
+  const byPair = new Map<string, Transaction>();
+  const seenIds = new Map<string, Set<string>>();
 
   const registrar = (tx: Transaction) => {
-    const clave = par(tx);
-    if (clave === null) return false;
-    const ids = idsVistos.get(clave) ?? new Set<string>();
+    const key = par(tx);
+    if (key === null) return false;
+    const ids = seenIds.get(key) ?? new Set<string>();
     ids.add(tx.id);
-    idsVistos.set(clave, ids);
-    const previa = porPar.get(clave);
-    if (!previa || masNuevo(tx.updatedAt, previa.updatedAt)) porPar.set(clave, tx);
+    seenIds.set(key, ids);
+    const earlier = byPair.get(key);
+    if (!earlier || newest(tx.updatedAt, earlier.updatedAt)) byPair.set(key, tx);
     return true;
   };
 
   for (const tx of remotas) {
-    if (!registrar(tx)) aGuardar.push(tx);
+    if (!registrar(tx)) toSave.push(tx);
   }
-  // Las locales solo aportan su id al conteo de duplicados y su contenido a
-  // la pelea por el mas nuevo. No se re-guardan si ganan: ya estan.
-  const paresRemotos = new Set([...porPar.keys()]);
-  for (const tx of locales) {
-    const clave = par(tx);
-    if (clave !== null && paresRemotos.has(clave)) registrar(tx);
+  // Local rows only contribute their id to the duplicate count and their
+  // content to the fight over which is newer. They aren't re-saved if
+  // they win: they're already there.
+  const remotePairs = new Set([...byPair.keys()]);
+  for (const tx of localRows) {
+    const key = par(tx);
+    if (key !== null && remotePairs.has(key)) registrar(tx);
   }
 
-  const aBorrar: string[] = [];
-  for (const [clave, ganadora] of porPar) {
-    const canonico = idDeterminista(ganadora);
-    // El contenido mas nuevo, pero siempre bajo el id determinista.
-    aGuardar.push(ganadora.id === canonico ? ganadora : { ...ganadora, id: canonico });
-    for (const id of idsVistos.get(clave) ?? []) {
-      if (id !== canonico) aBorrar.push(id);
+  const toDelete: string[] = [];
+  for (const [key, ganadora] of byPair) {
+    const canonical = deterministicId(ganadora);
+    // The newest content, but always under the deterministic id.
+    toSave.push(ganadora.id === canonical ? ganadora : { ...ganadora, id: canonical });
+    for (const id of seenIds.get(key) ?? []) {
+      if (id !== canonical) toDelete.push(id);
     }
   }
 
-  return { aGuardar, aBorrar };
+  return { toSave, toDelete };
 }
