@@ -2,7 +2,8 @@ import { db } from '../db';
 import { localRepository } from '../local/localRepository';
 import { BackupSchema, type Backup } from './schema';
 
-function download(filename: string, content: string, mime: string) {
+/** BlobPart y no string: el xlsx son bytes, no texto. */
+function download(filename: string, content: BlobPart, mime: string) {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -12,6 +13,47 @@ function download(filename: string, content: string, mime: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Todo a Excel: una hoja por entidad.
+ *
+ * NO es reimportable, y es a proposito: poner nombres donde el modelo
+ * tiene ids es lo que lo hace legible y lo que lo hace irreversible. Para
+ * restaurar esta el JSON (importBackup), que si conserva los ids.
+ *
+ * La libreria se carga con import() dinamico DENTRO de la funcion, igual
+ * que @supabase/supabase-js en data/supabase/client.ts. Son ~1,8 MB para
+ * una accion que se usa una vez al mes: no puede viajar en el bundle
+ * inicial de una PWA que se instala en el telefono.
+ */
+export async function exportBackupXLSX(): Promise<void> {
+  const [{ default: writeXlsxFile }, { HOJAS }] = await Promise.all([
+    // '/browser' y no la raiz: el paquete no tiene export raiz, separa
+    // node de navegador.
+    import('write-excel-file/browser'),
+    import('./xlsxRows'),
+  ]);
+  const backup = (await localRepository.exportAll()) as unknown as Backup;
+  const stamp = new Date().toISOString().slice(0, 10);
+
+  // Una entrada por hoja: {data, sheet}. La primera fila es la cabecera y
+  // queda fija al hacer scroll.
+  const { toBlob } = await writeXlsxFile(
+    HOJAS.map((h) => ({
+      data: h.filas(backup),
+      sheet: h.nombre,
+      stickyRowsCount: 1,
+    })),
+  );
+
+  // toBlob y no toFile: asi los tres exports bajan por el mismo download(),
+  // en vez de que este tenga su propia forma de crear el enlace.
+  download(
+    `step-up-${stamp}.xlsx`,
+    await toBlob(),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
 }
 
 export async function exportBackupJSON(): Promise<void> {

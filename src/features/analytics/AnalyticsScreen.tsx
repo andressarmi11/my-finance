@@ -7,13 +7,14 @@ import {
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
-import { localRepository } from '@/data/local/localRepository';
+import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
 import { formatCompact, formatMoney } from '@/domain/money/format';
 import { calculateDebitVsCredit, calculateFixedVsVariable, monthlySeries } from '@/domain/analytics/series';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
 import { filterByRange, hastaHoy, rangeBounds, rellenarHuecos, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, type PeriodPoint, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
+import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
 import { VACIO } from '@/lib/vacio';
 
@@ -26,6 +27,8 @@ export function AnalyticsScreen() {
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
   const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
+  // Hace falta para 'quincena': es el unico rango que no es calendario.
+  const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   const creditMethodIds = useMemo(
@@ -41,7 +44,10 @@ export function AnalyticsScreen() {
     [transactions],
   );
   const points: PeriodPoint[] = useMemo(() => {
-    if (range === 'mes') return toMonthlyPoints(monthly).slice(-6);
+    // La serie historica es mensual; en quincena se muestran los mismos
+    // meses. Sin este caso, 'quincena' caia en el `return` de abajo y
+    // dibujaba la serie ANUAL al lado de un titulo que decia "25 sep - 9 oct".
+    if (range === 'quincena' || range === 'mes') return toMonthlyPoints(monthly).slice(-6);
     if (range === 'trimestre') return toQuarterlyPoints(monthly).slice(-4);
     return toYearlyPoints(monthly);
   }, [monthly, range]);
@@ -49,8 +55,14 @@ export function AnalyticsScreen() {
   // Filtrar transacciones por el rango seleccionado — TODAS las cards
   // (balance, pie, fijos/variables, débito/tarjeta) usan este filtro.
   const today = todayISO();
-  const rangedTransactions = useMemo(() => filterByRange(transactions, range, today), [transactions, range, today]);
-  const rangeLabel = useMemo(() => describeRange(range, today), [range, today]);
+  const rangedTransactions = useMemo(
+    () => filterByRange(transactions, range, today, settings.diasDePago),
+    [transactions, range, today, settings.diasDePago],
+  );
+  const rangeLabel = useMemo(
+    () => describeRange(range, today, settings.diasDePago),
+    [range, today, settings.diasDePago],
+  );
 
   // Gastos por categoría (top N + "Otros")
   const spendByCategory = useMemo(() => calculateSpendByCategory(rangedTransactions), [rangedTransactions]);
@@ -96,13 +108,13 @@ export function AnalyticsScreen() {
   return (
     <Screen title="Análisis" subtitle={rangeLabel}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {(['mes', 'trimestre', 'año'] as const).map((r) => (
+        {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
           <button
             key={r} type="button" onClick={() => setRange(r)} aria-pressed={range === r}
             style={{
               flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
               background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? '#fff' : 'var(--text)',
-              fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+              fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', fontSize: 'var(--text-sm)',
               transition: 'all var(--dur-fast) var(--ease-spring-out)',
             }}
           >
@@ -440,9 +452,16 @@ const tooltipStyle: React.CSSProperties = {
 const MONTH_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 /** Texto del periodo que se está mirando, para que el usuario vea que el selector sí cambia algo. */
-function describeRange(range: Range, today: string): string {
-  const { from, to } = rangeBounds(range, today);
+function describeRange(range: Range, today: string, dias: number[]): string {
+  const { from, to } = rangeBounds(range, today, dias);
   const [y, m] = from.split('-').map(Number) as [number, number];
+  // La quincena se dice con dias, no con meses: su gracia es que cruza el
+  // cambio de mes y decir solo "septiembre" lo escondería.
+  if (range === 'quincena') {
+    const d = formatShortDate(from);
+    const h = formatShortDate(to);
+    return `${d.day} ${d.month} – ${h.day} ${h.month}`;
+  }
   if (range === 'mes') return `${MONTH_LONG[m - 1]} ${y}`;
   if (range === 'año') return `${y} completo`;
   const mTo = Number(to.split('-')[1]);

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
-import { exportBackupJSON, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
+import { exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
 import type { Backup } from '@/data/backup/schema';
 import type { Settings } from '@/domain/types';
 import { CURRENCIES, currencySample } from '@/domain/money/currencies';
@@ -61,6 +61,15 @@ export function SettingsScreen() {
     setBusy('json');
     try { await exportBackupJSON(); } finally { setBusy(null); }
   }
+  async function handleExportXLSX() {
+    setBusy('xlsx');
+    try {
+      await exportBackupXLSX();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handleExportCSV() {
     setBusy('csv');
     try { await exportTransactionsCSV(); } finally { setBusy(null); }
@@ -219,6 +228,13 @@ export function SettingsScreen() {
             {busy === 'csv' ? 'Exportando…' : 'Exportar CSV'}
           </button>
         </div>
+        <button type="button" onClick={handleExportXLSX} disabled={busy === 'xlsx'} style={{ ...secondaryButtonStyle, width: '100%', marginBottom: 8 }}>
+          {busy === 'xlsx' ? 'Armando el Excel…' : 'Exportar Excel (.xlsx)'}
+        </button>
+        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
+          El Excel es para leer y analizar: trae una hoja por cada cosa, con
+          nombres en vez de códigos. Para <strong>restaurar</strong> usa el JSON.
+        </p>
         <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...secondaryButtonStyle, width: '100%' }}>
           Importar backup (JSON)
         </button>

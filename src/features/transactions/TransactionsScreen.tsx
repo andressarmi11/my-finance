@@ -19,6 +19,7 @@ import { todayISO } from '@/lib/todayISO';
 import { interpretarTexto } from '@/domain/nlp/interpretar';
 import type { Transaction } from '@/domain/types';
 import { groupByPeriodo } from './groupByPeriodo';
+import { aplicarFiltros, type FiltroEstado, type FiltroTipo } from './filtros';
 import { TransactionRow } from './TransactionRow';
 import { TransactionForm, type Prefill } from './TransactionForm';
 import { VACIO } from '@/lib/vacio';
@@ -30,6 +31,8 @@ export function TransactionsScreen() {
   const [formOpen, setFormOpen] = useState(false);
   const [prefill, setPrefill] = useState<Prefill | undefined>();
   const [query, setQuery] = useState('');
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('todos');
+  const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos');
   // null = no estamos seleccionando. Un Set vacio = modo seleccion, sin nada
   // elegido todavia. modify
   const [seleccion, setSeleccion] = useState<Set<string> | null>(null);
@@ -137,16 +140,14 @@ export function TransactionsScreen() {
   const searching = query.trim().length > 0;
 
   const visible = useMemo(() => {
-    if (searching) {
-      const q = query.trim().toLowerCase();
-      return transactions.filter((t) => t.concept.toLowerCase().includes(q));
-    }
-    // Tantas claves como periodos tenga el mes. Pedir Q1 y Q2 a mano dejaba
-    // fuera movimientos en cuanto los periodos no fueran exactamente dos.
-    const keys = periodosDelMes(cursor.y, cursor.m, settings.diasDePago);
-    return conPeriodoResuelto(transactions, settings.diasDePago)
-      .filter((t) => keys.includes(t.resolvedQuincenaKey));
-  }, [transactions, query, searching, cursor, settings.diasDePago]);
+    const enVentana = searching
+      ? transactions.filter((t) => t.concept.toLowerCase().includes(query.trim().toLowerCase()))
+      // Tantas claves como periodos tenga el mes. Pedir Q1 y Q2 a mano dejaba
+      // fuera movimientos en cuanto los periodos no fueran exactamente dos.
+      : conPeriodoResuelto(transactions, settings.diasDePago)
+          .filter((t) => periodosDelMes(cursor.y, cursor.m, settings.diasDePago).includes(t.resolvedQuincenaKey));
+    return aplicarFiltros(enVentana, filtroTipo, filtroEstado);
+  }, [transactions, query, searching, cursor, settings.diasDePago, filtroTipo, filtroEstado]);
 
   const groups = useMemo(
     () => groupByPeriodo(visible, settings.diasDePago, transactions),
@@ -293,6 +294,17 @@ export function TransactionsScreen() {
             background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
           }}
         />
+      )}
+
+      {transactions.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--gap-m)', overflowX: 'auto', paddingBottom: 2 }}>
+          <Chip activo={filtroTipo === 'todos' && filtroEstado === 'todos'}
+            onClick={() => { setFiltroTipo('todos'); setFiltroEstado('todos'); }}>Todos</Chip>
+          <Chip activo={filtroTipo === 'expense'} onClick={() => setFiltroTipo(filtroTipo === 'expense' ? 'todos' : 'expense')}>Gastos</Chip>
+          <Chip activo={filtroTipo === 'income'} onClick={() => setFiltroTipo(filtroTipo === 'income' ? 'todos' : 'income')}>Ingresos</Chip>
+          <Chip activo={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado(filtroEstado === 'pendientes' ? 'todos' : 'pendientes')}>Pendientes</Chip>
+          <Chip activo={filtroEstado === 'pagados'} onClick={() => setFiltroEstado(filtroEstado === 'pagados' ? 'todos' : 'pagados')}>Pagados</Chip>
+        </div>
       )}
 
       {/* Resumen del mes visible — contexto antes de la lista.
@@ -501,4 +513,27 @@ function accionStyle(activo: boolean, borde: string, texto: string): React.CSSPr
     fontWeight: 600, fontSize: 'var(--text-base)',
     cursor: activo ? 'pointer' : 'not-allowed',
   };
+}
+
+/** Chip de filtro. Alterna: volver a tocarlo lo apaga. */
+function Chip({ activo, onClick, children }: {
+  activo: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      style={{
+        flex: 'none', minHeight: 34, padding: '0 14px', borderRadius: 999,
+        border: `1px solid ${activo ? 'var(--q10)' : 'var(--line-strong)'}`,
+        background: activo ? 'var(--q10)' : 'var(--surface)',
+        color: activo ? '#fff' : 'var(--text)',
+        fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </button>
+  );
 }

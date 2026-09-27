@@ -9,12 +9,16 @@
  * pagar" del hero y "esperas gastar" de aca nunca digan cosas distintas.
  */
 import { compareISO } from '@/domain/dates';
+import { fechaDeCargo } from '@/domain/periodo/fechaDeCargo';
 import type { Transaction } from '@/domain/types';
 
-/** La fecha que importa: la de pago de la TC si existe, si no la del movimiento. */
-export function relevantDate(tx: Transaction): string {
-  return tx.cyclePaymentDate ?? tx.date;
-}
+/**
+ * La fecha que importa: la de pago de la TC si existe, si no la del
+ * movimiento. Vivia aca, y por estar en una carpeta de feature Analisis
+ * nunca la uso — ver domain/periodo/fechaDeCargo.ts. Se conserva el nombre
+ * para no tocar los call sites de esta pantalla.
+ */
+export const relevantDate = fechaDeCargo;
 
 function isUpcoming(tx: Transaction): boolean {
   return tx.status === 'pending' || tx.status === 'scheduled';

@@ -9,7 +9,7 @@ const BASE = `http://localhost:${PORT}/step-up/`;
 const PORT_DEV = 5173;
 const BASE_DEV = `http://localhost:${PORT_DEV}/step-up/`;
 // Estos importan modulos FUENTE, asi que van contra el dev server.
-const SOLO_AISLAMIENTO = /aislamiento-de-cuentas|sync-ocurrencias-duplicadas/;
+const SOLO_AISLAMIENTO = /aislamiento-de-cuentas|sync-ocurrencias-duplicadas|xlsx-es-un-zip/;
 
 export default defineConfig({
   testDir: './e2e',

@@ -102,16 +102,33 @@ export function toYearlyPoints(points: MonthPoint[]): PeriodPoint[] {
    Con `to` acotado, cada rango cubre solo su periodo.
 --------------------------------------------------------------------- */
 import { daysInMonth } from '@/domain/dates';
+import { fechaDeCargo } from '@/domain/periodo/fechaDeCargo';
+import { calcularPeriodo, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } from '@/domain/periodo/periodo';
 import type { Transaction } from '@/domain/types';
 
-export type Range = 'mes' | 'trimestre' | 'año';
+export type Range = 'quincena' | 'mes' | 'trimestre' | 'año';
 
 function iso(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/** Limites inclusivos [from, to] del rango que contiene a `today` ('YYYY-MM-DD'). */
-export function rangeBounds(range: Range, today: string): { from: string; to: string } {
+/**
+ * Limites inclusivos [from, to] del rango que contiene a `today`.
+ *
+ * Tres de los cuatro son CALENDARIO puro. 'quincena' no: sale de los dias
+ * de pago del usuario, asi que la ventana del 25 se estira hasta el 9 del
+ * mes siguiente. Son dos ejes distintos y conviene que se vea — no existe
+ * un "trimestre de quincenas" y no se inventa uno.
+ */
+export function rangeBounds(
+  range: Range,
+  today: string,
+  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+): { from: string; to: string } {
+  if (range === 'quincena') {
+    const p = calcularPeriodo(today, dias);
+    return { from: p.start, to: p.end };
+  }
   const [y, m] = today.split('-').map(Number) as [number, number];
   if (range === 'mes') {
     return { from: iso(y, m, 1), to: iso(y, m, daysInMonth(y, m)) };
@@ -124,7 +141,23 @@ export function rangeBounds(range: Range, today: string): { from: string; to: st
   return { from: iso(y, 1, 1), to: iso(y, 12, 31) };
 }
 
-export function filterByRange(transactions: Transaction[], range: Range, today: string): Transaction[] {
-  const { from, to } = rangeBounds(range, today);
-  return transactions.filter((t) => t.date >= from && t.date <= to);
+/**
+ * Por la fecha de CARGO, no la de registro.
+ *
+ * Antes filtraba por t.date crudo, asi que una compra con tarjeta del 20
+ * de septiembre que se paga el 2 de noviembre contaba como gasto de
+ * septiembre. Es el mismo bug que se arreglo en el balance (95e91ce) y que
+ * sobrevivio aca porque la funcion vivia en features/dashboard.
+ */
+export function filterByRange(
+  transactions: Transaction[],
+  range: Range,
+  today: string,
+  dias: DiasDePago = DIAS_DE_PAGO_POR_DEFECTO,
+): Transaction[] {
+  const { from, to } = rangeBounds(range, today, dias);
+  return transactions.filter((t) => {
+    const cargo = fechaDeCargo(t);
+    return cargo >= from && cargo <= to;
+  });
 }
