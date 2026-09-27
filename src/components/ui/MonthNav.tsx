@@ -1,10 +1,25 @@
 import { IconArrowBackUp } from '@tabler/icons-react';
 import { haptic } from '@/lib/haptic';
 
-const MONTH_NAMES = [
+const MESES_ES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+const MESES_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Estado de modulo, igual que setMoneyLocale y setMesesLocales: monthName
+ * se llama desde encabezados, graficos y etiquetas de periodo, y encadenar
+ * el idioma por todas esas firmas seria ruido. Lo fija IdiomaProvider.
+ */
+let MONTH_NAMES = MESES_ES;
+
+export function setNombresDeMes(idioma: 'es' | 'en'): void {
+  MONTH_NAMES = idioma === 'en' ? MESES_EN : MESES_ES;
+}
 
 /** Nombre del mes 1-12. Devuelve '' fuera de rango en vez de undefined. */
 export function monthName(m: number): string {

@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -17,6 +18,7 @@ import { daysInMonth } from '@/domain/dates';
 import { VACIO } from '@/lib/vacio';
 
 export function BudgetsScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const today = todayISO();
   const [year, month] = today.split('-').map(Number) as [number, number];
@@ -61,9 +63,9 @@ export function BudgetsScreen() {
   }
 
   return (
-    <Screen title="Presupuestos" subtitle="Solo informan, nunca bloquean">
+    <Screen title={t('presupuestos.titulo')} subtitle={t('presupuestos.subtitulo')}>
       <button type="button" onClick={() => navigate(-1)} style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-        ← Volver a ajustes
+        ← {t('nav.volverAjustes')}
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -80,7 +82,7 @@ export function BudgetsScreen() {
                 <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
                 <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-                  {spent > 0 ? `${formatMoney(spent)} gastado` : 'Definir presupuesto'}
+                  {spent > 0 ? `${formatMoney(spent)} gastado` : t('presupuestos.definir')}
                 </span>
               </button>
             );

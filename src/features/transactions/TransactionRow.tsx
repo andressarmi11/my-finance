@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconCheck } from '@tabler/icons-react';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
@@ -29,6 +30,7 @@ export function TransactionRow({
   seleccionado?: boolean;
   onSeleccionar?: () => void;
 }) {
+  const t = useT();
   const enSeleccion = onSeleccionar !== undefined;
   const isIncome = tx.type === 'income';
   const isPaid = tx.status === 'paid';
@@ -42,10 +44,10 @@ export function TransactionRow({
   const meta = [category?.name, shortDate(tx.date), paymentMethod?.name].filter(Boolean).join(' · ');
 
   const statusLabel =
-    isPaid ? (isIncome ? 'Recibido' : 'Pagado')
-    : tx.status === 'scheduled' ? 'Programado'
+    isPaid ? (isIncome ? t('estado.recibido') : t('estado.pagado'))
+    : tx.status === 'scheduled' ? t('estado.programado')
     : tx.status === 'cancelled' ? 'Cancelado'
-    : 'Pendiente';
+    : t('estado.pendiente');
 
   const statusColor =
     isPaid ? 'var(--positive)'

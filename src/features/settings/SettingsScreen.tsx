@@ -78,9 +78,9 @@ export function SettingsScreen() {
   }
 
   return (
-    <Screen title="Ajustes" subtitle="Tu cuenta, moneda y quincenas">
+    <Screen title={t('ajustes.titulo')} subtitle="Tu cuenta, moneda y quincenas">
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Tu nombre</h2>
+        <h2 style={sectionTitle}>{t('ajustes.tuNombre')}</h2>
         <input
           defaultValue={settings.displayName}
           onBlur={(e) => patch({ displayName: e.target.value.trim() })}
@@ -117,7 +117,7 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Tema</h2>
+        <h2 style={sectionTitle}>{t('ajustes.tema')}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           {THEMES.map((t) => (
             <button key={t.value} type="button" onClick={() => patch({ theme: t.value })} aria-pressed={settings.theme === t.value} style={segmentStyle(settings.theme === t.value)}>
@@ -128,7 +128,7 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Moneda</h2>
+        <h2 style={sectionTitle}>{t('ajustes.moneda')}</h2>
         {/* Selector, no dos campos de texto: escribir 'cop' y 'es_CO' a mano
             rompía el formato de toda la app sin decir por qué. */}
         <div style={{ display: 'grid', gap: 6 }}>
@@ -157,7 +157,7 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Cómo te pagan</h2>
+        <h2 style={sectionTitle}>{t('ajustes.comoTePagan')}</h2>
         <Row label="Te entra la plata">
           <div style={{ display: 'flex', gap: 6 }}>
             {([
@@ -227,11 +227,11 @@ export function SettingsScreen() {
       </section>
 
       <section style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={sectionTitle}>Organizar</h2>
-        <NavLink to="/ajustes/categorias" label="Categorías" />
-        <NavLink to="/ajustes/metodos" label="Métodos de pago" />
-        <NavLink to="/ajustes/recurrentes" label="Recurrentes" />
-        <NavLink to="/ajustes/presupuestos" label="Presupuestos" />
+        <h2 style={sectionTitle}>{t('ajustes.organizar')}</h2>
+        <NavLink to="/ajustes/categorias" label={t('categorias.titulo')} />
+        <NavLink to="/ajustes/metodos" label={t('metodos.titulo')} />
+        <NavLink to="/ajustes/recurrentes" label={t('accion.nuevoRecurrente')} />
+        <NavLink to="/ajustes/presupuestos" label={t('presupuestos.titulo')} />
         <NavLink to="/legal" label={t('ajustes.legal')} />
       </section>
 
@@ -240,27 +240,27 @@ export function SettingsScreen() {
       <NotificationsSection />
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Tus datos</h2>
+        <h2 style={sectionTitle}>{t('ajustes.tusDatos')}</h2>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
-          Exporta cuando quieras — no quedas encerrado en la app.
+          {t('ajustes.exportaCuandoQuieras')}
         </p>
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
           <button type="button" onClick={handleExportJSON} disabled={busy === 'json'} style={secondaryButtonStyle}>
-            {busy === 'json' ? 'Exportando…' : 'Exportar JSON'}
+            {busy === 'json' ? t('ajustes.exportando') : t('ajustes.exportarJSON')}
           </button>
           <button type="button" onClick={handleExportCSV} disabled={busy === 'csv'} style={secondaryButtonStyle}>
-            {busy === 'csv' ? 'Exportando…' : 'Exportar CSV'}
+            {busy === 'csv' ? t('ajustes.exportando') : t('ajustes.exportarCSV')}
           </button>
         </div>
         <button type="button" onClick={handleExportXLSX} disabled={busy === 'xlsx'} style={{ ...secondaryButtonStyle, width: '100%', marginBottom: 8 }}>
-          {busy === 'xlsx' ? 'Armando el Excel…' : 'Exportar Excel (.xlsx)'}
+          {busy === 'xlsx' ? t('ajustes.armandoExcel') : t('ajustes.exportarExcel')}
         </button>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
           El Excel es para leer y analizar: trae una hoja por cada cosa, con
           nombres en vez de códigos. Para <strong>restaurar</strong> usa el JSON.
         </p>
         <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...secondaryButtonStyle, width: '100%' }}>
-          Importar backup (JSON)
+          {t('ajustes.importar')}
         </button>
         <input ref={fileInputRef} type="file" accept="application/json" onChange={handleFileChange} style={{ display: 'none' }} />
         {importState.status === 'error' && (

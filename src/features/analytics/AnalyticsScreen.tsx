@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -27,6 +28,7 @@ import { VACIO } from '@/lib/vacio';
 const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#FFCC00', '#5AC8FA', '#FF2D55'];
 
 export function AnalyticsScreen() {
+  const t = useT();
   const [range, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
   const [disposicion, setDisposicion] = useState<Disposicion>(leerDisposicion);
@@ -108,22 +110,22 @@ export function AnalyticsScreen() {
       const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
       return {
         id: c.categoryId ?? 'none',
-        name: cat?.name ?? 'Sin categoría',
+        name: cat?.name ?? t('analisis.sinCategoria'),
         icon: cat?.icon ?? 'other',
         color: cat ? categoryColor(cat) : COLOR_SIN_CATEGORIA,
         amount: c.amount,
         count: c.count,
       };
     }),
-    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: 'Otros', icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
+    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: t('analisis.otros'), icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
   ];
 
   // Cada grafico, indexado por id. Se arma aqui y se PINTA segun el orden
   // que el usuario haya elegido, en vez de estar cableado en el JSX.
   const secciones: Record<GraficoId, { titulo: string; contenido: React.ReactNode }> = {
-    'balance-categoria': { titulo: 'Balance por categoría', contenido: (<>
+    'balance-categoria': { titulo: t('analisis.balanceCategoria'), contenido: (<>
         <StackedBar
-          label="Ingresos"
+          label={t('filtro.ingresos')}
           total={incomeTotal}
           segments={incomeTop.map((c, i) => {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
@@ -140,7 +142,7 @@ export function AnalyticsScreen() {
         />
         <div style={{ height: 12 }} />
         <StackedBar
-          label="Gastos"
+          label={t('filtro.gastos')}
           total={spendTotal}
           segments={spendTop.map((c, i) => {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
@@ -156,13 +158,13 @@ export function AnalyticsScreen() {
         />
         <div style={{ height: 12 }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>Balance</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{t('analisis.balance')}</span>
           <span className="figures" style={{ fontWeight: 700, color: incomeTotal - spendTotal >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
             {incomeTotal - spendTotal >= 0 ? '+ ' : ''}{formatMoney(incomeTotal - spendTotal)}
           </span>
         </div>
     </>) },
-    'distribucion': { titulo: 'Distribución de gastos', contenido: (<>
+    'distribucion': { titulo: t('analisis.distribucion'), contenido: (<>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <ResponsiveContainer width={140} height={140}>
             <PieChart>
@@ -216,10 +218,10 @@ export function AnalyticsScreen() {
           </div>
         </div>
         <p style={{ margin: '10px 4px 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          Toca una categoría para ver el detalle.
+          {t('analisis.tocaCategoria')}
         </p>
     </>) },
-    'ingresos-gastos': { titulo: 'Ingresos vs. gastos (hasta hoy)', contenido: (<>
+    'ingresos-gastos': { titulo: t('analisis.ingresosVsGastos'), contenido: (<>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={points} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
@@ -231,14 +233,14 @@ export function AnalyticsScreen() {
           </BarChart>
         </ResponsiveContainer>
     </>) },
-    'fijos-variables': { titulo: 'Fijos vs. variables', contenido: (<>
+    'fijos-variables': { titulo: t('analisis.fijosVsVariables'), contenido: (<>
         <SplitBar
           a={{ label: 'Fijos', value: fixedVsVariable.fixed, color: 'var(--committed)' }}
           b={{ label: 'Variables', value: fixedVsVariable.variable, color: 'var(--q25-text)' }}
           total={totalFV}
         />
     </>) },
-    'debito-credito': { titulo: 'Débito vs. tarjeta de crédito', contenido: (<>
+    'debito-credito': { titulo: t('analisis.debitoVsCredito'), contenido: (<>
         <SplitBar
           a={{ label: 'Débito', value: debitVsCredit.debit, color: 'var(--q10-text)' }}
           b={{ label: 'Tarjeta', value: debitVsCredit.credit, color: 'var(--q25-text)' }}
@@ -246,7 +248,7 @@ export function AnalyticsScreen() {
         />
     </>) },
     'presupuestos': {
-      titulo: 'Presupuestos del mes',
+      titulo: t('analisis.presupuestosMes'),
       contenido: (
         <BudgetColumns
           categories={categories}
@@ -259,7 +261,7 @@ export function AnalyticsScreen() {
   };
 
   return (
-    <Screen title="Análisis" subtitle={rangeLabel}>
+    <Screen title={t('analisis.titulo')} subtitle={rangeLabel}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
           <button

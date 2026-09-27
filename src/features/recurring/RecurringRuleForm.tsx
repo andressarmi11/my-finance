@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconX } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -23,6 +24,7 @@ export function RecurringRuleForm({
   onCancel: () => void;
   onDelete?: () => void;
 }) {
+  const t = useT();
   const [type, setType] = useState<TransactionType>(existing?.type ?? 'expense');
   const [name, setName] = useState(existing?.name ?? '');
   const [amountText, setAmountText] = useState(existing ? String(existing.amount) : '');
@@ -65,7 +67,7 @@ export function RecurringRuleForm({
     <div
       ref={refDialogo}
       role="dialog"
-      aria-label={existing ? 'Editar recurrente' : 'Nuevo recurrente'}
+      aria-label={existing ? t('accion.editar') : t('accion.nuevoRecurrente')}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
       onClick={onCancel}
     >
@@ -83,7 +85,7 @@ export function RecurringRuleForm({
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Cancelar"
+            aria-label={t('accion.cancelar')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
               placeItems: 'center', background: 'var(--surface-sunken)',
@@ -105,17 +107,17 @@ export function RecurringRuleForm({
           ))}
         </div>
 
-        <Field label="Nombre" htmlFor="rr-nombre">
+        <Field label={t('form.nombre')} htmlFor="rr-nombre">
           <input id="rr-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Arriendo" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={errorText}>Ponle un nombre.</p>}
 
-        <Field label="Valor" htmlFor="rr-valor">
+        <Field label={t('form.valor')} htmlFor="rr-valor">
           <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
         </Field>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
 
-        <FieldGroup label="Categoría" id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+        <FieldGroup label={t('form.categoria')} id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === type).map((c) => (
             <button key={c.id} type="button" onClick={() => setCategoryId(c.id)} aria-pressed={categoryId === c.id}
               style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 6, minHeight: 'var(--tap)', padding: '0 12px', borderRadius: 999, border: `1.5px solid ${categoryId === c.id ? c.color : 'var(--line)'}`, background: categoryId === c.id ? `color-mix(in srgb, ${c.color} 16%, var(--surface))` : 'var(--surface)', color: categoryId === c.id ? c.color : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>

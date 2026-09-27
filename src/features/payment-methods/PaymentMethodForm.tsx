@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { Field, FieldGroup } from '@/components/ui/Field';
@@ -21,7 +22,8 @@ const TIPOS: Array<{ id: PaymentMethodType; label: string }> = [
  * como campo heredado (ver domain/types.ts). Una casilla que escribiera
  * isDefault pareceria no hacer nada, porque Settings gana el ??.
  */
-export function PaymentMethodForm({ existing, onSave, onCancel, onDelete, movimientosAsociados }: {
+export function PaymentMethodForm({
+  existing, onSave, onCancel, onDelete, movimientosAsociados }: {
   existing: PaymentMethod | null;
   onSave: (method: PaymentMethod) => void;
   onCancel: () => void;
@@ -29,6 +31,7 @@ export function PaymentMethodForm({ existing, onSave, onCancel, onDelete, movimi
   /** Cuantos movimientos quedarian sin metodo si se borra. */
   movimientosAsociados: number;
 }) {
+  const t = useT();
   const [name, setName] = useState(existing?.name ?? '');
   const [type, setType] = useState<PaymentMethodType>(existing?.type ?? 'credit');
   const [cutoffDay, setCutoffDay] = useState(String(existing?.cutoffDay ?? 15));
@@ -76,7 +79,7 @@ export function PaymentMethodForm({ existing, onSave, onCancel, onDelete, movimi
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
 
-        <Field label="Nombre" htmlFor="pm-nombre">
+        <Field label={t('form.nombre')} htmlFor="pm-nombre">
           <input id="pm-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Visa Bancolombia" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={errorStyle}>Ponle un nombre para distinguirla.</p>}
@@ -113,11 +116,11 @@ export function PaymentMethodForm({ existing, onSave, onCancel, onDelete, movimi
           </>
         )}
 
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>Guardar</button>
+        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('accion.guardar')}</button>
 
         {existing && onDelete && (
           <>
-            <button type="button" onClick={onDelete} style={deleteButtonStyle}>Eliminar</button>
+            <button type="button" onClick={onDelete} style={deleteButtonStyle}>{t('accion.eliminar')}</button>
             {movimientosAsociados > 0 && (
               <p style={hintStyle}>
                 {movimientosAsociados} {movimientosAsociados === 1 ? 'movimiento quedará' : 'movimientos quedarán'} sin

@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category } from '@/domain/types';
@@ -7,13 +8,15 @@ import { CategoryIcon, ICONOS_ELEGIBLES } from '@/components/ui/CategoryIcon';
 // Los nombres viven en components/ui/CategoryIcon.tsx: un solo registro.
 const COLORS = ['#5B6FE0', '#E0A23B', '#3BA3E0', '#C15BD1', '#3BC1A3', '#E05B5B', '#8A5CF6', '#D18A5B', '#5B8AD1', '#B0721A', '#B3261E', '#1E8E6A', '#6C727F'];
 
-export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDelete }: {
+export function CategoryForm({
+  existing, nextSortOrder, onSave, onCancel, onDelete }: {
   existing: Category | null;
   nextSortOrder: number;
   onSave: (category: Category) => void;
   onCancel: () => void;
   onDelete?: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(existing?.name ?? '');
   const [icon, setIcon] = useState<string>(existing?.icon ?? ICONOS_ELEGIBLES[0]!);
   const [color, setColor] = useState(existing?.color ?? COLORS[0]!);
@@ -54,7 +57,7 @@ export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDele
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
 
-        <Field label="Nombre" htmlFor="cat-nombre">
+        <Field label={t('form.nombre')} htmlFor="cat-nombre">
           <input id="cat-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mascotas" style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>Ponle un nombre.</p>}
@@ -88,7 +91,7 @@ export function CategoryForm({ existing, nextSortOrder, onSave, onCancel, onDele
           ))}
         </FieldGroup>
 
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>Guardar</button>
+        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('accion.guardar')}</button>
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>

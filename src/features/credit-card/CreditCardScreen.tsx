@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -24,6 +25,7 @@ import { VACIO } from '@/lib/vacio';
  * eran. Ver domain/credit-card/groupByCycle.ts (groupByCard).
  */
 export function CreditCardScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
   const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
@@ -50,23 +52,23 @@ export function CreditCardScreen() {
   const sinCompras = cards.every((c) => c.cycles.length === 0);
 
   return (
-    <Screen title="Tarjetas" subtitle="Cada compra, y el total por ciclo">
+    <Screen title={t('tarjetas.titulo')} subtitle={t('tarjetas.subtitulo')}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
       >
-        ← Volver
+        ← {t('nav.volver')}
       </button>
 
       {sinTarjetas ? (
         <EmptyState
-          title="Todavía no tienes tarjetas"
+          title={t('tarjetas.sinTarjetas')}
           body="Agrega una en Ajustes → Métodos de pago, con su día de corte y su día de pago."
         />
       ) : sinCompras ? (
         <EmptyState
-          title="Sin compras con tarjeta"
+          title={t('tarjetas.sinCompras')}
           body="Cuando registres un gasto con tarjeta de crédito, aquí verás cada compra y el total que se paga en cada ciclo."
         />
       ) : (
@@ -94,6 +96,7 @@ function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMa
   categoryById: Map<string, { icon: string }>;
   onMarcarPagado: (cycle: CreditCycleGroup) => void;
 }) {
+  const t = useT();
   return (
     <section style={{ marginBottom: 'var(--gap-xl)' }}>
       <header style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
@@ -109,7 +112,7 @@ function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMa
       </header>
 
       {cycles.length === 0 ? (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', margin: 0 }}>Sin compras todavía.</p>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', margin: 0 }}>{t('tarjetas.sinComprasAun')}</p>
       ) : (
         cycles.map((cycle) => {
           const isNext = cycle.paymentDate >= today;
@@ -119,7 +122,7 @@ function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMa
             <div key={cycle.paymentDate} style={{ background: vencido ? 'var(--danger-soft)' : isNext ? 'var(--q25-soft)' : 'var(--surface-sunken)', borderRadius: 'var(--radius-m)', padding: '12px 14px 4px', marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: vencido ? 'var(--danger-text)' : isNext ? 'var(--q25)' : 'var(--text-muted)' }}>
-                  {vencido ? 'Venció el' : 'Se paga el'} {day} {month}
+                  {vencido ? t('tarjetas.vencioEl') : t('tarjetas.sePagaEl')} {day} {month}
                 </span>
                 <span className="figures" style={{ fontWeight: 700, fontSize: 17 }}>{formatMoney(cycle.total)}</span>
               </div>
@@ -130,7 +133,7 @@ function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMa
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 0 6px' }}>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  {cycle.count} {cycle.count === 1 ? 'compra' : 'compras'} en este ciclo
+                  {cycle.count} {cycle.count === 1 ? t('tarjetas.compra') : t('tarjetas.compras')} {t('tarjetas.enEsteCiclo')}
                 </span>
                 {cycle.transactions.some((t) => t.status !== 'paid') && (
                   <button
@@ -138,7 +141,7 @@ function TarjetaSection({ tarjeta, disponible, cycles, today, categoryById, onMa
                     onClick={() => onMarcarPagado(cycle)}
                     style={{ minHeight: 32, padding: '0 10px', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
                   >
-                    Marcar pagado
+                    {t('tarjetas.marcarPagado')}
                   </button>
                 )}
               </div>

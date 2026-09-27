@@ -13,6 +13,7 @@ import { rangoDeClave, normalizar, DIAS_DE_PAGO_POR_DEFECTO, type DiasDePago } f
 import { conPeriodoResuelto } from '@/domain/periodo/resolve';
 import type { QuincenaKey, Transaction } from '@/domain/types';
 import { monthName } from '@/components/ui/MonthNav';
+import { etiquetaMesDesde, etiquetaQuincena } from '@/i18n/periodo';
 import { formatShortDate } from '@/lib/formatShortDate';
 
 function formatRangeLabel(start: string, end: string): string {
@@ -50,7 +51,7 @@ export interface PeriodoGroup {
  * el del calendario.
  */
 function etiqueta(pagos: DiasDePago, indice: number, key: QuincenaKey): string {
-  if (pagos.length > 1) return `Quincena del ${pagos[indice - 1]}`;
+  if (pagos.length > 1) return `${etiquetaQuincena()} ${pagos[indice - 1]}`;
 
   const dia = pagos[0]!;
   if (dia === 1) {
@@ -58,7 +59,7 @@ function etiqueta(pagos: DiasDePago, indice: number, key: QuincenaKey): string {
     const nombre = monthName(mes);
     return nombre.charAt(0).toUpperCase() + nombre.slice(1);
   }
-  return `Mes desde el ${dia}`;
+  return `${etiquetaMesDesde()} ${dia}`;
 }
 
 export function groupByPeriodo(

@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { categoryColor, COLOR_SIN_CATEGORIA } from '@/domain/seed/categoryColor';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { IconCreditCard } from '@tabler/icons-react';
@@ -16,6 +17,7 @@ import { VACIO } from '@/lib/vacio';
 const WEEKDAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
 export function CalendarScreen() {
+  const t = useT();
   const today = todayISO();
   const [year, month] = today.split('-').map(Number) as [number, number];
   const [view, setView] = useState({ year, month });
@@ -48,7 +50,7 @@ export function CalendarScreen() {
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
 
   return (
-    <Screen title="Calendario" subtitle="Gastos, ingresos y pagos de TC">
+    <Screen title={t('calendario.titulo')} subtitle={t('calendario.subtitulo')}>
       {/* MonthNav y no una copia local: esta pantalla tenia su propia
           navegacion inline, y por eso se quedo sin el boton Hoy cuando el
           componente compartido lo gano. */}

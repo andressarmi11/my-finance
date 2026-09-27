@@ -1,3 +1,5 @@
+import { useT } from '@/i18n/idioma';
+import { etiquetaQuincena } from '@/i18n/periodo';
 import { IconCheck, IconCreditCardOff } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -30,6 +32,7 @@ import { VACIO } from '@/lib/vacio';
 
 
 export function DashboardScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [porPagarOpen, setPorPagarOpen] = useState(false);
@@ -145,18 +148,18 @@ export function DashboardScreen() {
 
   if (transactions.length === 0) {
     return (
-      <Screen title={settings.displayName ? `Hola, ${settings.displayName}` : 'Inicio'} subtitle={`${monthName(month)} ${year}`}>
+      <Screen title={settings.displayName ? `${t('inicio.hola')}, ${settings.displayName}` : t('inicio.titulo')} subtitle={`${monthName(month)} ${year}`}>
         <EmptyState
-          title="Todavía no hay movimientos"
-          body="Registra tu primer gasto o ingreso, o carga datos de ejemplo para ver el dashboard funcionando."
-          action={{ label: loadingDemo ? 'Cargando...' : 'Cargar datos de ejemplo', onClick: handleLoadDemo }}
+          title={t('inicio.sinMovimientos')}
+          body={t('inicio.sinMovimientosBody')}
+          action={{ label: loadingDemo ? t('inicio.cargando') : t('inicio.cargarEjemplo'), onClick: handleLoadDemo }}
         />
       </Screen>
     );
   }
 
   return (
-    <Screen title={settings.displayName ? `Hola, ${settings.displayName}` : 'Inicio'} right={nav}>
+    <Screen title={settings.displayName ? `${t('inicio.hola')}, ${settings.displayName}` : t('inicio.titulo')} right={nav}>
       {/* Solo si hay algo que avisar. Que todo este al dia no es noticia
           — misma regla que SyncIndicator. */}
       {vencidos.length > 0 && (
@@ -174,12 +177,12 @@ export function DashboardScreen() {
           <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
           <span style={{ flex: 1, minWidth: 0 }}>
             <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
-              {vencidos.length === 1 ? 'Un saldo sin pagar' : `${vencidos.length} saldos sin pagar`}
+              {vencidos.length === 1 ? t('inicio.saldoSinPagar') : `${vencidos.length} ${t('inicio.saldosSinPagar')}`}
             </span>
             <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
               {vencidos.length === 1
-                ? `${vencidos[0]!.tarjeta.name} · venció el ${formatShortDate(vencidos[0]!.paymentDate).day} ${formatShortDate(vencidos[0]!.paymentDate).month}`
-                : 'Márcalos para liberar cupo'}
+                ? `${vencidos[0]!.tarjeta.name} · ${t('inicio.vencioEl')} ${formatShortDate(vencidos[0]!.paymentDate).day} ${formatShortDate(vencidos[0]!.paymentDate).month}`
+                : t('inicio.marcalos')}
             </span>
           </span>
           <span className="figures" style={{ flex: 'none', fontWeight: 700, color: 'var(--danger-text)' }}>
@@ -200,7 +203,7 @@ export function DashboardScreen() {
         }}
       >
         <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: `var(${heroAccentVar})`, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-          Te queda este mes
+          {t('inicio.teQueda')}
         </p>
         <AnimatedNumber
           value={monthBalance.sobrante}
@@ -216,7 +219,7 @@ export function DashboardScreen() {
           }}
         />
         <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          Ingresos menos gastos del mes, contando lo pagado y lo que falta.
+          {t('inicio.explicacion')}
         </p>
 
         {/* Los cuatro numeros que lo componen. Ninguno puede ser negativo. */}
@@ -227,10 +230,10 @@ export function DashboardScreen() {
             background: `color-mix(in srgb, var(${heroAccentVar}) 12%, var(--line))`,
           }}
         >
-          <FlowCell label="Ya recibiste" value={flow.recibido} tone="positive" />
-          <FlowCell label="Falta recibir" value={flow.porRecibir} tone="positive-soft" />
-          <FlowCell label="Ya pagaste" value={flow.pagado} tone="plain" />
-          <FlowCell label="Falta pagar" value={flow.porPagar} tone="danger-soft" />
+          <FlowCell label={t('inicio.yaRecibiste')} value={flow.recibido} tone="positive" />
+          <FlowCell label={t('inicio.faltaRecibir')} value={flow.porRecibir} tone="positive-soft" />
+          <FlowCell label={t('inicio.yaPagaste')} value={flow.pagado} tone="plain" />
+          <FlowCell label={t('inicio.faltaPagar')} value={flow.porPagar} tone="danger-soft" />
         </div>
       </div>
 
@@ -274,7 +277,9 @@ export function DashboardScreen() {
               {porPagar.count} · {formatMoney(porPagar.monto)}
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', marginTop: 2 }}>
-              {porPagar.pendientes.length} pendiente{porPagar.pendientes.length !== 1 ? 's' : ''} · {porPagar.programados.length} programado{porPagar.programados.length !== 1 ? 's' : ''} · {porPagar.enTarjeta.length} en tarjeta
+              {porPagar.pendientes.length} {porPagar.pendientes.length === 1 ? t('inicio.pendiente') : t('inicio.pendientes')}
+              {' · '}{porPagar.programados.length} {porPagar.programados.length === 1 ? t('inicio.programado') : t('inicio.programados')}
+              {' · '}{porPagar.enTarjeta.length} {t('inicio.enTarjeta')}
             </div>
           </div>
           <span style={{ color: 'var(--text-faint)', fontSize: 22 }}>›</span>
@@ -284,7 +289,7 @@ export function DashboardScreen() {
       {/* Proximos movimientos DEL MES visible: ingresos y gastos. */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 10px' }}>
         <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-          Falta este mes
+          {t('inicio.faltaEsteMes')}
         </h2>
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
           {monthName(month).toLowerCase()}
@@ -292,13 +297,13 @@ export function DashboardScreen() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-        <ExpectCard label="Esperas recibir" value={totals.income} color="var(--positive)" sign="+" />
-        <ExpectCard label="Esperas gastar" value={totals.expense} color="var(--danger)" sign="−" />
+        <ExpectCard label={t('inicio.esperasRecibir')} value={totals.income} color="var(--positive)" sign="+" />
+        <ExpectCard label={t('inicio.esperasGastar')} value={totals.expense} color="var(--danger)" sign="−" />
       </div>
 
       {upcoming.length === 0 ? (
         <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
-          Nada pendiente en {monthName(month).toLowerCase()}.
+          {t('inicio.nadaPendiente')} — {monthName(month).toLowerCase()}.
         </p>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', overflow: 'hidden' }}>
@@ -350,7 +355,7 @@ export function DashboardScreen() {
                       {tx.concept}
                     </div>
                     <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
-                      {isLate ? 'venció ' : ''}{day} {monthLabel}
+                      {isLate ? `${t('inicio.vencio')} ` : ''}{day} {monthLabel}
                     </div>
                   </div>
                 </button>
@@ -371,7 +376,7 @@ export function DashboardScreen() {
         onClick={() => navigate('/movimientos')}
         style={{ marginTop: 16, width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-base)' }}
       >
-        Ver todos los movimientos
+        {t('inicio.verTodos')}
       </button>
 
       {porPagarOpen && (
@@ -413,7 +418,7 @@ function ExpectCard({ label, value, color, sign }: { label: string; value: numbe
  * es el del calendario.
  */
 function etiquetaPeriodo(dias: number[], indice: number, mes: number): string {
-  if (dias.length > 1) return `Quincena del ${dias[indice]}`;
+  if (dias.length > 1) return `${etiquetaQuincena()} ${dias[indice]}`;
   const dia = dias[0] ?? 1;
   if (dia === 1) {
     const n = monthName(mes);

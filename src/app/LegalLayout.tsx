@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { useTheme } from './useTheme';
+import { LegalFooter } from '@/features/legal/LegalFooter';
 
 /**
  * Envoltura minima para las paginas legales.
@@ -23,6 +24,7 @@ export function LegalLayout() {
       }}
     >
       <Outlet />
+      <LegalFooter />
     </div>
   );
 }

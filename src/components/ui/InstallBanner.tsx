@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconDeviceMobileShare } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { isIOS, isStandalone } from '@/lib/platform';
@@ -17,6 +18,7 @@ const DISMISS_KEY = 'myfinance:install-banner-dismissed';
  * instala, ve la app vacia y cree que perdio sus datos.
  */
 export function InstallBanner() {
+  const t = useT();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -48,11 +50,11 @@ export function InstallBanner() {
     >
       <IconDeviceMobileShare size={18} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
       <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text)', flex: 1, lineHeight: 1.35 }}>
-        Instálala: <strong>Compartir</strong> → <strong>Agregar a inicio</strong>.
-        {' '}Al abrirla, entra con tu misma cuenta y tus datos aparecen ahí.
+        {t('instalar.como')} <strong>{t('instalar.compartir')}</strong> → <strong>{t('instalar.agregar')}</strong>.
+        {' '}{t('instalar.detalle')}
       </p>
       <button
-        type="button" onClick={dismiss} aria-label="Cerrar"
+        type="button" onClick={dismiss} aria-label={t('accion.cerrar')}
         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 16, cursor: 'pointer', padding: 0, lineHeight: 1 }}
       >
         ×

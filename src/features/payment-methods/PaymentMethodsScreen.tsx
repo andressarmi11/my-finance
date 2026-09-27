@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconBuildingBank, IconCash, IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ const ETIQUETA_TIPO: Record<PaymentMethod['type'], string> = {
 };
 
 export function PaymentMethodsScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const methods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? VACIO;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
@@ -46,13 +48,13 @@ export function PaymentMethodsScreen() {
   }
 
   return (
-    <Screen title="Métodos de pago" subtitle="Tus tarjetas, cada una con lo suyo">
+    <Screen title={t('metodos.titulo')}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
       >
-        ← Volver a ajustes
+        ← {t('nav.volverAjustes')}
       </button>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
@@ -92,7 +94,7 @@ export function PaymentMethodsScreen() {
                   <span className="figures" style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: disp.disponible >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
                     {formatMoney(disp.disponible)}
                   </span>
-                  <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>disponible</span>
+                  <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>{t('tarjetas.disponible')}</span>
                 </span>
               )}
             </button>
@@ -105,7 +107,7 @@ export function PaymentMethodsScreen() {
         onClick={() => setCreating(true)}
         style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
       >
-        + Nuevo método de pago
+        {t('tarjetas.nuevoMetodo')}
       </button>
 
       {(editing || creating) && (

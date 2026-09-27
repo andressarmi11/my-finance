@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useEffect, useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useSearchParams } from 'react-router-dom';
@@ -26,6 +27,7 @@ import { VACIO } from '@/lib/vacio';
 
 
 export function TransactionsScreen() {
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -286,7 +288,7 @@ export function TransactionsScreen() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar en todo el historial…"
+          placeholder={t('movimientos.buscar')}
           type="search"
           style={{
             width: '100%', minHeight: 'var(--tap)', padding: '0 14px', marginBottom: 'var(--gap-m)',
@@ -299,11 +301,11 @@ export function TransactionsScreen() {
       {transactions.length > 0 && (
         <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--gap-m)', overflowX: 'auto', paddingBottom: 2 }}>
           <Chip activo={filtroTipo === 'todos' && filtroEstado === 'todos'}
-            onClick={() => { setFiltroTipo('todos'); setFiltroEstado('todos'); }}>Todos</Chip>
-          <Chip activo={filtroTipo === 'expense'} onClick={() => setFiltroTipo(filtroTipo === 'expense' ? 'todos' : 'expense')}>Gastos</Chip>
-          <Chip activo={filtroTipo === 'income'} onClick={() => setFiltroTipo(filtroTipo === 'income' ? 'todos' : 'income')}>Ingresos</Chip>
-          <Chip activo={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado(filtroEstado === 'pendientes' ? 'todos' : 'pendientes')}>Pendientes</Chip>
-          <Chip activo={filtroEstado === 'pagados'} onClick={() => setFiltroEstado(filtroEstado === 'pagados' ? 'todos' : 'pagados')}>Pagados</Chip>
+            onClick={() => { setFiltroTipo('todos'); setFiltroEstado('todos'); }}>{t('filtro.todos')}</Chip>
+          <Chip activo={filtroTipo === 'expense'} onClick={() => setFiltroTipo(filtroTipo === 'expense' ? 'todos' : 'expense')}>{t('filtro.gastos')}</Chip>
+          <Chip activo={filtroTipo === 'income'} onClick={() => setFiltroTipo(filtroTipo === 'income' ? 'todos' : 'income')}>{t('filtro.ingresos')}</Chip>
+          <Chip activo={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado(filtroEstado === 'pendientes' ? 'todos' : 'pendientes')}>{t('filtro.pendientes')}</Chip>
+          <Chip activo={filtroEstado === 'pagados'} onClick={() => setFiltroEstado(filtroEstado === 'pagados' ? 'todos' : 'pagados')}>{t('filtro.pagados')}</Chip>
         </div>
       )}
 
@@ -320,11 +322,11 @@ export function TransactionsScreen() {
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {monthTotal.count} movimiento{monthTotal.count !== 1 ? 's' : ''}
+              {monthTotal.count} {monthTotal.count === 1 ? t('movimientos.movimiento') : t('movimientos.movimientosPl')}
             </span>
             {!enSeleccion && (
               <button type="button" onClick={() => setSeleccion(new Set())} style={botonTexto}>
-                Seleccionar
+                {t('accion.seleccionar')}
               </button>
             )}
           </div>
@@ -343,10 +345,10 @@ export function TransactionsScreen() {
         />
       ) : groups.length === 0 ? (
         <EmptyState
-          title={searching ? 'Sin resultados' : 'Mes vacío'}
+          title={searching ? t('movimientos.sinResultadosTitulo') : t('movimientos.vacio')}
           body={searching
-            ? `Nada coincide con "${query}".`
-            : `No hay movimientos en ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
+            ? `${t('movimientos.nadaCoincide')} "${query}".`
+            : `${t('movimientos.sinMovimientosMes')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
         />
       ) : (
         groups.map((group) => (

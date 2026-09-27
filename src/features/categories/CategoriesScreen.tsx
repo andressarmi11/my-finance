@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -13,6 +14,7 @@ import { CategoryForm } from './CategoryForm';
 import { VACIO } from '@/lib/vacio';
 
 export function CategoriesScreen() {
+  const t = useT();
   const navigate = useNavigate();
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? VACIO;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? VACIO;
@@ -39,13 +41,13 @@ export function CategoriesScreen() {
   }
 
   return (
-    <Screen title="Categorías" subtitle="Cuánto gastas en cada una">
+    <Screen title={t('categorias.titulo')}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
       >
-        ← Volver a ajustes
+        ← {t('nav.volverAjustes')}
       </button>
 
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>

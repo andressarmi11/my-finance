@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -105,6 +106,7 @@ export function TransactionForm({
   onDuplicate?: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [value, setValue] = useState<TransactionFormValue>(() =>
     initialValue(existing, prefill, defaultPaymentMethodId),
   );
@@ -272,7 +274,7 @@ export function TransactionForm({
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Cancelar"
+            aria-label={t('accion.cancelar')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none',
               background: 'var(--surface-sunken)', color: 'var(--text-muted)',
@@ -313,7 +315,7 @@ export function TransactionForm({
           }}
         />
         <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {isIncome ? 'Cuánto entra' : 'Cuánto sale'}
+          {isIncome ? t('form.cuantoEntra') : t('form.cuantoSale')}
         </p>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
 
@@ -345,7 +347,7 @@ export function TransactionForm({
           </>
         )}
 
-        <Field label="Concepto" htmlFor="tx-concepto">
+        <Field label={t('form.concepto')} htmlFor="tx-concepto">
         <input
           id="tx-concepto"
           value={value.concept}
@@ -356,7 +358,7 @@ export function TransactionForm({
         </Field>
         {touched && !value.concept.trim() && <p style={errorText}>Escribe qué es.</p>}
 
-        <FieldGroup label="Categoría" id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+        <FieldGroup label={t('form.categoria')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === value.type).map((c) => (
             <button
               key={c.id}
@@ -378,7 +380,7 @@ export function TransactionForm({
           ))}
         </FieldGroup>
 
-        <FieldGroup label="Método de pago" id="tx-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+        <FieldGroup label={t('form.metodoPago')} id="tx-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
           {availableMethods.map((m) => (
             <button
               key={m.id}
@@ -401,7 +403,7 @@ export function TransactionForm({
             repartir la compra. */}
         {isCredit && !existing && (
           <>
-            <Field label="Cuotas" htmlFor="tx-cuotas">
+            <Field label={t('form.cuotas')} htmlFor="tx-cuotas">
               <input
                 id="tx-cuotas" type="number" inputMode="numeric" min={1} max={48}
                 value={cuotas}
@@ -412,7 +414,7 @@ export function TransactionForm({
 
             {cuotas > 1 && (
               <>
-                <Field label="Valor de cada cuota" htmlFor="tx-valor-cuota">
+                <Field label={t('form.valorCuota')} htmlFor="tx-valor-cuota">
                   <input
                     id="tx-valor-cuota" inputMode="numeric"
                     value={valorCuotaTexto}
@@ -431,7 +433,7 @@ export function TransactionForm({
           </>
         )}
 
-        <Field label="Fecha" htmlFor="tx-fecha">
+        <Field label={t('form.fecha')} htmlFor="tx-fecha">
           <input
             id="tx-fecha"
             type="date"
@@ -451,7 +453,7 @@ export function TransactionForm({
             border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--text-base)',
           }}
         >
-          <span>{isIncome ? 'Ya lo recibiste' : isCredit ? 'Ya pagaste el extracto' : 'Ya está pagado'}</span>
+          <span>{isIncome ? t('form.yaLoRecibiste') : isCredit ? t('form.yaPagasteExtracto') : t('form.yaEstaPagado')}</span>
           <span
             aria-hidden
             style={{
@@ -467,17 +469,17 @@ export function TransactionForm({
         </button>
 
         <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>
-          Guardar
+          {t('accion.guardar')}
         </button>
 
         {existing && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
             {onDuplicate && (
-              <button type="button" onClick={onDuplicate} style={secondaryButtonStyle}>Duplicar</button>
+              <button type="button" onClick={onDuplicate} style={secondaryButtonStyle}>{t('accion.duplicar')}</button>
             )}
             {onDelete && (
               <button type="button" onClick={onDelete} style={{ ...secondaryButtonStyle, color: 'var(--danger-text)' }}>
-                Eliminar
+                {t('accion.eliminar')}
               </button>
             )}
           </div>

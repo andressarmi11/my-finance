@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { formatCompact, formatMoney } from '@/domain/money/format';
 import { categoryColor } from '@/domain/seed/categoryColor';
@@ -25,6 +26,7 @@ export function BudgetColumns({ categories, budgets, transactions, mesPrefijo }:
   /** 'YYYY-MM' del mes que se está mirando. */
   mesPrefijo: string;
 }) {
+  const t = useT();
   const porCategoria = new Map(categories.map((c) => [c.id, c]));
 
   const gastadoPorCategoria = new Map<string, number>();
@@ -54,7 +56,7 @@ export function BudgetColumns({ categories, budgets, transactions, mesPrefijo }:
   if (columnas.length === 0) {
     return (
       <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-        Todavía no has puesto presupuestos. Se definen en Ajustes → Presupuestos, y aparecen aquí.
+        {t('analisis.sinPresupuestos')}
       </p>
     );
   }

@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -6,15 +7,17 @@ import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
 import { haptic } from '@/lib/haptic';
 
 const TABS = [
-  { to: '/', label: 'Inicio', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
-  { to: '/movimientos', label: 'Movimientos', icon: 'M4 7h16M4 12h16M4 17h10' },
-  { to: '/calendario', label: 'Calendario', icon: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4' },
-  { to: '/analisis', label: 'Análisis', icon: 'M5 20V10M12 20V4M19 20v-7' },
-  { to: '/ajustes', label: 'Ajustes', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
+  // Se guarda la CLAVE, no el texto: el texto depende del idioma activo.
+  { to: '/', clave: 'nav.inicio', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
+  { to: '/movimientos', clave: 'nav.movimientos', icon: 'M4 7h16M4 12h16M4 17h10' },
+  { to: '/calendario', clave: 'nav.calendario', icon: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4' },
+  { to: '/analisis', clave: 'nav.analisis', icon: 'M5 20V10M12 20V4M19 20v-7' },
+  { to: '/ajustes', clave: 'nav.ajustes', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
 ] as const;
 
 export function TabBar() {
   const navigate = useNavigate();
+  const t = useT();
   const [longPressOpen, setLongPressOpen] = useState(false);
   const [hablarOpen, setHablarOpen] = useState(false);
   const [fabHidden, setFabHidden] = useState(false);
@@ -105,7 +108,7 @@ export function TabBar() {
                   strokeLinejoin="round"
                 />
               </svg>
-              {tab.label}
+              {t(tab.clave)}
             </NavLink>
           </div>
         ))}
@@ -193,7 +196,7 @@ function QuickActionSheet({
   onClose: () => void;
   onSelect: (action: 'hablar' | 'gasto' | 'ingreso' | 'recurrente') => void;
 }) {
-
+  const t = useT();
   const refDialogo = useDialogo(onClose);
   return (
     <div
@@ -226,26 +229,26 @@ function QuickActionSheet({
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
         <ActionRow
           icono={IconMicrophone}
-          label="Contarle a la app"
-          sub="Habla o escribe: “gasté 45 mil en el almuerzo”"
+          label={t('accion.contarle')}
+          sub={t('accion.contarleSub')}
           onClick={() => onSelect('hablar')}
         />
         <ActionRow
           icono={IconTrendingDown}
-          label="Nuevo gasto"
-          sub="Rápido, con el método por defecto"
+          label={t('accion.nuevoGasto')}
+          sub={t('accion.nuevoGastoSub')}
           onClick={() => onSelect('gasto')}
         />
         <ActionRow
           icono={IconCurrencyDollar}
-          label="Nuevo ingreso"
-          sub="Sueldo, freelance, ventas…"
+          label={t('accion.nuevoIngreso')}
+          sub={t('accion.nuevoIngresoSub')}
           onClick={() => onSelect('ingreso')}
         />
         <ActionRow
           icono={IconRepeat}
-          label="Nuevo recurrente"
-          sub="Renta, servicios, suscripciones…"
+          label={t('accion.nuevoRecurrente')}
+          sub={t('accion.nuevoRecurrenteSub')}
           onClick={() => onSelect('recurrente')}
         />
         <button

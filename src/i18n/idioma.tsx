@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { TEXTOS, type ClaveTexto } from './textos';
 import { setMesesLocales } from '@/lib/formatShortDate';
+import { setNombresDeMes } from '@/components/ui/MonthNav';
+import { setIdiomaDePeriodo } from './periodo';
 
 export type Idioma = 'es' | 'en';
 
@@ -47,6 +49,8 @@ export function IdiomaProvider({ children }: { children: ReactNode }) {
     // el ingles con fonetica española.
     document.documentElement.lang = idioma === 'en' ? 'en' : 'es-CO';
     setMesesLocales(idioma);
+    setNombresDeMes(idioma);
+    setIdiomaDePeriodo(idioma);
   }, [idioma]);
 
   const setIdioma = useCallback((i: Idioma) => {

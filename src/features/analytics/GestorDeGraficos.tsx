@@ -1,3 +1,4 @@
+import { useT } from '@/i18n/idioma';
 import { useState } from 'react';
 import {
   IconArrowDown, IconArrowUp, IconEye, IconEyeOff, IconLayoutGrid, IconX,
@@ -23,6 +24,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
   titulos: Record<GraficoId, string>;
   onCambiar: (d: Disposicion) => void;
 }) {
+  const t = useT();
   const [abierto, setAbierto] = useState(false);
   const refDialogo = useDialogo(() => setAbierto(false), abierto);
 
@@ -42,9 +44,9 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
         }}
       >
         <IconLayoutGrid size={17} stroke={1.75} aria-hidden />
-        Organizar gráficos
+        {t('analisis.organizar')}
         {ocultosCount > 0 && (
-          <span style={{ color: 'var(--text-faint)' }}>· {ocultosCount} oculto{ocultosCount === 1 ? '' : 's'}</span>
+          <span style={{ color: 'var(--text-faint)' }}>· {ocultosCount} {ocultosCount === 1 ? t('analisis.oculto') : t('analisis.ocultos')}</span>
         )}
       </button>
     );
@@ -54,7 +56,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
     <div
       ref={refDialogo}
       role="dialog"
-      aria-label="Organizar gráficos"
+      aria-label={t('analisis.organizar')}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
         display: 'flex', alignItems: 'flex-end', zIndex: 60,
@@ -75,7 +77,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
           <button
             type="button"
             onClick={() => setAbierto(false)}
-            aria-label="Cerrar"
+            aria-label={t('accion.cerrar')}
             style={{
               width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
               placeItems: 'center', background: 'var(--surface-sunken)',
@@ -84,7 +86,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
           >
             <IconX size={17} stroke={2.2} aria-hidden />
           </button>
-          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>Organizar gráficos</span>
+          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{t('analisis.organizar')}</span>
         </div>
 
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -103,21 +105,21 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
                 </span>
 
                 <IconBtn
-                  label={`Subir ${titulos[id]}`}
+                  label={`${t('analisis.subir')} ${titulos[id]}`}
                   disabled={i === 0}
                   onClick={() => onCambiar({ ...disposicion, orden: mover(disposicion.orden, id, -1) })}
                 >
                   <IconArrowUp size={17} stroke={2} />
                 </IconBtn>
                 <IconBtn
-                  label={`Bajar ${titulos[id]}`}
+                  label={`${t('analisis.bajar')} ${titulos[id]}`}
                   disabled={i === disposicion.orden.length - 1}
                   onClick={() => onCambiar({ ...disposicion, orden: mover(disposicion.orden, id, 1) })}
                 >
                   <IconArrowDown size={17} stroke={2} />
                 </IconBtn>
                 <IconBtn
-                  label={oculto ? `Mostrar ${titulos[id]}` : `Ocultar ${titulos[id]}`}
+                  label={`${oculto ? t('analisis.mostrar') : t('analisis.ocultar')} ${titulos[id]}`}
                   onClick={() => onCambiar({ ...disposicion, ocultos: alternarOculto(disposicion.ocultos, id) })}
                 >
                   {oculto
@@ -143,7 +145,7 @@ export function GestorDeGraficos({ disposicion, titulos, onCambiar }: {
             fontWeight: 600, cursor: 'pointer',
           }}
         >
-          Volver al orden original
+          {t('analisis.ordenOriginal')}
         </button>
       </div>
     </div>
