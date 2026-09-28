@@ -70,7 +70,10 @@ export function BudgetColumns({ categories, budgets, transactions, monthPrefix }
         return (
           <div
             key={c.category.id}
-            title={`${c.category.name}: ${formatMoney(c.spent)} de ${formatMoney(c.budgeted)}`}
+            title={t('budgets.spentOfBudget')
+              .replace('{name}', c.category.name)
+              .replace('{spent}', formatMoney(c.spent))
+              .replace('{budget}', formatMoney(c.budgeted))}
             style={{ flex: 'none', width: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
           >
             <span

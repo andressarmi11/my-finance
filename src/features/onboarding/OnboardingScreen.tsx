@@ -8,6 +8,7 @@ import { haptic } from '@/lib/haptic';
 import { requestSync } from '@/data/sync/useCloudSync';
 import type { Settings } from '@/domain/types';
 import { categoryColor } from '@/domain/seed/categoryColor';
+import { useT } from '@/i18n/language';
 
 const STEPS = ['nombre', 'moneda', 'quincenas', 'categorias'] as const;
 type Step = typeof STEPS[number];
@@ -22,6 +23,7 @@ type Step = typeof STEPS[number];
  * make someone close the app.
  */
 export function OnboardingScreen({ settings }: { settings: Settings }) {
+  const t = useT();
   const [step, setPaso] = useState(0);
   const [name, setNombre] = useState(settings.displayName);
   const [moneda, setMoneda] = useState(settings.currency);
@@ -94,7 +96,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
 
         <div style={{ flex: 1 }}>
           {currentStep === 'nombre' && (
-            <Question title="¿Cómo quieres que te llamemos?" help="Aparece en el saludo del inicio. Nada más.">
+            <Question title={t('onboarding.nameQuestion')} help={t('onboarding.nameHelp')}>
               <input
                 autoFocus value={name} onChange={(e) => setNombre(e.target.value)}
                 placeholder="Tu nombre" aria-label="Tu nombre" maxLength={40}
@@ -109,7 +111,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
           )}
 
           {currentStep === 'moneda' && (
-            <Question title="¿En qué moneda manejas tu plata?" help="Cambia cómo se escribe cada cifra en toda la app.">
+            <Question title={t('onboarding.currencyQuestion')} help={t('onboarding.currencyHelp')}>
               <div style={{ display: 'grid', gap: 8 }}>
                 {CURRENCIES.map((c) => (
                   <button
@@ -131,19 +133,19 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
 
           {currentStep === 'quincenas' && (
             <Question
-              title="¿Cada cuánto te entra la plata?"
-              help="La app agrupa tus gastos entre un pago y el siguiente. Se puede cambiar después en Ajustes."
+              title={t('onboarding.payQuestion')}
+              help={t('onboarding.payHelp')}
             >
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 <PayOption
-                  title="Dos veces al mes"
-                  detalle="Quincenal"
+                  title={t('settings.twiceAMonth')}
+                  detalle={t('onboarding.biweeklyDetail')}
                   isActive={payDays.length > 1}
                   onClick={() => setDias((d) => (d.length > 1 ? d : [10, 25]))}
                 />
                 <PayOption
-                  title="Una vez al mes"
-                  detalle="Mensual"
+                  title={t('settings.onceAMonth')}
+                  detalle={t('onboarding.monthlyDetail')}
                   isActive={payDays.length === 1}
                   // Starts on day 1, the calendar month. Keeping the
                   // first pay-period day (10 by default) would shift the month
@@ -157,20 +159,24 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
               {payDays.length > 1 ? (
                 <>
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <DayInput label="Primer pago" value={payDays[0] ?? 10} onChange={(v) => setDias([v, payDays[1] ?? 25])} />
-                    <DayInput label="Segundo pago" value={payDays[1] ?? 25} onChange={(v) => setDias([payDays[0] ?? 10, v])} />
+                    <DayInput label={t('onboarding.firstPayment')} value={payDays[0] ?? 10} onChange={(v) => setDias([v, payDays[1] ?? 25])} />
+                    <DayInput label={t('onboarding.secondPayment')} value={payDays[1] ?? 25} onChange={(v) => setDias([payDays[0] ?? 10, v])} />
                   </div>
                   <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                    Quedaría: quincena del {Math.min(...payDays)} y quincena del {Math.max(...payDays)}.
+                    {t('onboarding.wouldBe')
+                      .replace('{a}', String(Math.min(...payDays)))
+                      .replace('{b}', String(Math.max(...payDays)))}
                   </p>
                 </>
               ) : (
                 <>
-                  <DayInput label="Día de pago" value={payDays[0] ?? 1} onChange={(v) => setDias([v])} />
+                  <DayInput label={t('onboarding.payDay')} value={payDays[0] ?? 1} onChange={(v) => setDias([v])} />
                   <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
                     {payDays[0] === 1
-                      ? 'Tu mes va del 1 al último día, como el calendario.'
-                      : `Tu mes va del ${payDays[0]} de un mes al ${(payDays[0] ?? 1) - 1} del siguiente.`}
+                      ? t('onboarding.monthCalendar')
+                      : t('onboarding.monthFromTo')
+                          .replace('{a}', String(payDays[0]))
+                          .replace('{b}', String((payDays[0] ?? 1) - 1))}
                   </p>
                 </>
               )}
@@ -178,7 +184,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
           )}
 
           {currentStep === 'categorias' && (
-            <Question title="¿Cuáles categorías usas?" help="Quita las que no. Puedes agregar más después en Ajustes.">
+            <Question title={t('onboarding.categoriesQuestion')} help={t('onboarding.categoriesHelp')}>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {DEFAULT_CATEGORIES.map((c) => {
                   const isActive = chosen.has(c.id);
@@ -218,7 +224,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
           {step > 0 && (
             <button type="button" onClick={() => setPaso(step - 1)} style={{ ...buttonStyle, flex: 'none', width: 100, background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--line-strong)' }}>
-              Atrás
+              {t('onboarding.back')}
             </button>
           )}
           <button type="button" onClick={next} disabled={!canContinue || saving} style={{ ...buttonStyle, opacity: canContinue ? 1 : 0.5 }}>

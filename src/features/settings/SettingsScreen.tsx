@@ -7,16 +7,17 @@ import { useLanguage } from '@/i18n/language';
 import { exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
 import type { Backup } from '@/data/backup/schema';
 import type { Settings } from '@/domain/types';
+import type { TextKey } from '@/i18n/texts';
 import { CURRENCIES, currencySample } from '@/domain/money/currencies';
 import { ImportPreviewSheet } from './ImportPreviewSheet';
 import { CloudSection } from './CloudSection';
 import { AutomationSection } from './AutomationSection';
 import { NotificationsSection } from '@/features/notifications/NotificationsSection';
 
-const THEMES: Array<{ value: Settings['theme']; label: string }> = [
-  { value: 'system', label: 'Sistema' },
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Oscuro' },
+const THEMES: Array<{ value: Settings['theme']; label: TextKey }> = [
+  { value: 'system', label: 'settings.themeSystem' },
+  { value: 'light', label: 'settings.themeLight' },
+  { value: 'dark', label: 'settings.themeDark' },
 ];
 
 export function SettingsScreen() {
@@ -78,14 +79,14 @@ export function SettingsScreen() {
   }
 
   return (
-    <Screen title={t('settings.title')} subtitle="Tu cuenta, moneda y quincenas">
+    <Screen title={t('settings.title')} subtitle={t('settings.subtitle')}>
       <section style={sectionStyle}>
         <h2 style={sectionTitle}>{t('settings.yourName')}</h2>
         <input
           defaultValue={settings.displayName}
           onBlur={(e) => patch({ displayName: e.target.value.trim() })}
-          placeholder="Como quieres que te llamemos"
-          aria-label="Tu nombre"
+          placeholder={t('settings.namePlaceholder')}
+          aria-label={t('settings.yourName')}
           maxLength={40}
           style={{
             width: '100%', minHeight: 'var(--tap)', padding: '0 14px',
@@ -119,9 +120,9 @@ export function SettingsScreen() {
       <section style={sectionStyle}>
         <h2 style={sectionTitle}>{t('settings.theme')}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
-          {THEMES.map((t) => (
-            <button key={t.value} type="button" onClick={() => patch({ theme: t.value })} aria-pressed={settings.theme === t.value} style={segmentStyle(settings.theme === t.value)}>
-              {t.label}
+          {THEMES.map((theme) => (
+            <button key={theme.value} type="button" onClick={() => patch({ theme: theme.value })} aria-pressed={settings.theme === theme.value} style={segmentStyle(settings.theme === theme.value)}>
+              {t(theme.label)}
             </button>
           ))}
         </div>
@@ -158,12 +159,12 @@ export function SettingsScreen() {
 
       <section style={sectionStyle}>
         <h2 style={sectionTitle}>{t('settings.howYouGetPaid')}</h2>
-        <Row label="Te entra la plata">
+        <Row label={t('settings.moneyComesIn')}>
           <div style={{ display: 'flex', gap: 6 }}>
             {([
-              { label: 'Dos veces al mes', biweekly: true },
-              { label: 'Una vez al mes', biweekly: false },
-            ]).map((option) => {
+              { label: 'settings.twiceAMonth', biweekly: true },
+              { label: 'settings.onceAMonth', biweekly: false },
+            ] as const).map((option) => {
               const isActive = (settings.payDays.length > 1) === option.biweekly;
               return (
                 <button
@@ -184,7 +185,7 @@ export function SettingsScreen() {
                     color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
                   }}
                 >
-                  {option.label}
+                  {t(option.label)}
                 </button>
               );
             })}
@@ -193,13 +194,13 @@ export function SettingsScreen() {
 
         {settings.payDays.length > 1 ? (
           <>
-            <Row label="Primera empieza el día">
+            <Row label={t('settings.firstStartsOn')}>
               <NumberInput
                 value={settings.payDays[0] ?? 10}
                 onCommit={(v) => patch({ payDays: [v, settings.payDays[1] ?? 25] })}
               />
             </Row>
-            <Row label="Segunda empieza el día">
+            <Row label={t('settings.secondStartsOn')}>
               <NumberInput
                 value={settings.payDays[1] ?? 25}
                 onCommit={(v) => patch({ payDays: [settings.payDays[0] ?? 10, v] })}
@@ -207,7 +208,7 @@ export function SettingsScreen() {
             </Row>
           </>
         ) : (
-          <Row label="Tu mes empieza el día">
+          <Row label={t('settings.monthStartsOn')}>
             <NumberInput
               value={settings.payDays[0] ?? 1}
               onCommit={(v) => patch({ payDays: [v] })}
@@ -217,11 +218,11 @@ export function SettingsScreen() {
       </section>
 
       <section style={sectionStyle}>
-        <h2 style={sectionTitle}>Recordatorios</h2>
-        <Row label="Avisar con">
+        <h2 style={sectionTitle}>{t('settings.reminders')}</h2>
+        <Row label={t('settings.warnMeWith')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <NumberInput value={settings.reminderDefaultDaysBefore} min={0} onCommit={(v) => patch({ reminderDefaultDaysBefore: v })} />
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>día(s) antes</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('settings.daysBefore')}</span>
           </div>
         </Row>
       </section>
@@ -256,8 +257,9 @@ export function SettingsScreen() {
           {busy === 'xlsx' ? t('settings.buildingExcel') : t('settings.exportExcel')}
         </button>
         <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
-          El Excel es para leer y analizar: trae una hoja por cada cosa, con
-          nombres en vez de códigos. Para <strong>restaurar</strong> usa el JSON.
+          {t('settings.excelNote').split('{strong}')[0]}
+          <strong>{t('settings.restore')}</strong>
+          {t('settings.excelNote').split('{strong}')[1]}
         </p>
         <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...secondaryButtonStyle, width: '100%' }}>
           {t('settings.import')}

@@ -21,7 +21,12 @@ jobs:
       - run: npm run test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      # 'aislamiento' aparte: es el test de que los datos de una cuenta no
-      # pasan a otra, y vive en su propio proyecto (dev server). Sin
-      # nombrarlo aqui, CI no lo correria nunca.
-      - run: npm run test:e2e -- --project=chromium --project=aislamiento
+      # 'isolation' is named separately: those specs import SOURCE modules
+      # (account isolation, duplicate occurrences, the xlsx bytes) and live
+      # in their own project against the dev server. Without naming it here,
+      # CI would never run them.
+      #
+      # Keep these names in sync with playwright.config.ts. Renaming a
+      # project there and not here fails the whole job with "Project(s) not
+      # found", which reads like the suite broke rather than a stale name.
+      - run: npm run test:e2e -- --project=chromium --project=isolation

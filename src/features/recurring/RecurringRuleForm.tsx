@@ -7,12 +7,13 @@ import type { Category, Frequency, PaymentMethod, RecurringRule, TransactionType
 import { parseMoney } from '@/domain/money/format';
 import { todayISO } from '@/lib/todayISO';
 import { Field, FieldGroup } from '@/components/ui/Field';
+import type { TextKey } from '@/i18n/texts';
 
-const FREQUENCIES: Array<{ value: Frequency; label: string }> = [
-  { value: 'monthly', label: 'Mensual' },
-  { value: 'biweekly', label: 'Quincenal' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'yearly', label: 'Anual' },
+const FREQUENCIES: Array<{ value: Frequency; label: TextKey }> = [
+  { value: 'monthly', label: 'recurring.monthly' },
+  { value: 'biweekly', label: 'recurring.biweekly' },
+  { value: 'weekly', label: 'recurring.weekly' },
+  { value: 'yearly', label: 'recurring.yearly' },
 ];
 
 export function RecurringRuleForm({
@@ -96,14 +97,14 @@ export function RecurringRuleForm({
             <IconX size={17} stroke={2.2} aria-hidden />
           </button>
           <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>
-            {existing ? 'Editar recurrente' : 'Nuevo recurrente'}
+            {existing ? t('recurring.editOne') : t('action.newRecurring')}
           </span>
         </div>
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {(['expense', 'income'] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setType(t)} aria-pressed={type === t} style={segmentStyle(type === t)}>
-              {t === 'expense' ? 'Gasto fijo' : 'Ingreso recurrente'}
+          {(['expense', 'income'] as const).map((kind) => (
+            <button key={kind} type="button" onClick={() => setType(kind)} aria-pressed={type === kind} style={segmentStyle(type === kind)}>
+              {kind === 'expense' ? t('recurring.fixedExpense') : t('recurring.recurringIncome')}
             </button>
           ))}
         </div>
@@ -111,12 +112,12 @@ export function RecurringRuleForm({
         <Field label={t('form.name')} htmlFor="rr-nombre">
           <input id="rr-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Arriendo" style={inputStyle} />
         </Field>
-        {touched && !name.trim() && <p style={errorText}>Ponle un nombre.</p>}
+        {touched && !name.trim() && <p style={errorText}>{t('recurring.giveItAName')}</p>}
 
         <Field label={t('form.amount')} htmlFor="rr-valor">
           <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
         </Field>
-        {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
+        {touched && (amount === null || amount <= 0) && <p style={errorText}>{t('transactions.enterValidAmount')}</p>}
 
         <FieldGroup label={t('form.category')} id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === type).map((c) => (
@@ -127,7 +128,7 @@ export function RecurringRuleForm({
           ))}
         </FieldGroup>
 
-        <FieldGroup label="Método de pago" id="rr-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        <FieldGroup label={t('form.paymentMethod')} id="rr-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
           {paymentMethods.map((m) => (
             <button key={m.id} type="button" onClick={() => setPaymentMethodId(m.id)} aria-pressed={paymentMethodId === m.id} style={segmentStyle(paymentMethodId === m.id)}>
               {m.name}
@@ -138,14 +139,14 @@ export function RecurringRuleForm({
         <FieldGroup label="Frecuencia" id="rr-frecuencia" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
           {FREQUENCIES.map((f) => (
             <button key={f.value} type="button" onClick={() => setFrequency(f.value)} aria-pressed={frequency === f.value} style={segmentStyle(frequency === f.value)}>
-              {f.label}
+              {t(f.label)}
             </button>
           ))}
         </FieldGroup>
 
         {needsDayOfMonth && (
           <>
-            <Field label="Día del mes" htmlFor="rr-dia">
+            <Field label={t('recurring.dayOfMonth')} htmlFor="rr-dia">
               <input
                 id="rr-dia"
                 type="number" min={1} max={31} value={dayOfMonth}
@@ -156,7 +157,7 @@ export function RecurringRuleForm({
           </>
         )}
 
-        <Field label="Empieza el" htmlFor="rr-inicio">
+        <Field label={t('recurring.startsOn')} htmlFor="rr-inicio">
           <input id="rr-inicio" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
         </Field>
 
@@ -166,11 +167,11 @@ export function RecurringRuleForm({
           aria-pressed={hasEnd}
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 'var(--tap)', padding: '0 4px', marginBottom: hasEnd ? 8 : 14, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}
         >
-          <span>Tiene fecha de fin</span>
+          <span>{t('recurring.hasEndDate')}</span>
           <ToggleDot on={hasEnd} />
         </button>
         {hasEnd && (
-          <input aria-label="Fecha de fin" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
+          <input aria-label={t('recurring.endDate')} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
         )}
 
         <button
@@ -187,7 +188,7 @@ export function RecurringRuleForm({
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
-            Eliminar recurrente
+            {t('recurring.deleteOne')}
           </button>
         )}
       </div>

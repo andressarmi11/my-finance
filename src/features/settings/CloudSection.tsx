@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getSupabase, isSupabaseConfigured } from '@/data/supabase/client';
 import { useSession } from '@/features/auth/useSession';
 import { syncBidirectional } from '@/data/sync/syncService';
+import { useT } from '@/i18n/language';
 
 /**
  * Only shows up if the project has Supabase configured. Sync
@@ -12,6 +13,7 @@ export function CloudSection() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const { session } = useSession();
+  const t = useT();
 
   if (!isSupabaseConfigured()) return null;
 
@@ -20,9 +22,14 @@ export function CloudSection() {
     setMessage('');
     try {
       const r = await syncBidirectional();
-      setMessage(`Listo. Subidos ${r.pushed}, bajados ${r.pulled}${r.deleted ? `, borrados ${r.deleted}` : ''}.`);
+      setMessage(
+        t('cloud.syncResult')
+          .replace('{pushed}', String(r.pushed))
+          .replace('{pulled}', String(r.pulled))
+          .replace('{deleted}', r.deleted ? t('cloud.syncDeleted').replace('{n}', String(r.deleted)) : ''),
+      );
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'No se pudo sincronizar.');
+      setMessage(e instanceof Error ? e.message : t('cloud.couldNotSync'));
     } finally {
       setBusy(false);
     }
@@ -30,17 +37,16 @@ export function CloudSection() {
 
   return (
     <section style={{ marginBottom: 'var(--gap-xl)' }}>
-      <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 10px' }}>Tu cuenta</h2>
+      <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 10px' }}>{t('cloud.title')}</h2>
 
       {session && (
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: '0 0 10px' }}>
-          Sesión iniciada como <strong>{session.user.email}</strong>. Entra con este correo y contraseña
-          en cualquier dispositivo y verás los mismos datos.
+          {t('cloud.signedInAs')} <strong>{session.user.email}</strong>. {t('cloud.sameDataAnywhere')}
         </p>
       )}
 
       <button type="button" onClick={syncNow} disabled={busy} style={{ ...btnStyle, width: '100%', marginBottom: 8 }}>
-        {busy ? 'Sincronizando…' : 'Sincronizar ahora'}
+        {busy ? t('cloud.syncing') : t('cloud.syncNow')}
       </button>
 
       <button
@@ -48,7 +54,7 @@ export function CloudSection() {
         onClick={() => { void getSupabase().then((supabase) => supabase.auth.signOut()); }}
         style={{ ...btnStyle, width: '100%', color: 'var(--danger-text)' }}
       >
-        Cerrar sesión
+        {t('cloud.signOut')}
       </button>
 
       {message && <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: 8 }}>{message}</p>}

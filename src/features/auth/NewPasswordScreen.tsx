@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
 import { exitRecovery } from './recovery';
 import { buttonStyle, linkStyle, inputStyle, MIN_PASSWORD, translateError } from './authStyles';
+import { useT } from '@/i18n/language';
 
 /**
  * Shown when opening the "forgot my password" link, BEFORE letting
@@ -13,6 +14,7 @@ import { buttonStyle, linkStyle, inputStyle, MIN_PASSWORD, translateError } from
  * exactly what the user came to do. See recovery.ts.
  */
 export function NewPasswordScreen() {
+  const t = useT();
   const [key, setClave] = useState('');
   const [repetir, setRepetir] = useState('');
   const [busy, setBusy] = useState(false);
@@ -60,15 +62,15 @@ export function NewPasswordScreen() {
           <IconKey size={38} stroke={1.6} aria-hidden />
         </p>
         <h1 style={{ textAlign: 'center', fontSize: 'var(--text-xl)', fontWeight: 700, margin: '0 0 4px' }}>
-          Contraseña nueva
+          {t('auth.newPassword')}
         </h1>
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '0 0 24px', fontSize: 'var(--text-base)' }}>
-          Elige la que vas a usar de ahora en adelante.
+          {t('auth.chooseFromNowOn')}
         </p>
 
         {listo ? (
           <p role="status" style={{ textAlign: 'center', color: 'var(--positive-text)', fontWeight: 600 }}>
-            Contraseña actualizada. Entrando…
+            {t('auth.passwordUpdated')}
           </p>
         ) : (
           <form onSubmit={save}>
@@ -76,14 +78,14 @@ export function NewPasswordScreen() {
               type="password" required autoFocus autoComplete="new-password" minLength={MIN_PASSWORD}
               value={key} onChange={(e) => setClave(e.target.value)}
               placeholder={`Contraseña nueva (mínimo ${MIN_PASSWORD})`}
-              aria-label="Contraseña nueva"
+              aria-label={t('auth.newPassword')}
               style={inputStyle}
             />
             <input
               type="password" required autoComplete="new-password"
               value={repetir} onChange={(e) => setRepetir(e.target.value)}
               placeholder="Repetirla"
-              aria-label="Repetir la contraseña"
+              aria-label={t('auth.repeatPassword')}
               style={{
                 ...inputStyle,
                 borderColor: repetir.length > 0 && !matches ? 'var(--danger)' : 'var(--line-strong)',
@@ -91,19 +93,19 @@ export function NewPasswordScreen() {
             />
             {repetir.length > 0 && !matches && (
               <p style={{ margin: '-4px 0 10px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>
-                Las dos contraseñas no son iguales.
+                {t('auth.passwordsDoNotMatch')}
               </p>
             )}
 
             <button type="submit" disabled={!canSubmit} style={{ ...buttonStyle, opacity: canSubmit ? 1 : 0.5 }}>
-              {busy ? 'Guardando…' : 'Guardar contraseña'}
+              {busy ? t('action.saving') : t('auth.savePassword')}
             </button>
           </form>
         )}
 
         {!listo && (
           <button type="button" onClick={cancel} style={linkStyle}>
-            Cancelar y volver a entrar
+            {t('auth.cancelAndSignIn')}
           </button>
         )}
 

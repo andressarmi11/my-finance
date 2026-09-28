@@ -72,7 +72,7 @@ export function CategoriesScreen() {
         onClick={() => setCreating(true)}
         style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
       >
-        + Nueva categoría
+        {t('categories.newOne')}
       </button>
 
       {(editing || creating) && (

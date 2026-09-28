@@ -1,5 +1,6 @@
 import { IconAlertTriangle, IconCloudUpload } from '@tabler/icons-react';
 import type { SyncStatus } from '@/data/sync/useCloudSync';
+import { translate } from '@/i18n/language';
 
 /**
  * Only shows up when there's something to say: syncing or a failure. Green
@@ -40,7 +41,7 @@ export function SyncIndicator({ status, error, onReintentar }: {
         ? <IconAlertTriangle size={16} stroke={1.9} aria-hidden />
         : <IconCloudUpload size={16} stroke={1.9} aria-hidden />}
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {isError ? (error || 'No se pudo sincronizar') : 'Sincronizando…'}
+        {isError ? (error || translate('sync.couldNotSync')) : 'Sincronizando…'}
       </span>
       {isError && (
         <button

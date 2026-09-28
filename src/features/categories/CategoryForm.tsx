@@ -47,7 +47,7 @@ export function CategoryForm({
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label={existing ? 'Editar categoría' : 'Nueva categoría'}
+      aria-label={existing ? t('categories.editOne') : t('categories.newOneTitle')}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
       onClick={onCancel}
     >
@@ -60,9 +60,9 @@ export function CategoryForm({
         <Field label={t('form.name')} htmlFor="cat-nombre">
           <input id="cat-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mascotas" style={inputStyle} />
         </Field>
-        {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>Ponle un nombre.</p>}
+        {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>{t('categories.giveItAName')}</p>}
 
-        <FieldGroup label="Ícono" id="cat-icono" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+        <FieldGroup label={t('categories.icon')} id="cat-icono" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {SELECTABLE_ICONS.map((i) => (
             <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i} aria-label={i}
               style={{
@@ -95,7 +95,7 @@ export function CategoryForm({
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
-            Archivar categoría
+            {t('categories.archive')}
           </button>
         )}
       </div>

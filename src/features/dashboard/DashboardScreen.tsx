@@ -276,7 +276,7 @@ export function DashboardScreen() {
         >
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 2 }}>
-              Desglose de lo que falta pagar
+              {t('home.breakdownOfLeftToPay')}
             </div>
             <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>
               {toPay.count} · {formatMoney(toPay.amount)}
@@ -330,7 +330,7 @@ export function DashboardScreen() {
                   type="button"
                   onClick={() => toggleTxPaid(tx)}
                   aria-pressed={isPaid}
-                  aria-label={isIncome ? 'Marcar como recibido' : 'Marcar como pagado'}
+                  aria-label={isIncome ? t('home.markAsReceived') : t('home.markAsPaid')}
                   style={{
                     width: 28, height: 28, minWidth: 28, borderRadius: 14, flex: 'none',
                     border: `1.5px solid ${isPaid ? 'var(--positive)' : 'var(--line-strong)'}`,

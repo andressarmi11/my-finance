@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/language';
 /**
  * Browser voice dictation (Web Speech API).
  *
@@ -124,7 +125,7 @@ export function listen(options: {
       } catch {
         // It was already dead.
       }
-      options.onError('Se quedó esperando. Vuelve a intentarlo o escríbelo.');
+      options.onError(translate('speech.timedOut'));
       finish();
     }, NO_NEWS_MS);
   }
@@ -144,12 +145,12 @@ export function listen(options: {
   rec.onerror = (e) => {
     options.onError(
       e.error === 'not-allowed' || e.error === 'service-not-allowed'
-        ? 'No me diste permiso para usar el micrófono.'
+        ? translate('speech.noPermission')
         : e.error === 'no-speech'
-        ? 'No escuché nada.'
+        ? translate('speech.heardNothing')
         : e.error === 'audio-capture'
-        ? 'No encontré el micrófono.'
-        : 'No pude escuchar. Escríbelo y listo.',
+        ? translate('speech.noMicrophone')
+        : translate('speech.couldNotListen'),
     );
   };
 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { Transaction } from '@/domain/types';
 import type { Outstanding } from '@/domain/totals/outstanding';
 import { formatMoney } from '@/domain/money/format';
+import { useT } from '@/i18n/language';
 
 /**
  * Breakdown sheet for the "Por pagar" chip.
@@ -20,6 +21,7 @@ export function ToPaySheet({
   toPay: Outstanding;
   onClose: () => void;
 }) {
+  const t = useT();
   const navigate = useNavigate();
   const [showHelp, setShowHelp] = useState(false);
 
@@ -64,7 +66,7 @@ export function ToPaySheet({
           <button
             type="button"
             onClick={() => setShowHelp(!showHelp)}
-            aria-label="¿Qué significan estos estados?"
+            aria-label={t('toPay.whatDoTheseMean')}
             style={{
               width: 28,
               height: 28,
@@ -84,13 +86,13 @@ export function ToPaySheet({
         {showHelp && (
           <div style={{ background: 'var(--surface-sunken)', borderRadius: 'var(--radius-s)', padding: '12px 14px', marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Pendiente:</strong> Gasto que ya existe pero aún no lo pagaste.
+              <strong style={{ color: 'var(--text)' }}>Pendiente:</strong> {t('toPay.pendingHelp')}
             </p>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Programado:</strong> Gasto agendado a fecha futura.
+              <strong style={{ color: 'var(--text)' }}>Programado:</strong> {t('toPay.scheduledHelp')}
             </p>
             <p style={{ margin: 0 }}>
-              <strong style={{ color: 'var(--text)' }}>En tarjeta:</strong> Compra con TC que se cobrará en la fecha de pago del ciclo.
+              <strong style={{ color: 'var(--text)' }}>{t('toPay.onCardLabel')}</strong> {t('toPay.onCardHelp')}
             </p>
           </div>
         )}
@@ -100,7 +102,7 @@ export function ToPaySheet({
         <BreakdownRow label="En tarjeta" count={enTC.length} amount={sum(enTC)} onClick={() => { navigate('/tarjeta'); onClose(); }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 8px 4px', borderTop: '1px solid var(--line-strong)', marginTop: 4 }}>
-          <span style={{ fontWeight: 700 }}>Total por pagar</span>
+          <span style={{ fontWeight: 700 }}>{t('toPay.total')}</span>
           <span className="figures" style={{ fontWeight: 700 }}>
             {total} · {formatMoney(totalAmount)}
           </span>

@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import { useSession } from '@/features/auth/useSession';
 import { syncBidirectional } from './syncService';
 import { ensureOwner } from './owner';
+import { translate } from '@/i18n/language';
 
 export type SyncStatus = 'inactivo' | 'sincronizando' | 'ok' | 'error';
 
@@ -45,7 +46,7 @@ export function useCloudSync() {
   // The first pull has to finish before deciding whether to show the
   // initial setup: otherwise a new device asks for it again even though
   // the account is already configured in the cloud.
-  const [primeraHecha, setPrimeraHecha] = useState(!isSupabaseConfigured());
+  const [firstSyncDone, setPrimeraHecha] = useState(!isSupabaseConfigured());
   const lastRef = useRef(0);
   const runningRef = useRef(false);
 
@@ -70,7 +71,7 @@ export function useCloudSync() {
       lastRef.current = Date.now();
       setStatus('ok');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo sincronizar.');
+      setError(e instanceof Error ? e.message : translate('sync.couldNotSync'));
       setStatus('error');
     } finally {
       runningRef.current = false;
@@ -120,5 +121,5 @@ export function useCloudSync() {
     };
   }, [userId, sync]);
 
-  return { status, error, primeraHecha, sync };
+  return { status, error, firstSyncDone, sync };
 }

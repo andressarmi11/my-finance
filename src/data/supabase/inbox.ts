@@ -8,6 +8,7 @@
  * doesn't exist.
  */
 import { getSupabase } from './client';
+import { translate } from '@/i18n/language';
 
 export interface InboxEntry {
   id: string;
@@ -19,7 +20,7 @@ export interface InboxEntry {
 async function userId(): Promise<string> {
   const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('No hay sesión activa de Supabase.');
+  if (!session) throw new Error(translate('supabase.noActiveSession'));
   return session.user.id;
 }
 

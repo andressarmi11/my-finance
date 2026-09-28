@@ -43,6 +43,21 @@ interface LanguageContextValue {
 
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
+/**
+ * Module-level mirror of the active language, and a translate function that
+ * doesn't need a hook.
+ *
+ * ErrorBoundary is a class component — it cannot call useT() — and it still
+ * has to say something the reader understands. Same approach as
+ * setMonthNames and setMoneyLocale: the provider keeps this in step, and
+ * anything outside the React tree reads it.
+ */
+let currentLanguage: Language = 'es';
+
+export function translate(key: TextKey): string {
+  return TEXTS[currentLanguage][key] ?? TEXTS.es[key] ?? key;
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
 
@@ -50,6 +65,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     // lang on the <html>: screen readers use it to pick a voice
     // and the browser to hyphenate. Without this, a screen reader would read
     // English with Spanish phonetics.
+    currentLanguage = language;
     document.documentElement.lang = language === 'en' ? 'en' : 'es-CO';
     setShortMonthNames(language);
     setMonthNames(language);

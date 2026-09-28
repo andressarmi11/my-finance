@@ -10,11 +10,12 @@
 import { getSupabase } from './client';
 import { budgetFromRow, budgetToRow, type BudgetRow } from './mappers';
 import type { Budget } from '@/domain/types';
+import { translate } from '@/i18n/language';
 
 async function currentUserId(): Promise<string> {
   const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('No hay sesión activa de Supabase.');
+  if (!session) throw new Error(translate('supabase.noActiveSession'));
   return session.user.id;
 }
 

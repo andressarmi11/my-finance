@@ -29,11 +29,11 @@ export function AppLayout() {
 }
 
 function AppShell() {
-  const { status, error, primeraHecha, sync } = useCloudSync();
+  const { status, error, firstSyncDone, sync } = useCloudSync();
   useMoneyFormat();
 
   return (
-    <OnboardingGate esperando={!primeraHecha}>
+    <OnboardingGate waiting={!firstSyncDone}>
       {/* 100dvh, not 100%: on iOS a % height resolves against the large
           viewport and ignores that the Safari bar appears and disappears, so
           short screens ended up without scroll and with the bottom bar floating

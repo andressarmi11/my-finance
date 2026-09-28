@@ -58,7 +58,7 @@ export function TabBar() {
   return (
     <>
       <nav
-        aria-label="Navegación principal"
+        aria-label={t('nav.mainNavigation')}
         style={{
           position: 'fixed',
           insetInline: 0,
@@ -212,7 +212,7 @@ function QuickActionSheet({
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label="Acción rápida"
+      aria-label={t('action.quickAction')}
       onClick={onClose}
       style={{
         position: 'fixed',

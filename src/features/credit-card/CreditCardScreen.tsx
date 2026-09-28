@@ -65,12 +65,12 @@ export function CreditCardScreen() {
       {noCards ? (
         <EmptyState
           title={t('cards.noCards')}
-          body="Agrega una en Ajustes → Métodos de pago, con su día de corte y su día de pago."
+          body={t('cards.addOneInSettings')}
         />
       ) : noPurchases ? (
         <EmptyState
           title={t('cards.noPurchases')}
-          body="Cuando registres un gasto con tarjeta de crédito, aquí verás cada compra y el total que se paga en cada ciclo."
+          body={t('cards.noPurchasesBody')}
         />
       ) : (
         cards.map(({ card, available, cycles }) => (

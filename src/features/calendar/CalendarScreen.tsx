@@ -110,7 +110,7 @@ export function CalendarScreen() {
       </h2>
 
       {dayTransactions.length === 0 && dayPayments.length === 0 ? (
-        <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>Sin movimientos este día.</p>
+        <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>{t('calendar.noTransactionsToday')}</p>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px' }}>
           {dayTransactions.map((tx) => {

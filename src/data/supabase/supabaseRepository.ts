@@ -14,11 +14,12 @@ import {
   type ReminderRow, type SettingsRow, type TransactionRow,
 } from './mappers';
 import type { Settings } from '@/domain/types';
+import { translate } from '@/i18n/language';
 
 async function currentUserId(): Promise<string> {
   const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('No hay sesión activa de Supabase.');
+  if (!session) throw new Error(translate('supabase.noActiveSession'));
   return session.user.id;
 }
 
@@ -154,6 +155,6 @@ export const supabaseRepository: Repository = {
     };
   },
   async importAll() {
-    throw new Error('Importar backup directo a Supabase no está soportado; usa la sincronización desde Ajustes.');
+    throw new Error(translate('backup.importToCloudUnsupported'));
   },
 };

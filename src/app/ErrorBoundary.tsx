@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react';
+import { translate } from '@/i18n/language';
 
 /**
  * Turns a blank screen into a message that can be resolved.
@@ -56,12 +57,10 @@ export class ErrorBoundary extends Component<Props, State> {
       <div style={{ padding: 'var(--gap-l)', maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
         <p style={{ fontSize: 34, margin: '24px 0 8px' }} aria-hidden>🌀</p>
         <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: '0 0 6px' }}>
-          {byUpdate ? 'La app se actualizó' : 'Algo se rompió acá'}
+          {translate(byUpdate ? 'error.appUpdated' : 'error.somethingBroke')}
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)', margin: '0 0 18px', lineHeight: 'var(--lh-normal)' }}>
-          {byUpdate
-            ? 'Tu navegador tenía guardada una versión anterior. Recarga y listo.'
-            : 'Tus datos están a salvo: esto es solo esta pantalla. Recarga para volver.'}
+          {translate(byUpdate ? 'error.appUpdatedBody' : 'error.somethingBrokeBody')}
         </p>
         <button
           type="button"
@@ -79,7 +78,7 @@ export class ErrorBoundary extends Component<Props, State> {
         {!byUpdate && (
           <details style={{ marginTop: 16, textAlign: 'left' }}>
             <summary style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', cursor: 'pointer' }}>
-              Detalle técnico
+              {translate('error.technicalDetail')}
             </summary>
             <pre style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginTop: 8 }}>
               {error.message}

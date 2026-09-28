@@ -1,4 +1,5 @@
 import { formatMoney } from '@/domain/money/format';
+import { useT } from '@/i18n/language';
 
 /**
  * The budget bar: the grey track IS the budgeted amount and the fill IS
@@ -24,6 +25,7 @@ export function BudgetBar({ spent, budgeted, status, monthProgress }: {
   /** 0..1 — how far into the month we are. Draws the pace marker. */
   monthProgress?: number;
 }) {
+  const t = useT();
   const color = STATE_COLOR[status];
   const ratio = budgeted > 0 ? spent / budgeted : 0;
   const within = Math.min(1, ratio);
@@ -73,7 +75,7 @@ export function BudgetBar({ spent, budgeted, status, monthProgress }: {
         {status !== 'exceeded' && monthProgress !== undefined && monthProgress > 0 && monthProgress < 1 && (
           <span
             aria-hidden
-            title="Dónde deberías ir hoy"
+            title={t('budgets.whereYouShouldBe')}
             style={{
               position: 'absolute',
               left: `${monthProgress * 100}%`,
@@ -93,7 +95,7 @@ export function BudgetBar({ spent, budgeted, status, monthProgress }: {
           <>Te quedan <strong style={{ color: 'var(--text)' }}>{formatMoney(left)}</strong></>
         ) : (
           <span style={{ color: 'var(--danger-text)' }}>
-            Te pasaste por <strong>{formatMoney(Math.abs(left))}</strong>
+            {t('budgets.overBy')} <strong>{formatMoney(Math.abs(left))}</strong>
           </span>
         )}
       </p>

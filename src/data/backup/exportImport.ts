@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { localRepository } from '../local/localRepository';
 import { BackupSchema, type Backup } from './schema';
+import { translate } from '@/i18n/language';
 
 /** BlobPart, not string: the xlsx is bytes, not text. */
 function download(filename: string, content: BlobPart, mime: string) {
@@ -110,11 +111,11 @@ export function parseBackupFile(text: string): ParseResult {
   try {
     json = JSON.parse(text);
   } catch {
-    return { success: false, error: 'El archivo no es un JSON válido.' };
+    return { success: false, error: translate('backup.notJson') };
   }
   const result = BackupSchema.safeParse(json);
   if (!result.success) {
-    return { success: false, error: 'El archivo no tiene el formato de un backup de Step up.' };
+    return { success: false, error: translate('backup.notAStepUpBackup') };
   }
   const backup = result.data;
   return {

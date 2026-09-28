@@ -3,15 +3,16 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { localRepository } from '@/data/local/localRepository';
 import { OnboardingScreen } from './OnboardingScreen';
 import { Logo } from '@/components/ui/Logo';
+import { useT } from '@/i18n/language';
 
 /**
  * Shows the initial setup the first time, and never again.
  *
- * `esperando` is set by AppShell while it pulls the account data down: without
+ * `waiting` is set by AppShell while it pulls the account data down: without
  * it, a new device would ask for name and currency again during
  * the second the first sync takes.
  */
-export function OnboardingGate({ esperando, children }: { esperando: boolean; children: ReactNode }) {
+export function OnboardingGate({ waiting, children }: { waiting: boolean; children: ReactNode }) {
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
 
   /**
@@ -38,34 +39,35 @@ export function OnboardingGate({ esperando, children }: { esperando: boolean; ch
   /**
    * Once the initial setup is ON SCREEN, it never gets removed.
    *
-   * `esperando` turns true every time a sync cycle starts, not
+   * `waiting` turns true every time a sync cycle starts, not
    * just the first one. Without this lock, a sync triggered mid
    * process —coming back to the tab, for example— would show <Cargando/>,
    * unmount OnboardingScreen and with it the step you were on: you'd be back at
    * the first one with the name already typed.
    *
-   * What `esperando` does protect is preserved: on a new device,
+   * What `waiting` does protect is preserved: on a new device,
    * BEFORE showing anything, it waits for the account to come down so it doesn't
    * ask for name and currency again.
    */
   const needsSetup = !!currentPlan && currentPlan.onboardedAt === null;
-  const [yaSeMostro, setYaSeMostro] = useState(false);
-  if (needsSetup && !yaSeMostro) setYaSeMostro(true);
+  const [alreadyShown, setYaSeMostro] = useState(false);
+  if (needsSetup && !alreadyShown) setYaSeMostro(true);
 
   if (!currentPlan) return <Loading />;
-  if (esperando && !yaSeMostro) return <Loading />;
+  if (waiting && !alreadyShown) return <Loading />;
   if (needsSetup) return <OnboardingScreen settings={currentPlan} />;
   return <>{children}</>;
 }
 
 function Loading() {
+  const t = useT();
   return (
     <div style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', color: 'var(--text-faint)' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
           <Logo size={44} tile />
         </div>
-        <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>Trayendo tus datos…</p>
+        <p style={{ margin: 0, fontSize: 'var(--text-sm)' }}>{t('home.loadingYourData')}</p>
       </div>
     </div>
   );

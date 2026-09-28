@@ -9,13 +9,17 @@ import { formatMoney } from '@/domain/money/format';
 import type { RecurringRule } from '@/domain/types';
 import { RecurringRuleForm } from './RecurringRuleForm';
 import { EMPTY } from '@/lib/empty';
+import { useT } from '@/i18n/language';
+import type { TextKey } from '@/i18n/texts';
 
-const FREQ_LABEL: Record<RecurringRule['frequency'], string> = {
-  monthly: 'Mensual', weekly: 'Semanal', biweekly: 'Quincenal', yearly: 'Anual',
+const FREQ_LABEL: Record<RecurringRule['frequency'], TextKey> = {
+  monthly: 'recurring.monthly', weekly: 'recurring.weekly',
+  biweekly: 'recurring.biweekly', yearly: 'recurring.yearly',
 };
 
 export function RecurringRulesScreen() {
   const navigate = useNavigate();
+  const t = useT();
   const [params, setParams] = useSearchParams();
   const rules = useLiveQuery(() => localRepository.listRecurringRules(), []) ?? EMPTY;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
@@ -46,17 +50,17 @@ export function RecurringRulesScreen() {
   }
 
   return (
-    <Screen title="Recurrentes" subtitle="Gastos fijos e ingresos que se repiten">
+    <Screen title={t('action.newRecurring')} subtitle={t('recurring.subtitle')}>
       <button
         type="button"
         onClick={() => navigate(-1)}
         style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
       >
-        ← Volver a ajustes
+        {t('nav.backToSettingsArrow')}
       </button>
 
       {rules.length === 0 ? (
-        <EmptyState title="Sin recurrentes" body="Arriendo, suscripciones, tu sueldo — cualquier movimiento que se repite solo se configura una vez." />
+        <EmptyState title={t('recurring.emptyTitle')} body={t('recurring.emptyBody')} />
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
           {rules.map((r) => (
@@ -69,7 +73,7 @@ export function RecurringRulesScreen() {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600 }}>{r.name}</span>
                 <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {FREQ_LABEL[r.frequency]}{r.dayOfMonth ? ` · día ${r.dayOfMonth}` : ''}{!r.isActive ? ' · Pausado' : ''}
+                  {t(FREQ_LABEL[r.frequency])}{r.dayOfMonth ? ` · ${t('recurring.dayShort')} ${r.dayOfMonth}` : ''}{!r.isActive ? ` · ${t('recurring.paused')}` : ''}
                 </span>
               </span>
               <span className="figures" style={{ fontWeight: 600, color: r.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
@@ -85,7 +89,7 @@ export function RecurringRulesScreen() {
         onClick={() => setCreating(true)}
         style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
       >
-        + Nuevo recurrente
+        {t('recurring.newOne')}
       </button>
 
       {(editing || creating) && (

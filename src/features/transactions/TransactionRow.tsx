@@ -62,13 +62,15 @@ export function TransactionRow({
         onClick={inSelection ? onSeleccionar : onTogglePaid}
         aria-pressed={inSelection ? Boolean(selected) : isPaid}
         aria-label={inSelection
-          ? (selected ? `Quitar ${tx.concept} de la selección` : `Seleccionar ${tx.concept}`)
-          : isPaid
-            ? `Marcar ${tx.concept} como ${isIncome ? 'no recibido' : 'pendiente'}`
-            // The concept is put inside the label on purpose: with twenty
-            // rows, twenty buttons named "Mark as paid" tell a screen
-            // reader user nothing.
-            : `Marcar ${tx.concept} como ${isIncome ? 'recibido' : 'pagado'}`}
+          ? t(selected ? 'transactions.removeFrom' : 'transactions.selectOne').replace('{c}', tx.concept)
+          // The concept is put inside the label on purpose: with twenty
+          // rows, twenty buttons named "Mark as paid" tell a screen
+          // reader user nothing.
+          : t('transactions.markAs')
+              .replace('{c}', tx.concept)
+              .replace('{state}', isPaid
+                ? t(isIncome ? 'transactions.stateNotReceived' : 'transactions.statePending')
+                : t(isIncome ? 'transactions.stateReceived' : 'transactions.statePaid'))}
         style={{
           width: 26, height: 26, minWidth: 26, borderRadius: 13, flex: 'none',
           // In selection mode the circle is blue (select), outside of it it's
@@ -132,12 +134,12 @@ export function TransactionRow({
 
           {isCredit && tx.cyclePaymentDate && (
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--q25-text)', marginTop: 1 }}>
-              se paga el {shortDate(tx.cyclePaymentDate)}
+              {t('transactions.paidOnShort')} {shortDate(tx.cyclePaymentDate)}
               {/* The number lives in its own field, not inside the concept:
                   putting "Nevera 3/12" in the text would poison the
                   conceptIndex that feeds the form's autocomplete. */}
               {tx.installmentCount && tx.installmentCount > 1
-                ? ` · cuota ${tx.installmentNumber} de ${tx.installmentCount}`
+                ? ` · ${t('transactions.installmentOf').replace('{n}', String(tx.installmentNumber)).replace('{total}', String(tx.installmentCount))}`
                 : ''}
             </span>
           )}

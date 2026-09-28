@@ -318,7 +318,7 @@ export function TransactionForm({
         <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
           {isIncome ? t('form.howMuchIn') : t('form.howMuchOut')}
         </p>
-        {touched && (amount === null || amount <= 0) && <p style={errorText}>Ingresa un valor válido.</p>}
+        {touched && (amount === null || amount <= 0) && <p style={errorText}>{t('transactions.enterValidAmount')}</p>}
 
         {/* Recent-concept chips — only when NOT editing and there's history */}
         {!existing && recents.length > 0 && (
@@ -357,7 +357,7 @@ export function TransactionForm({
           style={inputStyle}
         />
         </Field>
-        {touched && !value.concept.trim() && <p style={errorText}>Escribe qué es.</p>}
+        {touched && !value.concept.trim() && <p style={errorText}>{t('transactions.writeWhatItIs')}</p>}
 
         <FieldGroup label={t('form.category')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === value.type).map((c) => (
@@ -396,7 +396,7 @@ export function TransactionForm({
         </FieldGroup>
         {isCredit && paymentPreview && installments === 1 && (
           <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
-            Se paga el {shortDate(paymentPreview)}
+            {t('transactions.paidOnLong')} {shortDate(paymentPreview)}
           </p>
         )}
 
@@ -426,8 +426,10 @@ export function TransactionForm({
                 </Field>
                 <p style={{ margin: '-8px 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
                   {installmentPreview
-                    ? `Primera el ${shortDate(installmentPreview[0]!.cyclePaymentDate)}, última el ${shortDateConAno(installmentPreview[installmentPreview.length - 1]!.cyclePaymentDate, installmentPreview[0]!.cyclePaymentDate)}. Si tu banco cobra interés, escribe la cuota real.`
-                    : 'Si tu banco cobra interés, escribe acá la cuota que te dijo.'}
+                    ? t('transactions.installmentRange')
+                        .replace('{first}', shortDate(installmentPreview[0]!.cyclePaymentDate))
+                        .replace('{last}', shortDateConAno(installmentPreview[installmentPreview.length - 1]!.cyclePaymentDate, installmentPreview[0]!.cyclePaymentDate))
+                    : t('transactions.installmentInterestHint')}
                 </p>
               </>
             )}

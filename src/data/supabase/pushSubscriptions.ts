@@ -1,13 +1,14 @@
 import { getSupabase } from './client';
+import { translate } from '@/i18n/language';
 
 export async function savePushSubscription(sub: globalThis.PushSubscription): Promise<void> {
   const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Sin sesión activa.');
+  if (!session) throw new Error(translate('push.noActiveSession'));
 
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
-    throw new Error('La suscripción push no trajo los datos esperados.');
+    throw new Error(translate('push.unexpectedSubscription'));
   }
 
   const { error } = await supabase.from('push_subscriptions').upsert(

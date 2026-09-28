@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
 import { buttonStyle, linkStyle, inputStyle, MIN_PASSWORD, translateError } from './authStyles';
 import { Logo } from '@/components/ui/Logo';
+import { useT } from '@/i18n/language';
 
 type Mode = 'entrar' | 'crear' | 'olvide';
 
@@ -19,6 +20,7 @@ type Mode = 'entrar' | 'crear' | 'olvide';
  * AuthGate, because the recovery link arrives with a session already open.
  */
 export function SignInScreen() {
+  const t = useT();
   const [mode, setModo] = useState<Mode>('entrar');
   const [email, setEmail] = useState('');
   const [key, setClave] = useState('');
@@ -40,7 +42,7 @@ export function SignInScreen() {
         if (err) throw err;
         // If the project requires confirming the email, there's no session yet.
         if (!data.session) {
-          setNotice('Cuenta creada. Confirma el correo que te enviamos y vuelve a entrar.');
+          setNotice(t('auth.accountCreated'));
           setModo('entrar');
         }
         return;
@@ -77,18 +79,18 @@ export function SignInScreen() {
           Step up
         </h1>
         <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '0 0 24px', fontSize: 'var(--text-base)' }}>
-          {mode === 'crear' ? 'Crea tu cuenta y tus datos te siguen a cualquier dispositivo.'
-            : mode === 'olvide' ? 'Te enviamos un enlace para cambiarla.'
-            : 'Entra y tus datos aparecen donde estés.'}
+          {mode === 'crear' ? t('auth.createSubtitle')
+            : mode === 'olvide' ? t('auth.forgotSubtitle')
+            : t('auth.signInSubtitle')}
         </p>
 
         {mode !== 'olvide' && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
             <TabButton isActive={mode === 'entrar'} onClick={() => { setModo('entrar'); setError(''); }}>
-              Ya tengo cuenta
+              {t('auth.iHaveAccount')}
             </TabButton>
             <TabButton isActive={mode === 'crear'} onClick={() => { setModo('crear'); setError(''); }}>
-              Crear cuenta
+              {t('auth.createAccount')}
             </TabButton>
           </div>
         )}
@@ -106,28 +108,28 @@ export function SignInScreen() {
               autoComplete={mode === 'entrar' ? 'current-password' : 'new-password'}
               minLength={mode === 'entrar' ? undefined : MIN_PASSWORD}
               value={key} onChange={(e) => setClave(e.target.value)}
-              placeholder={mode === 'entrar' ? 'Tu contraseña' : `Contraseña (mínimo ${MIN_PASSWORD})`}
-              aria-label="Contraseña"
+              placeholder={mode === 'entrar' ? t('auth.yourPassword') : t('auth.passwordMin').replace('{n}', String(MIN_PASSWORD))}
+              aria-label={t('auth.password')}
               style={inputStyle}
             />
           )}
 
           <button type="submit" disabled={busy} style={buttonStyle}>
-            {busy ? 'Un momento…'
-              : mode === 'crear' ? 'Crear cuenta'
-              : mode === 'olvide' ? 'Enviar enlace'
-              : 'Entrar'}
+            {busy ? t('auth.oneMoment')
+              : mode === 'crear' ? t('auth.createAccount')
+              : mode === 'olvide' ? t('auth.sendLink')
+              : t('auth.signIn')}
           </button>
         </form>
 
         {mode === 'entrar' && (
           <button type="button" onClick={() => { setModo('olvide'); setError(''); }} style={linkStyle}>
-            ¿Olvidaste tu contraseña?
+            {t('auth.forgotPassword')}
           </button>
         )}
         {mode === 'olvide' && (
           <button type="button" onClick={() => { setModo('entrar'); setError(''); setNotice(''); }} style={linkStyle}>
-            Volver a entrar
+            {t('auth.backToSignIn')}
           </button>
         )}
 

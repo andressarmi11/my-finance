@@ -6,6 +6,7 @@
  */
 import { getSupabase } from './client';
 import type { DeletableEntity, Tombstone } from '../sync/tombstones';
+import { translate } from '@/i18n/language';
 
 interface DeletionRow {
   user_id: string;
@@ -18,7 +19,7 @@ interface DeletionRow {
 async function currentUserId(): Promise<string> {
   const supabase = await getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('No hay sesión activa de Supabase.');
+  if (!session) throw new Error(translate('supabase.noActiveSession'));
   return session.user.id;
 }
 

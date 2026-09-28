@@ -12,9 +12,10 @@ import type { PaymentMethod } from '@/domain/types';
 import { PaymentMethodForm } from './PaymentMethodForm';
 import { todayISO } from '@/lib/todayISO';
 import { EMPTY } from '@/lib/empty';
+import type { TextKey } from '@/i18n/texts';
 
-const TYPE_LABEL: Record<PaymentMethod['type'], string> = {
-  debit: 'Débito', credit: 'Crédito', cash: 'Efectivo', transfer: 'Transferencia',
+const TYPE_LABEL: Record<PaymentMethod['type'], TextKey> = {
+  debit: 'methods.debit', credit: 'methods.credit', cash: 'methods.cash', transfer: 'methods.transfer',
 };
 
 export function PaymentMethodsScreen() {
@@ -83,9 +84,11 @@ export function PaymentMethodsScreen() {
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
                 <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-                  {TYPE_LABEL[m.type]}
+                  {t(TYPE_LABEL[m.type])}
                   {m.type === 'credit' && m.cutoffDay && m.paymentDay
-                    ? ` · corte ${m.cutoffDay}, paga ${m.paymentDay}`
+                    ? ` · ${t('methods.cycleShort')
+                        .replace('{cutoff}', String(m.cutoffDay))
+                        .replace('{payment}', String(m.paymentDay))}`
                     : ''}
                 </span>
               </span>

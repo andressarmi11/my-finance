@@ -39,7 +39,7 @@ export function TransactionsScreen() {
   // chosen yet. modify
   const [selection, setSelection] = useState<Set<string> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [aplicando, setAplicando] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [loadingDemo, setLoadingDemo] = useState(false);
 
   const today = todayISO();
@@ -189,7 +189,7 @@ export function TransactionsScreen() {
   );
 
   async function markSelectedPaid() {
-    setAplicando(true);
+    setApplying(true);
     try {
       const now = new Date().toISOString();
       for (const tx of selectedIds) {
@@ -198,18 +198,18 @@ export function TransactionsScreen() {
       }
       setSelection(null);
     } finally {
-      setAplicando(false);
+      setApplying(false);
     }
   }
 
   async function deleteSelected() {
-    setAplicando(true);
+    setApplying(true);
     try {
       for (const tx of selectedIds) await localRepository.deleteTransaction(tx.id);
       setConfirmDelete(false);
       setSelection(null);
     } finally {
-      setAplicando(false);
+      setApplying(false);
     }
   }
 
@@ -230,7 +230,7 @@ export function TransactionsScreen() {
     }
     await localRepository.saveTransaction(tx);
     void maybeScheduleReminder(tx, settings).catch((e: unknown) => {
-      console.error('No se pudo programar el recordatorio en la nube:', e);
+      console.error(t('transactions.couldNotScheduleReminder'), e);
     });
     closeForm();
   }
@@ -286,7 +286,11 @@ export function TransactionsScreen() {
   const dialogRef = useDialogo(() => setConfirmDelete(false), confirmDelete);
   return (
     <Screen
-      title={inSelection ? `${selectedIds.length} seleccionado${selectedIds.length === 1 ? '' : 's'}` : 'Movimientos'}
+      title={inSelection
+        ? t('transactions.nSelected')
+            .replace('{n}', String(selectedIds.length))
+            .replace('{s}', selectedIds.length === 1 ? '' : 's')
+        : t('transactions.title')}
       right={inSelection ? (
         <button type="button" onClick={() => setSelection(null)} style={buttonText}>Cancelar</button>
       ) : (searching ? undefined : nav)}
@@ -347,8 +351,8 @@ export function TransactionsScreen() {
 
       {transactions.length === 0 ? (
         <EmptyState
-          title="Sin movimientos"
-          body="Registra tu primer gasto con el botón +, o carga datos de ejemplo para ver cómo se ve la app funcionando."
+          title={t('transactions.emptyTitle')}
+          body={t('transactions.emptyBody')}
           action={{ label: loadingDemo ? 'Cargando...' : 'Cargar datos de ejemplo', onClick: handleLoadDemo }}
         />
       ) : groups.length === 0 ? (
@@ -406,7 +410,7 @@ export function TransactionsScreen() {
       {inSelection && (
         <div
           role="toolbar"
-          aria-label="Acciones sobre lo seleccionado"
+          aria-label={t('transactions.selectionActions')}
           style={{
             position: 'fixed', left: 0, right: 0,
             // Right above the tab bar (61px) and its safe area.
@@ -421,16 +425,16 @@ export function TransactionsScreen() {
           <button
             type="button"
             onClick={markSelectedPaid}
-            disabled={selectedIds.length === 0 || aplicando}
-            style={actionStyle(selectedIds.length > 0 && !aplicando, 'var(--positive)', 'var(--positive-text)')}
+            disabled={selectedIds.length === 0 || applying}
+            style={actionStyle(selectedIds.length > 0 && !applying, 'var(--positive)', 'var(--positive-text)')}
           >
             Marcar pagados
           </button>
           <button
             type="button"
             onClick={() => setConfirmDelete(true)}
-            disabled={selectedIds.length === 0 || aplicando}
-            style={actionStyle(selectedIds.length > 0 && !aplicando, 'var(--danger)', 'var(--danger-text)')}
+            disabled={selectedIds.length === 0 || applying}
+            style={actionStyle(selectedIds.length > 0 && !applying, 'var(--danger)', 'var(--danger-text)')}
           >
             Eliminar
           </button>
@@ -441,7 +445,7 @@ export function TransactionsScreen() {
         <div
       ref={dialogRef}
           role="dialog"
-          aria-label="Confirmar eliminación"
+          aria-label={t('transactions.confirmDeleteLabel')}
           onClick={() => setConfirmDelete(false)}
           style={{
             position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
@@ -459,23 +463,25 @@ export function TransactionsScreen() {
           >
             <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
             <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              ¿Eliminar {selectedIds.length} movimiento{selectedIds.length === 1 ? '' : 's'}?
+              {t('transactions.deleteQuestion')
+                .replace('{n}', String(selectedIds.length))
+                .replace('{noun}', selectedIds.length === 1 ? t('transactions.transaction') : t('transactions.transactionsPl'))}
             </h2>
             <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>
-              Suman {formatMoney(selectedIds.reduce((a, t) => a + t.amount, 0))}. Esto no se puede deshacer,
-              y también desaparecen de tus otros dispositivos.
+              {t('transactions.theyAddUpTo')} {formatMoney(selectedIds.reduce((a, tx) => a + tx.amount, 0))}.{' '}
+              {t('transactions.deleteWarning')}
             </p>
             <button
               type="button"
               onClick={deleteSelected}
-              disabled={aplicando}
+              disabled={applying}
               style={{
                 width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
                 background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 16,
-                cursor: aplicando ? 'not-allowed' : 'pointer', marginBottom: 8,
+                cursor: applying ? 'not-allowed' : 'pointer', marginBottom: 8,
               }}
             >
-              {aplicando ? 'Eliminando…' : 'Sí, eliminar'}
+              {applying ? t('action.deleting') : t('transactions.yesDelete')}
             </button>
             <button
               type="button"

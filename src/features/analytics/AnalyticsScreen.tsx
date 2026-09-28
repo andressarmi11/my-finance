@@ -96,8 +96,8 @@ export function AnalyticsScreen() {
 
   if (transactions.length === 0) {
     return (
-      <Screen title="Análisis" subtitle="Mes, trimestre y año">
-        <EmptyState title="Aún no hay datos para analizar" body="Los gráficos necesitan al menos algunos movimientos registrados." />
+      <Screen title={t('analytics.title')} subtitle={t('analytics.subtitle')}>
+        <EmptyState title={t('analytics.noDataTitle')} body={t('analytics.noDataBody')} />
       </Screen>
     );
   }
@@ -132,7 +132,7 @@ export function AnalyticsScreen() {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
             return {
               id: c.categoryId ?? `income-${i}`,
-              name: cat?.name ?? 'Sin categoría',
+              name: cat?.name ?? t('analytics.noCategory'),
               icon: cat?.icon ?? 'other',
               color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
               amount: c.amount,
@@ -149,7 +149,7 @@ export function AnalyticsScreen() {
             const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
             return {
               id: c.categoryId ?? `spend-${i}`,
-              name: cat?.name ?? 'Sin categoría',
+              name: cat?.name ?? t('analytics.noCategory'),
               icon: cat?.icon ?? 'other',
               color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
               amount: c.amount,
@@ -392,12 +392,13 @@ function CategoryDetailSheet({
   const pct = totalSpend > 0 ? Math.round((total / totalSpend) * 100) : 0;
   const avg = transactions.length ? Math.round(total / transactions.length) : 0;
 
+  const t = useT();
   const dialogRef = useDialogo(onClose);
   return (
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label={category?.name ?? 'Categoría — detalle'}
+      aria-label={category?.name ?? t('analytics.categoryDetail')}
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
@@ -422,7 +423,7 @@ function CategoryDetailSheet({
             size={44}
           />
           <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{category?.name ?? 'Sin categoría'}</h2>
+            <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{category?.name ?? t('analytics.noCategory')}</h2>
             <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
               {transactions.length} movimiento{transactions.length !== 1 ? 's' : ''}
             </p>
@@ -431,7 +432,7 @@ function CategoryDetailSheet({
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
           <StatBox label="Total" value={formatMoney(total)} />
-          <StatBox label="% del gasto" value={`${pct}%`} />
+          <StatBox label="{t('analytics.percentOfSpend')}" value={`${pct}%`} />
           <StatBox label="Promedio" value={formatMoney(avg)} />
         </div>
 
@@ -449,12 +450,12 @@ function CategoryDetailSheet({
             ))}
             {transactions.length > 20 && (
               <p style={{ margin: '10px 0 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)', textAlign: 'center' }}>
-                y {transactions.length - 20} más…
+                {t('analytics.andNMore').replace('{n}', String(transactions.length - 20))}
               </p>
             )}
           </div>
         ) : (
-          <p style={{ color: 'var(--text-faint)' }}>Aún no hay movimientos en esta categoría.</p>
+          <p style={{ color: 'var(--text-faint)' }}>{t('analytics.noTransactionsInCategory')}</p>
         )}
 
         <button

@@ -13,6 +13,7 @@ import type { Transaction } from '@/domain/types';
 import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { EMPTY } from '@/lib/empty';
+import { useT } from '@/i18n/language';
 
 const ICON_SOURCE: Record<string, ComponentType<IconProps>> = {
   sms: IconMessage,
@@ -32,6 +33,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
   onClose: () => void;
   onCambio: () => void;
 }) {
+  const t = useT();
   const [processing, setProcesando] = useState<string | null>(null);
 
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
@@ -127,7 +129,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
         <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>Llegaron solos</h2>
         <p style={{ margin: '0 0 16px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          Revisa el monto antes de anotarlo. Lo escribió tu banco, no tú.
+          {t('inbox.checkAmount')}
         </p>
 
         {entradas.length === 0 && (
@@ -152,7 +154,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
               </div>
               {desc.missing && (
                 <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>
-                  {desc.missing} No pude sacarlo del mensaje.
+                  {desc.missing} {t('inbox.couldNotRead')}
                 </p>
               )}
               {desc.note && !desc.missing && (
@@ -160,7 +162,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
               )}
               <details style={{ marginBottom: 10 }}>
                 <summary style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', cursor: 'pointer' }}>
-                  Ver el mensaje original
+                  {t('inbox.seeOriginal')}
                 </summary>
                 <p style={{ margin: '6px 0 0', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                   {e.text}

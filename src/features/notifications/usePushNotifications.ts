@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '@/data/supabase/client';
 import { savePushSubscription, removePushSubscription } from '@/data/supabase/pushSubscriptions';
 import { supportsPush } from '@/lib/platform';
 import { urlBase64ToUint8Array } from '@/lib/vapid';
+import { translate } from '@/i18n/language';
 
 const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 
@@ -35,7 +36,7 @@ export function usePushNotifications() {
       await savePushSubscription(subscription);
       setState('granted');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo activar los recordatorios.');
+      setError(e instanceof Error ? e.message : translate('push.couldNotTurnOn'));
     } finally {
       setBusy(false);
     }
@@ -53,7 +54,7 @@ export function usePushNotifications() {
       }
       setState('default');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo desactivar.');
+      setError(e instanceof Error ? e.message : translate('push.couldNotTurnOff'));
     } finally {
       setBusy(false);
     }

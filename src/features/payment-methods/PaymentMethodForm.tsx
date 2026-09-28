@@ -69,7 +69,7 @@ export function PaymentMethodForm({
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label={existing ? 'Editar método de pago' : 'Nuevo método de pago'}
+      aria-label={existing ? t('methods.editOne') : t('methods.newOne')}
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
       onClick={onCancel}
     >
@@ -82,7 +82,7 @@ export function PaymentMethodForm({
         <Field label={t('form.name')} htmlFor="pm-nombre">
           <input id="pm-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Visa Bancolombia" style={inputStyle} />
         </Field>
-        {touched && !name.trim() && <p style={errorStyle}>Ponle un nombre para distinguirla.</p>}
+        {touched && !name.trim() && <p style={errorStyle}>{t('methods.nameHint')}</p>}
 
         <FieldGroup label="Tipo" id="pm-tipo" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
           {TYPES.map((t) => (
@@ -95,23 +95,23 @@ export function PaymentMethodForm({
         {isCredit && (
           <>
             <div style={{ display: 'flex', gap: 10 }}>
-              <Field label="Día de corte" htmlFor="pm-corte">
+              <Field label={t('methods.cutoffDay')} htmlFor="pm-corte">
                 <input id="pm-corte" type="number" inputMode="numeric" min={1} max={31} value={cutoffDay}
                   onChange={(e) => setCutoffDay(e.target.value)} style={inputStyle} />
               </Field>
-              <Field label="Día de pago" htmlFor="pm-pago">
+              <Field label={t('methods.paymentDay')} htmlFor="pm-pago">
                 <input id="pm-pago" type="number" inputMode="numeric" min={1} max={31} value={paymentDay}
                   onChange={(e) => setPaymentDay(e.target.value)} style={inputStyle} />
               </Field>
             </div>
-            {touched && !validDays && <p style={errorStyle}>El corte y el pago van entre 1 y 31.</p>}
+            {touched && !validDays && <p style={errorStyle}>{t('methods.dayRangeHint')}</p>}
 
             <Field label="Cupo (opcional)" htmlFor="pm-cupo">
               <input id="pm-cupo" inputMode="numeric" value={cupo} onChange={(e) => setCupo(e.target.value)}
                 placeholder="$ 0" style={inputStyle} />
             </Field>
             <p style={hintStyle}>
-              Si lo pones, la app te muestra cuánto te queda disponible. Se libera cuando marcas el ciclo como pagado.
+              {t('methods.limitHint')}
             </p>
           </>
         )}
@@ -123,8 +123,11 @@ export function PaymentMethodForm({
             <button type="button" onClick={onDelete} style={deleteButtonStyle}>{t('action.delete')}</button>
             {relatedTransactions > 0 && (
               <p style={hintStyle}>
-                {relatedTransactions} {relatedTransactions === 1 ? 'movimiento quedará' : 'movimientos quedarán'} sin
-                método de pago. No se borran: la plata se gastó igual.
+                {t('transactions.willBeLeftWithout')
+                  .replace('{n}', String(relatedTransactions))
+                  .replace('{noun}', relatedTransactions === 1
+                    ? t('transactions.willBeLeftOne')
+                    : t('transactions.willBeLeftMany'))}
               </p>
             )}
           </>

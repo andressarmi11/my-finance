@@ -15,6 +15,7 @@ import { listen, hasDictation, type Recognizer } from '@/lib/speech';
 import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { EMPTY } from '@/lib/empty';
+import { useT } from '@/i18n/language';
 
 const EXAMPLES = [
   'gasté 45 mil en el almuerzo',
@@ -36,6 +37,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   /** Opens the full form with what's already been understood. */
   onAdjust: (text: string) => void;
 }) {
+  const t = useT();
   const [text, setTexto] = useState('');
   const [escuchando, setEscuchando] = useState(false);
   const [error, setError] = useState('');
@@ -94,7 +96,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     });
     if (!rec) {
       setEscuchando(false);
-      setError('Este navegador no deja dictar. Escríbelo y funciona igual.');
+      setError(t('quick.noDictation'));
       inputRef.current?.focus();
       return;
     }
@@ -127,7 +129,9 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     };
     await localRepository.saveTransaction(tx);
     haptic('medium');
-    setSaved(`Anotado: ${formatMoney(parsed.amount)} en ${parsed.concept}.`);
+    setSaved(t('quick.savedAs')
+      .replace('{amount}', formatMoney(parsed.amount))
+      .replace('{concept}', parsed.concept));
     setTexto('');
     setCategoriaElegida(undefined);
     setTimeout(() => setSaved(null), 2600);
@@ -143,7 +147,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label="Contale a la app"
+      aria-label={t('quick.tellTheApp')}
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
@@ -162,9 +166,9 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
 
-        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>Cuéntame</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>{t('quick.title')}</h2>
         <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          Dilo como te salga. Yo lo acomodo.
+          {t('quick.subtitle')}
         </p>
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
@@ -174,7 +178,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
             onChange={(e) => { setTexto(e.target.value); setCategoriaElegida(undefined); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) void save(); }}
             placeholder={EXAMPLES[0]}
-            aria-label="Qué pasó"
+            aria-label={t('quick.whatHappened')}
             autoFocus
             style={{
               flex: 1, minWidth: 0, minHeight: 'var(--tap)', padding: '0 14px',
@@ -228,7 +232,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
         {text.trim().length > 0 && parsed.concept && (
           <>
             <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              Categoría
+              {t('form.category')}
             </p>
             <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
               {visibleCategories.map((c) => (
