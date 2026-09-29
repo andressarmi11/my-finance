@@ -24,6 +24,17 @@ const WINDOW_BEFORE_DAYS = 31; // in case a rule was left unmaterialized last mo
 const WINDOW_AFTER_DAYS = 95; // ~3 months ahead, for "upcoming payments"
 
 /**
+ * The updatedAt of a GENERATED occurrence: older than any real edit.
+ *
+ * It used to be "now". Every device generates the same occurrence on its
+ * own, so a browser that generated "Rent, February" after you had already
+ * checked it on your phone held the newer copy — pending — and sync kept
+ * it and uploaded it. The check vanished everywhere. A copy nobody has
+ * touched yet has to lose against one somebody did touch.
+ */
+export const GENERATED_AT = '1970-01-01T00:00:00.000Z';
+
+/**
  * A recurring instance's id IS its identity: rule + period.
  *
  * It used to be a randomUUID(). That made it impossible to honor a
@@ -109,7 +120,7 @@ export async function materializeRecurringRules(range: Range = defaultRange()): 
         cycleCutoffDate: cycle?.cycleCutoff,
         cyclePaymentDate: cycle?.paymentDate,
         createdAt: now,
-        updatedAt: now,
+        updatedAt: GENERATED_AT,
       });
     }
   }

@@ -16,7 +16,10 @@
  * deleted gets pulled back in.
  */
 import { db } from '../db';
-import { supabaseRepository } from '../supabase/supabaseRepository';
+import { currentUserId, supabaseRepository, upsertMany } from '../supabase/supabaseRepository';
+import {
+  categoryToRow, paymentMethodToRow, recurringRuleToRow, reminderToRow, transactionToRow,
+} from '../supabase/mappers';
 import { applyRemoteDeletions, listRemoteTombstones, saveRemoteTombstones } from '../supabase/deletions';
 import { listRemoteBudgets, saveRemoteBudgets } from '../supabase/budgets';
 import { deletedIdsOf, makeTombstone, mergeTombstones, type Tombstone } from './tombstones';
@@ -194,24 +197,47 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
   };
 }
 
+/** Local rows that win against their cloud copy — the only ones worth uploading. */
+function newerThanRemote<T extends { id: string; updatedAt: string }>(local: T[], remote: T[]): T[] {
+  const remoteById = new Map(remote.map((r) => [r.id, r]));
+  return local.filter((l) => {
+    const r = remoteById.get(l.id);
+    return !r || newer(l.updatedAt, r.updatedAt);
+  });
+}
+
 export async function pushLocalToCloud(): Promise<SyncResult> {
-  // 1. Deletions first: push the tombstone and delete over there.
-  const tombstones = await db.deletions.toArray();
-  await saveRemoteTombstones(tombstones);
-  await applyRemoteDeletions(tombstones);
+  const userId = await currentUserId();
+
+  // 1. Deletions first: push the tombstone and delete over there. Only the
+  //    ones the cloud doesn't have yet — re-sending the whole history on
+  //    every cycle grew without limit, and the delete's id list, which
+  //    travels in the URL, eventually got too long for the server.
+  const [tombstones, remoteTombstones] = await Promise.all([db.deletions.toArray(), listRemoteTombstones()]);
+  const known = new Set(remoteTombstones.map((t) => t.id));
+  const newTombstones = tombstones.filter((t) => !known.has(t.id));
+  await saveRemoteTombstones(newTombstones);
+  await applyRemoteDeletions(newTombstones);
 
   const deletedTx = deletedIdsOf(tombstones, 'transactions');
   const deletedCat = deletedIdsOf(tombstones, 'categories');
   const deletedPm = deletedIdsOf(tombstones, 'paymentMethods');
   const deletedRr = deletedIdsOf(tombstones, 'recurringRules');
 
-  const [localTx, remoteTx, categories, methods, rules, settings, localBudgets, remoteBudgets, localReminders, remoteReminders] = await Promise.all([
+  const [
+    localTx, remoteTx, categories, remoteCategories, methods, remoteMethods, rules, remoteRules,
+    settings, remoteSettings, localBudgets, remoteBudgets, localReminders, remoteReminders,
+  ] = await Promise.all([
     db.transactions.toArray(),
     supabaseRepository.listTransactions(),
     db.categories.toArray(),
+    supabaseRepository.listCategories(),
     db.paymentMethods.toArray(),
+    supabaseRepository.listPaymentMethods(),
     db.recurringRules.toArray(),
+    supabaseRepository.listRecurringRules(),
     db.settings.get('singleton'),
+    supabaseRepository.getSettings(),
     db.budgets.toArray(),
     listRemoteBudgets(),
     db.reminders.toArray(),
@@ -220,10 +246,13 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
 
   // Categories and methods before transactions: Postgres's FKs reject a
   // transaction whose category doesn't exist over there yet.
-  for (const c of categories.filter((c) => !deletedCat.has(c.id))) await supabaseRepository.saveCategory(c);
-  for (const m of methods.filter((m) => !deletedPm.has(m.id))) await supabaseRepository.savePaymentMethod(m);
-  for (const r of rules.filter((r) => !deletedRr.has(r.id))) await supabaseRepository.saveRecurringRule(r);
-  if (settings) await supabaseRepository.saveSettings(settings);
+  const catUp = newerThanRemote(categories.filter((c) => !deletedCat.has(c.id)), remoteCategories);
+  const pmUp = newerThanRemote(methods.filter((m) => !deletedPm.has(m.id)), remoteMethods);
+  const rrUp = newerThanRemote(rules.filter((r) => !deletedRr.has(r.id)), remoteRules);
+  await upsertMany('categories', catUp.map((c) => categoryToRow(userId, c)));
+  await upsertMany('payment_methods', pmUp.map((m) => paymentMethodToRow(userId, m)));
+  await upsertMany('recurring_rules', rrUp.map((r) => recurringRuleToRow(userId, r)));
+  if (settings && newer(settings.updatedAt, remoteSettings.updatedAt)) await supabaseRepository.saveSettings(settings);
 
   // Budgets: after categories, which is what their FK points to, and only
   // the ones that win by date. Skips the budget whose category was
@@ -231,27 +260,21 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
   const planBudgets = reconcileBudgets(localBudgets, remoteBudgets);
   await saveRemoteBudgets(planBudgets.subir.filter((b) => !deletedCat.has(b.categoryId)));
 
-  const remoteById = new Map(remoteTx.map((t) => [t.id, t]));
-  let pushed = 0;
-  for (const tx of localTx) {
-    if (deletedTx.has(tx.id)) continue;
-    const remote = remoteById.get(tx.id);
-    if (!remote || newer(tx.updatedAt, remote.updatedAt)) {
-      await supabaseRepository.saveTransaction(tx);
-      pushed += 1;
-    }
-  }
+  const txUp = newerThanRemote(localTx.filter((tx) => !deletedTx.has(tx.id)), remoteTx);
+  await upsertMany('transactions', txUp.map((tx) => transactionToRow(userId, tx)));
 
   // Reminders LAST: their FK points to transactions, so the transaction
   // has to already exist over there. See recordatorios.ts for why orphans
   // get filtered out.
   const aliveIds = new Set(localTx.filter((t) => !deletedTx.has(t.id)).map((t) => t.id));
-  for (const r of remindersToUpload(localReminders, remoteReminders, aliveIds)) {
-    await supabaseRepository.saveReminder(r);
-    pushed += 1;
-  }
+  const remUp = remindersToUpload(localReminders, remoteReminders, aliveIds);
+  await upsertMany('reminders', remUp.map((r) => reminderToRow(userId, r)));
 
-  return { pushed: pushed + planBudgets.subir.length, pulled: 0, deleted: tombstones.length };
+  return {
+    pushed: catUp.length + pmUp.length + rrUp.length + txUp.length + remUp.length + planBudgets.subir.length,
+    pulled: 0,
+    deleted: newTombstones.length,
+  };
 }
 
 export async function syncBidirectional(): Promise<SyncResult> {

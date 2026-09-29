@@ -5,6 +5,7 @@
  * implement something it doesn't use.
  */
 import { getSupabase } from './client';
+import { selectAll } from './supabaseRepository';
 import type { DeletableEntity, Tombstone } from '../sync/tombstones';
 import { translate } from '@/i18n/language';
 
@@ -25,9 +26,9 @@ async function currentUserId(): Promise<string> {
 
 export async function listRemoteTombstones(): Promise<Tombstone[]> {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from('deletions').select('*');
-  if (error) throw error;
-  return (data as DeletionRow[]).map((r) => ({
+  const data = await selectAll<DeletionRow>((from, to) =>
+    supabase.from('deletions').select('*').order('id').range(from, to));
+  return data.map((r) => ({
     id: r.id, entity: r.entity as DeletableEntity, entityId: r.entity_id, deletedAt: r.deleted_at,
   }));
 }
@@ -61,7 +62,11 @@ export async function applyRemoteDeletions(tombstones: Tombstone[]): Promise<voi
   }
 
   for (const [entity, ids] of byEntity) {
-    const { error } = await supabase.from(tableFor[entity]).delete().in('id', ids);
-    if (error) throw error;
+    // In chunks: the ids travel in the URL, and a long history of
+    // deletions made it too long for the server.
+    for (let i = 0; i < ids.length; i += 100) {
+      const { error } = await supabase.from(tableFor[entity]).delete().in('id', ids.slice(i, i + 100));
+      if (error) throw error;
+    }
   }
 }

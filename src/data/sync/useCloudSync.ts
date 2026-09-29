@@ -27,6 +27,19 @@ export function requestSync(): void {
   currentForceSync?.();
 }
 
+let soonTimer: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * A local change: upload it in a moment instead of waiting for the user
+ * to leave the app. Leaving is the worst moment to sync on iOS — the app
+ * gets suspended seconds later — so a check made and left behind stayed
+ * on that phone only. Debounced so marking five things is one cycle.
+ */
+export function requestSyncSoon(): void {
+  clearTimeout(soonTimer);
+  soonTimer = setTimeout(requestSync, 1500);
+}
+
 /**
  * Syncs on its own, without the user touching a button.
  *
@@ -49,10 +62,18 @@ export function useCloudSync() {
   const [firstSyncDone, setPrimeraHecha] = useState(!isSupabaseConfigured());
   const lastRef = useRef(0);
   const runningRef = useRef(false);
+  // A sync asked for while another was running. It used to be dropped:
+  // open the app (sync starts), mark a check, leave — the "leave" sync
+  // was skipped, and the running one had already read the data before
+  // the check. Now it runs right after.
+  const pendingRef = useRef(false);
 
   const sync = useCallback(async (forzar = false) => {
     if (!isSupabaseConfigured() || !userId) return;
-    if (runningRef.current) return;
+    if (runningRef.current) {
+      if (forzar) pendingRef.current = true;
+      return;
+    }
 
     runningRef.current = true;
     try {
@@ -75,12 +96,18 @@ export function useCloudSync() {
       setStatus('error');
     } finally {
       runningRef.current = false;
+      if (pendingRef.current) {
+        pendingRef.current = false;
+        void syncRef.current(true);
+      }
       // On EVERY exit path, including the "no network" one: otherwise the
       // loading screen stays forever, and an offline-first app becomes
       // unusable exactly when there's no internet.
       setPrimeraHecha(true);
     }
   }, [userId]);
+  const syncRef = useRef(sync);
+  useEffect(() => { syncRef.current = sync; }, [sync]);
 
   // Register the manual trigger while this hook is mounted.
   useEffect(() => {

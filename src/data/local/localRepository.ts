@@ -5,6 +5,7 @@ import { importBackup } from '../backup/exportImport';
 import { BackupSchema } from '../backup/schema';
 import { normalize } from '@/domain/inference/conceptInference';
 import { makeTombstone, type DeletableEntity } from '../sync/tombstones';
+import { requestSyncSoon } from '../sync/useCloudSync';
 
 /**
  * Every deletion leaves a tombstone. That's what lets the deletion travel
@@ -67,7 +68,7 @@ export function withDefaults(stored: Settings | undefined): Settings {
   return base;
 }
 
-export const localRepository: Repository = {
+const baseRepository: Repository = {
   async getSettings() {
     return withDefaults(await db.settings.get('singleton'));
   },
@@ -171,3 +172,23 @@ export const localRepository: Repository = {
     await importBackup(parsed);
   },
 };
+
+/**
+ * Every write the user makes goes up on its own a moment later. This is
+ * the single door user edits pass through (sync writes to Dexie directly,
+ * so it can't loop back into itself).
+ */
+const WRITES = [
+  'saveSettings', 'saveCategory', 'deleteCategory', 'savePaymentMethod', 'deletePaymentMethod',
+  'saveTransaction', 'deleteTransaction', 'saveRecurringRule', 'deleteRecurringRule',
+  'saveBudget', 'saveReminder', 'importAll',
+] as const;
+
+export const localRepository: Repository = { ...baseRepository };
+for (const name of WRITES) {
+  const original = baseRepository[name] as (...args: unknown[]) => Promise<void>;
+  (localRepository as unknown as Record<string, unknown>)[name] = async (...args: unknown[]) => {
+    await original(...args);
+    requestSyncSoon();
+  };
+}

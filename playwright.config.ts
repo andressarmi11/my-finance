@@ -15,6 +15,12 @@ const BASE_DEV = `http://localhost:${PORT_DEV}/step-up/`;
 // it fails in a way that looks like the app broke.
 const SOURCE_IMPORTING = /account-isolation|sync-duplicate-occurrences|xlsx-is-a-zip/;
 
+// Two-browser sync runs against a dev server whose Supabase is a fake
+// `.test` host the spec answers with route() — real login, real sync,
+// nothing leaves the machine.
+const PORT_SYNC = 5174;
+const CLOUD_SYNC = /cloud-sync/;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -51,10 +57,17 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
+    {
+      command: `VITE_SUPABASE_URL=http://fake-supabase.test VITE_SUPABASE_ANON_KEY=fake-anon-key npm run dev -- --port ${PORT_SYNC} --strictPort`,
+      url: `http://localhost:${PORT_SYNC}/step-up/`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+    },
   ],
   projects: [
-    { name: 'chromium', testIgnore: SOURCE_IMPORTING, use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-safari', testIgnore: SOURCE_IMPORTING, use: { ...devices['iPhone 13'] } },
+    { name: 'cloud-sync', testMatch: CLOUD_SYNC, use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT_SYNC}/step-up/` } },
+    { name: 'chromium', testIgnore: [SOURCE_IMPORTING, CLOUD_SYNC], use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-safari', testIgnore: [SOURCE_IMPORTING, CLOUD_SYNC], use: { ...devices['iPhone 13'] } },
     {
       name: 'isolation',
       testMatch: SOURCE_IMPORTING,

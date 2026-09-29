@@ -23,6 +23,46 @@ async function currentUserId(): Promise<string> {
   return session.user.id;
 }
 
+const PAGE = 1000;
+
+/**
+ * Every row, not the first 1000.
+ *
+ * Supabase caps a select without a range at 1000 rows, silently. An
+ * account past that — a year of expenses plus recurring payments — got
+ * 1000 arbitrary movements in a new browser and never the rest. Ordered
+ * by id so pages don't overlap or skip.
+ */
+export async function selectAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) return out;
+  }
+}
+
+/**
+ * One request per 500 rows instead of one per row. Sync used to upload
+ * every category, card and movement one at a time — dozens of requests
+ * each cycle — and iOS suspends an app a few seconds after you leave it,
+ * so the movements, which went last, were the part that got cut off.
+ */
+export async function upsertMany(table: string, rows: object[]): Promise<void> {
+  if (rows.length === 0) return;
+  const supabase = await getSupabase();
+  for (let i = 0; i < rows.length; i += 500) {
+    const { error } = await supabase.from(table).upsert(rows.slice(i, i + 500));
+    if (error) throw error;
+  }
+}
+
+export { currentUserId };
+
 const DEFAULT_SETTINGS_BASE: Omit<Settings, 'id' | 'defaultPaymentMethodId'> = {
   displayName: '', onboardedAt: null,
   // Empty: a row that doesn't exist can't beat the local one.
@@ -81,11 +121,12 @@ export const supabaseRepository: Repository = {
 
   async listTransactions(range) {
     const supabase = await getSupabase();
-    let query = supabase.from('transactions').select('*');
-    if (range) query = query.gte('date', range.from).lte('date', range.to);
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data as TransactionRow[]).map(transactionFromRow);
+    const rows = await selectAll<TransactionRow>((from, to) => {
+      let query = supabase.from('transactions').select('*');
+      if (range) query = query.gte('date', range.from).lte('date', range.to);
+      return query.order('id').range(from, to);
+    });
+    return rows.map(transactionFromRow);
   },
   async saveTransaction(tx) {
     const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);
@@ -129,9 +170,9 @@ export const supabaseRepository: Repository = {
 
   async listReminders() {
     const supabase = await getSupabase();
-    const { data, error } = await supabase.from('reminders').select('*');
-    if (error) throw error;
-    return (data as ReminderRow[]).map(reminderFromRow);
+    const rows = await selectAll<ReminderRow>((from, to) =>
+      supabase.from('reminders').select('*').order('id').range(from, to));
+    return rows.map(reminderFromRow);
   },
   async saveReminder(reminder) {
     const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);

@@ -8,6 +8,7 @@
  * implement something no screen uses.
  */
 import { getSupabase } from './client';
+import { selectAll } from './supabaseRepository';
 import { budgetFromRow, budgetToRow, type BudgetRow } from './mappers';
 import type { Budget } from '@/domain/types';
 import { translate } from '@/i18n/language';
@@ -21,9 +22,9 @@ async function currentUserId(): Promise<string> {
 
 export async function listRemoteBudgets(): Promise<Budget[]> {
   const supabase = await getSupabase();
-  const { data, error } = await supabase.from('budgets').select('*');
-  if (error) throw error;
-  return (data as BudgetRow[]).map(budgetFromRow);
+  const data = await selectAll<BudgetRow>((from, to) =>
+    supabase.from('budgets').select('*').order('id').range(from, to));
+  return data.map(budgetFromRow);
 }
 
 export async function saveRemoteBudgets(budgets: Budget[]): Promise<void> {
