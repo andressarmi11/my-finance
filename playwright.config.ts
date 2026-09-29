@@ -15,7 +15,7 @@ const BASE_DEV = `http://localhost:${PORT_DEV}/step-up/`;
 // it fails in a way that looks like the app broke.
 const SOURCE_IMPORTING = /account-isolation|sync-duplicate-occurrences|xlsx-is-a-zip/;
 
-// Two-browser sync runs against a dev server whose Supabase is a fake
+// Two-browser sync runs against a build whose Supabase is a fake
 // `.test` host the spec answers with route() — real login, real sync,
 // nothing leaves the machine.
 const PORT_SYNC = 5174;
@@ -58,7 +58,11 @@ export default defineConfig({
       timeout: 120_000,
     },
     {
-      command: `VITE_SUPABASE_URL=http://fake-supabase.test VITE_SUPABASE_ANON_KEY=fake-anon-key npm run dev -- --port ${PORT_SYNC} --strictPort`,
+      // The production build, not dev: it carries the Content-Security-Policy
+      // and the service worker, so a policy that blocked login or sync
+      // fails here. Its own outDir so it doesn't race the other build — under
+      // node_modules/.cache, which git and ESLint already ignore.
+      command: `VITE_SUPABASE_URL=http://fake-supabase.test VITE_SUPABASE_ANON_KEY=fake-anon-key npx vite build --outDir node_modules/.cache/dist-sync --emptyOutDir && npx vite preview --outDir node_modules/.cache/dist-sync --port ${PORT_SYNC} --strictPort`,
       url: `http://localhost:${PORT_SYNC}/step-up/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

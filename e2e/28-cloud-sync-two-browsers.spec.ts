@@ -154,6 +154,12 @@ function seedAccount(backend: Backend) {
   });
 }
 
+const cspViolations: string[] = [];
+test.afterEach(() => {
+  expect(cspViolations, 'the Content-Security-Policy blocked something the app needs').toEqual([]);
+  cspViolations.length = 0;
+});
+
 /** Runs `action` and waits for the sync cycle it triggers to finish. */
 async function syncAfter(page: Page, backend: Backend, action: () => Promise<unknown>) {
   const before = backend.cycles(page.context());
@@ -170,6 +176,10 @@ async function openBrowser(browser: Browser, backend: Backend) {
   const context = await browser.newContext({ locale: 'es-CO' });
   await backend.handle(context);
   const page = await context.newPage();
+  // The build carries a Content-Security-Policy: anything it blocks is a bug.
+  page.on('console', (m) => {
+    if (m.type() === 'error' && m.text().includes('Content Security Policy')) cspViolations.push(m.text());
+  });
   await page.goto('');
   await page.getByLabel('Correo').fill('sync-test@example.test');
   await page.getByLabel('Contraseña').fill('test-password-123');

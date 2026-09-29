@@ -48,14 +48,27 @@ interface TransactionRow {
   amount: number;
 }
 
+/**
+ * Constant-time equality. Written out because crypto.subtle.timingSafeEqual
+ * exists in Deno but not in Supabase's edge runtime (it answered 500).
+ */
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   // La funcion solo la debe llamar el cron (con el secret configurado),
   // nunca el cliente directamente.
-  const auth = req.headers.get('Authorization');
   const secret = Deno.env.get('CRON_SECRET') ?? '';
   // Without a secret configured, "Bearer " would be the password: anyone
-  // could invoke this — and every invocation is billed.
-  if (!secret || !auth || auth !== `Bearer ${secret}`) {
+  // could invoke this — and every invocation is billed. Constant-time, so
+  // response timing says nothing about how much of a guess was right.
+  const got = new TextEncoder().encode(req.headers.get('Authorization') ?? '');
+  const want = new TextEncoder().encode(`Bearer ${secret}`);
+  if (!secret || !sameBytes(got, want)) {
     return new Response('No autorizado', { status: 401 });
   }
 
@@ -109,17 +122,20 @@ Deno.serve(async (req) => {
   const txIds = [...new Set(reminders.map((r) => r.transaction_id))];
   const [{ data: allSubs }, { data: allTx }] = await Promise.all([
     supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth').in('user_id', userIds),
-    supabase.from('transactions').select('id, concept, amount').in('id', txIds),
+    supabase.from('transactions').select('id, user_id, concept, amount').in('id', txIds),
   ]);
   const subsByUser = new Map<string, SubscriptionRow[]>();
   for (const sub of (allSubs ?? []) as Array<SubscriptionRow & { user_id: string }>) {
     subsByUser.set(sub.user_id, [...(subsByUser.get(sub.user_id) ?? []), sub]);
   }
-  const txById = new Map(((allTx ?? []) as TransactionRow[]).map((t) => [t.id, t]));
+  // Keyed by owner as well: a reminder never reveals someone else's movement
+  // (the FK enforces it too, since 0011).
+  const txById = new Map(((allTx ?? []) as Array<TransactionRow & { user_id: string }>)
+    .map((t) => [`${t.user_id}:${t.id}`, t]));
 
   for (const reminder of reminders) {
     const subs = subsByUser.get(reminder.user_id) ?? [];
-    const transaction = txById.get(reminder.transaction_id) ?? null;
+    const transaction = txById.get(`${reminder.user_id}:${reminder.transaction_id}`) ?? null;
     const payload = JSON.stringify({
       title: 'Step up',
       body: transaction

@@ -1,6 +1,6 @@
 import { copyFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -31,9 +31,48 @@ function copiarIndexA404() {
   };
 }
 
+/**
+ * Content-Security-Policy, build only. GitHub Pages can't send headers, so
+ * it goes in a <meta>. The app has no inline scripts and talks to exactly
+ * one origin, its Supabase; this is the second wall if an XSS ever slips
+ * in — the session lives in localStorage, and without a CSP an injected
+ * script could send it anywhere.
+ *
+ * Not in dev: Vite injects inline scripts there (React refresh) that this
+ * would block. frame-ancestors is ignored in a <meta>, so it isn't listed.
+ */
+function contentSecurityPolicy(): Plugin {
+  let supabase = '';
+  return {
+    name: 'content-security-policy',
+    apply: 'build',
+    configResolved(config) {
+      supabase = config.env.VITE_SUPABASE_URL ?? '';
+    },
+    transformIndexHtml() {
+      const policy = [
+        "default-src 'self'",
+        "script-src 'self'",
+        // React sets style attributes and the charts inline theirs.
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "font-src 'self'",
+        `connect-src 'self'${supabase ? ` ${new URL(supabase).origin}` : ''}`,
+        "worker-src 'self'",
+        "manifest-src 'self'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+      ].join('; ');
+      return [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: policy }, injectTo: 'head-prepend' }];
+    },
+  };
+}
+
 export default defineConfig({
   base: '/step-up/',
   plugins: [
+    contentSecurityPolicy(),
     react(),
     tailwindcss(),
     VitePWA({
