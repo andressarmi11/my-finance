@@ -13,7 +13,7 @@ import {
   type BudgetRow, type CategoryRow, type PaymentMethodRow, type RecurringRuleRow,
   type ReminderRow, type SettingsRow, type TransactionRow,
 } from './mappers';
-import type { Settings } from '@/domain/types';
+import type { Settings, Transaction } from '@/domain/types';
 import { translate } from '@/i18n/language';
 
 async function currentUserId(): Promise<string> {
@@ -62,6 +62,37 @@ export async function upsertMany(table: string, rows: object[]): Promise<void> {
 }
 
 export { currentUserId };
+
+/**
+ * The movements that changed since `since` (server time), or all of them
+ * when `since` is null — a first sync, or a device too stale to trust.
+ * Returns the newest synced_at seen: the next cursor.
+ */
+export async function listTransactionsChangedSince(
+  since: string | null,
+): Promise<{ rows: Transaction[]; maxSyncedAt: string | null }> {
+  const supabase = await getSupabase();
+  const rows = await selectAll<TransactionRow & { synced_at: string }>((from, to) => {
+    const query = supabase.from('transactions').select('*');
+    return since
+      ? query.gt('synced_at', since).order('synced_at').order('id').range(from, to)
+      : query.order('id').range(from, to);
+  });
+  let maxSyncedAt: string | null = null;
+  for (const r of rows) if (!maxSyncedAt || r.synced_at > maxSyncedAt) maxSyncedAt = r.synced_at;
+  return { rows: rows.map(transactionFromRow), maxSyncedAt };
+}
+
+/**
+ * id → updated_at of every movement in the cloud: what push needs to
+ * decide what to upload, at ~70 bytes a row instead of the whole row.
+ */
+export async function listTransactionVersions(): Promise<Map<string, string>> {
+  const supabase = await getSupabase();
+  const rows = await selectAll<{ id: string; updated_at: string }>((from, to) =>
+    supabase.from('transactions').select('id, updated_at').order('id').range(from, to));
+  return new Map(rows.map((r) => [r.id, r.updated_at]));
+}
 
 const DEFAULT_SETTINGS_BASE: Omit<Settings, 'id' | 'defaultPaymentMethodId'> = {
   displayName: '', onboardedAt: null,

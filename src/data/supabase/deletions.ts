@@ -24,13 +24,33 @@ async function currentUserId(): Promise<string> {
   return session.user.id;
 }
 
-export async function listRemoteTombstones(): Promise<Tombstone[]> {
+/** Tombstones that arrived since `since` (server time); all of them when null. */
+export async function listRemoteTombstonesSince(
+  since: string | null,
+): Promise<{ tombstones: Tombstone[]; maxSyncedAt: string | null }> {
   const supabase = await getSupabase();
-  const data = await selectAll<DeletionRow>((from, to) =>
-    supabase.from('deletions').select('*').order('id').range(from, to));
-  return data.map((r) => ({
-    id: r.id, entity: r.entity as DeletableEntity, entityId: r.entity_id, deletedAt: r.deleted_at,
-  }));
+  const data = await selectAll<DeletionRow & { synced_at: string }>((from, to) => {
+    const query = supabase.from('deletions').select('*');
+    return since
+      ? query.gt('synced_at', since).order('synced_at').order('id').range(from, to)
+      : query.order('id').range(from, to);
+  });
+  let maxSyncedAt: string | null = null;
+  for (const r of data) if (!maxSyncedAt || r.synced_at > maxSyncedAt) maxSyncedAt = r.synced_at;
+  return {
+    tombstones: data.map((r) => ({
+      id: r.id, entity: r.entity as DeletableEntity, entityId: r.entity_id, deletedAt: r.deleted_at,
+    })),
+    maxSyncedAt,
+  };
+}
+
+/** Ids of the tombstones the cloud already has: push only sends the rest. */
+export async function listRemoteTombstoneIds(): Promise<Set<string>> {
+  const supabase = await getSupabase();
+  const data = await selectAll<{ id: string }>((from, to) =>
+    supabase.from('deletions').select('id').order('id').range(from, to));
+  return new Set(data.map((r) => r.id));
 }
 
 export async function saveRemoteTombstones(tombstones: Tombstone[]): Promise<void> {

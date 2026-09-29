@@ -43,6 +43,7 @@ function makeBackend() {
         const set = new Set(val.replace(/^\(|\)$/g, '').split(',').map((x: string) => x.replace(/^"|"$/g, '')));
         out = out.filter((r) => set.has(String(r[k])));
       } else if (op === 'gte') out = out.filter((r) => String(r[k]) >= val);
+      else if (op === 'gt') out = out.filter((r) => String(r[k]) > val);
       else if (op === 'lte') out = out.filter((r) => String(r[k]) <= val);
     });
     return out;
@@ -51,6 +52,12 @@ function makeBackend() {
   // Every sync cycle starts by pulling tombstones: counting those GETs per
   // browser says whether a new cycle has started.
   const cycles = new Map<BrowserContext, number>();
+  // Movement rows each browser has downloaded, to measure egress.
+  const txDownloaded = new Map<BrowserContext, number>();
+  // Stands in for the synced_at trigger (0009): the server's clock, and
+  // strictly increasing so the cursor never ties.
+  let clock = Date.now();
+  const serverNow = () => new Date(++clock).toISOString();
 
   async function handle(context: BrowserContext) {
     cycles.set(context, 0);
@@ -80,7 +87,23 @@ function makeBackend() {
 
       if (req.method() === 'GET' && table === 'deletions') cycles.set(context, (cycles.get(context) ?? 0) + 1);
       if (req.method() === 'GET' || req.method() === 'HEAD') {
-        const all = filterRows(rows, params);
+        let all = filterRows(rows, params);
+        const order = params.get('order');
+        if (order) {
+          const keys = order.split(',').map((o) => o.split('.')[0]!);
+          all = [...all].sort((x, y) => {
+            for (const k of keys) {
+              const a = String(x[k] ?? ''), b = String(y[k] ?? '');
+              if (a !== b) return a < b ? -1 : 1;
+            }
+            return 0;
+          });
+        }
+        const select = params.get('select');
+        if (select && select !== '*') {
+          const cols = select.split(',').map((c) => c.trim());
+          all = all.map((r) => Object.fromEntries(cols.map((c) => [c, r[c]])));
+        }
         // PostgREST honours the Range header, and supabase-js's .range() sends it.
         const range = /^(\d+)-(\d+)$/.exec(req.headers()['range'] ?? '');
         const from = range ? Number(range[1]) : 0;
@@ -88,12 +111,16 @@ function makeBackend() {
         const off = Number(params.get('offset') ?? from);
         const lim = params.has('limit') ? Math.min(Number(params.get('limit')), MAX_ROWS) : to - from + 1;
         const page = all.slice(off, off + lim);
+        if (table === 'transactions' && select === '*') {
+          txDownloaded.set(context, (txDownloaded.get(context) ?? 0) + page.length);
+        }
         return json(200, req.method() === 'HEAD' ? '' : page, { 'content-range': `${off}-${off + Math.max(page.length - 1, 0)}/${all.length}` });
       }
       if (req.method() === 'POST') {
         const body = req.postDataJSON() as Row | Row[];
         const keys = PK[table] ?? ['id'];
-        for (const r of Array.isArray(body) ? body : [body]) {
+        for (const raw of Array.isArray(body) ? body : [body]) {
+          const r = table === 'transactions' || table === 'deletions' ? { ...raw, synced_at: serverNow() } : raw;
           const i = rows.findIndex((x) => keys.every((k) => x[k] === r[k]));
           if (i >= 0) rows[i] = { ...rows[i], ...r };
           else rows.push({ ...r });
@@ -109,7 +136,11 @@ function makeBackend() {
     });
   }
 
-  return { tables: t, handle, cycles: (c: BrowserContext) => cycles.get(c) ?? 0 };
+  return {
+    tables: t, handle, serverNow,
+    cycles: (c: BrowserContext) => cycles.get(c) ?? 0,
+    txDownloaded: (c: BrowserContext) => txDownloaded.get(c) ?? 0,
+  };
 }
 
 type Backend = ReturnType<typeof makeBackend>;
@@ -264,6 +295,7 @@ test('an account with more than 1000 movements arrives complete in a new browser
       cycle_cutoff_date: null, cycle_payment_date: null, installment_group_id: null,
       installment_number: null, installment_count: null, purchase_date: null,
       quincena_key: null, recurring_rule_id: null, period_key: null, created_at: stamp, updated_at: stamp,
+      synced_at: backend.serverNow(),
     });
   }
 
@@ -280,5 +312,40 @@ test('an account with more than 1000 movements arrives complete in a new browser
     });
   });
   await expect.poll(localCount, { timeout: 15_000 }).toBe(1200);
+  await b.context.close();
+});
+
+test('after the first sync, a browser only downloads what changed', async ({ browser }) => {
+  const backend = makeBackend();
+  seedAccount(backend);
+  const stamp = now();
+  for (let i = 0; i < 300; i++) {
+    backend.tables('transactions').push({
+      id: `tx-${String(i).padStart(4, '0')}`, user_id: USER_ID, type: 'expense', concept: `Gasto ${i}`, amount: 1000,
+      date: '2026-09-01', category_id: null, payment_method_id: null, status: 'paid', notes: null,
+      cycle_cutoff_date: null, cycle_payment_date: null, installment_group_id: null,
+      installment_number: null, installment_count: null, purchase_date: null,
+      quincena_key: null, recurring_rule_id: null, period_key: null, created_at: stamp, updated_at: stamp,
+      // Written an hour ago: outside the 2-minute window every pull re-reads.
+      synced_at: new Date(Date.now() - 3_600_000 + i).toISOString(),
+    });
+  }
+
+  const a = await openBrowser(browser, backend);
+  const b = await openBrowser(browser, backend);
+  expect(backend.txDownloaded(b.context)).toBeGreaterThanOrEqual(300);
+
+  await addMovement(a.page, 'Uno nuevo', '12000');
+  await leaveAndReturn(a.page, backend);
+
+  const before = backend.txDownloaded(b.context);
+  await syncAfter(b.page, backend, () => b.page.reload());
+  await b.page.goto('movimientos');
+  await expect(b.page.getByText('Uno nuevo')).toBeVisible();
+
+  // The new one (plus what A's own sync re-stamped), not the 300 again.
+  expect(backend.txDownloaded(b.context) - before).toBeLessThan(20);
+
+  await a.context.close();
   await b.context.close();
 });

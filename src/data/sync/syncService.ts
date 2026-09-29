@@ -14,20 +14,30 @@
  * Tombstones go BEFORE rows in each direction: otherwise a row gets
  * pushed and immediately deleted, or worse, a row that was already
  * deleted gets pulled back in.
+ *
+ * Movements and tombstones are INCREMENTAL: pull asks only for what the
+ * server stamped (synced_at, its own clock) after this device's cursor,
+ * and push compares against (id, updated_at) instead of whole rows. They
+ * used to be downloaded whole, twice, on every cycle — the cost grew with
+ * the age of the account instead of with what changed.
  */
 import { db } from '../db';
-import { currentUserId, supabaseRepository, upsertMany } from '../supabase/supabaseRepository';
+import {
+  currentUserId, listTransactionsChangedSince, listTransactionVersions, supabaseRepository, upsertMany,
+} from '../supabase/supabaseRepository';
 import {
   categoryToRow, paymentMethodToRow, recurringRuleToRow, reminderToRow, transactionToRow,
 } from '../supabase/mappers';
-import { applyRemoteDeletions, listRemoteTombstones, saveRemoteTombstones } from '../supabase/deletions';
+import {
+  applyRemoteDeletions, listRemoteTombstoneIds, listRemoteTombstonesSince, saveRemoteTombstones,
+} from '../supabase/deletions';
 import { listRemoteBudgets, saveRemoteBudgets } from '../supabase/budgets';
 import { deletedIdsOf, makeTombstone, mergeTombstones, type Tombstone } from './tombstones';
 import { reconcileBudgets } from './budgets';
 import { remindersToUpload } from './reminders';
 import { newest as newer } from './newest';
 import { reconcileOccurrences } from './duplicateOccurrences';
-import type { Settings, Transaction } from '@/domain/types';
+import type { Reminder, Settings, Transaction } from '@/domain/types';
 
 export interface SyncResult {
   pushed: number;
@@ -105,15 +115,79 @@ async function applyTombstonesLocally(tombstones: Tombstone[]): Promise<number> 
   return deletedCount;
 }
 
-export async function pullCloudToLocal(): Promise<SyncResult & { remoteTombstones: Tombstone[] }> {
-  const remoteTombstones = await listRemoteTombstones();
+/**
+ * Re-read this much before the cursor. A row is stamped when its statement
+ * starts but becomes visible when it commits; one that committed a moment
+ * after a pull already read past its stamp would otherwise be skipped
+ * forever. Re-reading is harmless: last-write-wins makes it a no-op.
+ */
+const CURSOR_OVERLAP_MS = 2 * 60_000;
+/**
+ * The server forgets tombstones after 180 days (cleanup_expired in
+ * 0009). A device whose cursor is older may hold rows deleted elsewhere
+ * with no tombstone left to say so: it re-downloads everything instead of
+ * trusting its copy. A margin short of 180, for clock skew.
+ */
+const STALE_AFTER_MS = 170 * 24 * 60 * 60_000;
+/** Reminders the server also drops (cleanup_expired): 15 days past due. */
+const REMINDER_KEEP_MS = 15 * 24 * 60 * 60_000;
+
+const TX_CURSOR = 'cursor:transactions';
+const TOMB_CURSOR = 'cursor:deletions';
+
+async function readCursor(key: string): Promise<string | null> {
+  return (await db.meta.get(key))?.value ?? null;
+}
+async function advanceCursor(key: string, seen: string | null): Promise<void> {
+  if (!seen) return;
+  const prev = await readCursor(key);
+  if (!prev || seen > prev) await db.meta.put({ id: key, value: seen });
+}
+/**
+ * Only while the cursor is fresh: a late commit can land minutes after,
+ * never hours. Re-reading the window from an OLD cursor re-downloaded, on
+ * every cycle, whatever batch sat at the cursor — an import or a first
+ * upload shares one timestamp — until something newer moved it.
+ */
+const OVERLAP_ONLY_WITHIN_MS = 10 * 60_000;
+
+export function since(cursor: string | null, now = Date.now()): string | null {
+  if (!cursor) return null;
+  const at = Date.parse(cursor);
+  return now - at < OVERLAP_ONLY_WITHIN_MS ? new Date(at - CURSOR_OVERLAP_MS).toISOString() : cursor;
+}
+
+export function isStale(cursor: string | null, now = Date.now()): boolean {
+  return cursor !== null && now - Date.parse(cursor) > STALE_AFTER_MS;
+}
+
+/**
+ * A stale device just downloaded the whole account. A local movement the
+ * cloud no longer has was deleted elsewhere — if it's older than this
+ * device's last sync, which means the cloud had it once. Newer ones were
+ * made here while offline and still have to go up.
+ */
+export function goneWhileAway(local: Transaction[], remoteIds: Set<string>, lastCursor: string): string[] {
+  return local.filter((t) => !remoteIds.has(t.id) && !newer(t.updatedAt, lastCursor)).map((t) => t.id);
+}
+
+function reminderExpired(r: Reminder, now = Date.now()): boolean {
+  return now - Date.parse(r.remindAt) > REMINDER_KEEP_MS;
+}
+
+export async function pullCloudToLocal(): Promise<SyncResult> {
+  const [txCursor, tombCursor] = await Promise.all([readCursor(TX_CURSOR), readCursor(TOMB_CURSOR)]);
+  const stale = isStale(txCursor);
+
+  const { tombstones: remoteTombstones, maxSyncedAt: tombSeen } =
+    await listRemoteTombstonesSince(stale ? null : since(tombCursor));
   const localTombstones = await db.deletions.toArray();
   const all = mergeTombstones(localTombstones, remoteTombstones);
   await db.deletions.bulkPut(all);
   const deleted = await applyTombstonesLocally(remoteTombstones);
 
-  const [remoteTx, categories, methods, rules, settings, remoteBudgets, remoteReminders] = await Promise.all([
-    supabaseRepository.listTransactions(),
+  const [{ rows: remoteTx, maxSyncedAt: txSeen }, categories, methods, rules, settings, remoteBudgets, remoteReminders] = await Promise.all([
+    listTransactionsChangedSince(stale ? null : since(txCursor)),
     supabaseRepository.listCategories(),
     supabaseRepository.listPaymentMethods(),
     supabaseRepository.listRecurringRules(),
@@ -159,11 +233,24 @@ export async function pullCloudToLocal(): Promise<SyncResult & { remoteTombstone
   // forth, because their id IS the transaction's — two devices generate
   // the same one. Pulling them matters so the 'sent' the server sets when
   // it sends the notification doesn't get overwritten back by this copy.
-  const liveReminders = remoteReminders.filter((r) => !deletedTx.has(r.transactionId));
+  //
+  // Expired ones (15 days past due) are dropped on both sides, same rule
+  // as the server's cleanup — kept here, push would upload them right back.
+  const expired = (await db.reminders.toArray()).filter((r) => reminderExpired(r)).map((r) => r.id);
+  if (expired.length > 0) await db.reminders.bulkDelete(expired);
+  const liveReminders = remoteReminders.filter((r) => !deletedTx.has(r.transactionId) && !reminderExpired(r));
   const remindersToSave = await keepNewest(liveReminders, (id) => db.reminders.get(id));
   if (remindersToSave.length > 0) await db.reminders.bulkPut(remindersToSave);
 
-  const localAll = await db.transactions.toArray();
+  let localAll = await db.transactions.toArray();
+
+  if (stale && txCursor) {
+    const gone = goneWhileAway(localAll, new Set(remoteTx.map((t) => t.id)), txCursor);
+    if (gone.length > 0) {
+      await db.transactions.bulkDelete(gone);
+      localAll = await db.transactions.toArray();
+    }
+  }
 
   // A recurring occurrence with two ids is the SAME occurrence, and the
   // pair (recurringRuleId, periodKey) is a unique index in Dexie: letting
@@ -190,11 +277,14 @@ export async function pullCloudToLocal(): Promise<SyncResult & { remoteTombstone
   }
   if (toPut.length > 0) await saveTolerant(toPut);
 
+  // Only now: everything up to here is merged locally.
+  await advanceCursor(TX_CURSOR, txSeen);
+  await advanceCursor(TOMB_CURSOR, tombSeen);
+
   return {
     pushed: 0,
     pulled: toPut.length + planBudgets.saveLocal.length + remindersToSave.length,
     deleted,
-    remoteTombstones,
   };
 }
 
@@ -207,23 +297,14 @@ function newerThanRemote<T extends { id: string; updatedAt: string }>(local: T[]
   });
 }
 
-/**
- * @param knownRemote the cloud's tombstones, when the caller just pulled
- * them — downloading the whole list twice per cycle was pure egress.
- * A stale list is harmless: re-sending a tombstone is an idempotent upsert.
- */
-export async function pushLocalToCloud(knownRemote?: Tombstone[]): Promise<SyncResult> {
+export async function pushLocalToCloud(): Promise<SyncResult> {
   const userId = await currentUserId();
 
   // 1. Deletions first: push the tombstone and delete over there. Only the
   //    ones the cloud doesn't have yet — re-sending the whole history on
   //    every cycle grew without limit, and the delete's id list, which
   //    travels in the URL, eventually got too long for the server.
-  const [tombstones, remoteTombstones] = await Promise.all([
-    db.deletions.toArray(),
-    knownRemote ?? listRemoteTombstones(),
-  ]);
-  const known = new Set(remoteTombstones.map((t) => t.id));
+  const [tombstones, known] = await Promise.all([db.deletions.toArray(), listRemoteTombstoneIds()]);
   const newTombstones = tombstones.filter((t) => !known.has(t.id));
   await saveRemoteTombstones(newTombstones);
   await applyRemoteDeletions(newTombstones);
@@ -234,11 +315,11 @@ export async function pushLocalToCloud(knownRemote?: Tombstone[]): Promise<SyncR
   const deletedRr = deletedIdsOf(tombstones, 'recurringRules');
 
   const [
-    localTx, remoteTx, categories, remoteCategories, methods, remoteMethods, rules, remoteRules,
+    localTx, remoteVersions, categories, remoteCategories, methods, remoteMethods, rules, remoteRules,
     settings, remoteSettings, localBudgets, remoteBudgets, localReminders, remoteReminders,
   ] = await Promise.all([
     db.transactions.toArray(),
-    supabaseRepository.listTransactions(),
+    listTransactionVersions(),
     db.categories.toArray(),
     supabaseRepository.listCategories(),
     db.paymentMethods.toArray(),
@@ -269,7 +350,11 @@ export async function pushLocalToCloud(knownRemote?: Tombstone[]): Promise<SyncR
   const planBudgets = reconcileBudgets(localBudgets, remoteBudgets);
   await saveRemoteBudgets(planBudgets.subir.filter((b) => !deletedCat.has(b.categoryId)));
 
-  const txUp = newerThanRemote(localTx.filter((tx) => !deletedTx.has(tx.id)), remoteTx);
+  const txUp = localTx.filter((tx) => {
+    if (deletedTx.has(tx.id)) return false;
+    const remoteVersion = remoteVersions.get(tx.id);
+    return remoteVersion === undefined || newer(tx.updatedAt, remoteVersion);
+  });
   await upsertMany('transactions', txUp.map((tx) => transactionToRow(userId, tx)));
 
   // Reminders LAST: their FK points to transactions, so the transaction
@@ -288,7 +373,7 @@ export async function pushLocalToCloud(knownRemote?: Tombstone[]): Promise<SyncR
 
 export async function syncBidirectional(): Promise<SyncResult> {
   const pull = await pullCloudToLocal();
-  const push = await pushLocalToCloud(pull.remoteTombstones);
+  const push = await pushLocalToCloud();
   return { pushed: push.pushed, pulled: pull.pulled, deleted: pull.deleted };
 }
 
