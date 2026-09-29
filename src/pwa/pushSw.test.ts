@@ -1,5 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import code from '../../public/push-sw.js?raw';
 
 /**
  * The service worker's push handler (public/push-sw.js), run against a fake
@@ -15,7 +15,6 @@ function loadWorker() {
     registration: { showNotification },
     clients: { matchAll: vi.fn(async () => []), openWindow: vi.fn(async () => null) },
   };
-  const code = readFileSync(new URL('../../public/push-sw.js', import.meta.url), 'utf8');
   new Function('self', code)(self);
   return { listeners, showNotification, self };
 }
