@@ -30,6 +30,9 @@ export const TEXTS = {
     'nav.nextMonth': 'Mes siguiente',
     'nav.today': 'Hoy',
     'nav.backToCurrentMonth': 'Volver al mes actual',
+    'nav.prevPeriod': 'Período anterior',
+    'nav.nextPeriod': 'Período siguiente',
+    'nav.backToCurrentPeriod': 'Volver al período actual',
 
     // Screens
     'home.title': 'Inicio',
@@ -494,6 +497,9 @@ export const TEXTS = {
     'nav.nextMonth': 'Next month',
     'nav.today': 'Today',
     'nav.backToCurrentMonth': 'Back to the current month',
+    'nav.prevPeriod': 'Previous period',
+    'nav.nextPeriod': 'Next period',
+    'nav.backToCurrentPeriod': 'Back to the current period',
 
     'home.title': 'Home',
     'home.hello': 'Hi',

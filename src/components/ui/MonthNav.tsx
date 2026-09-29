@@ -63,8 +63,13 @@ const TODAY_IN_EVERY_LANGUAGE = ['Hoy', 'Today'];
  * forward a year, getting back was a punishment. An invisible affordance is
  * the same as no affordance.
  */
-export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsAhead }: {
+export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month' }: {
   label: string;
+  /**
+   * What one step is, for screen readers. Analytics pages by quincena,
+   * quarter or year too, and "Previous month" on a quarter is a lie.
+   */
+  unit?: 'month' | 'period';
   /**
    * The longest label this caller can produce. The label box reserves that
    * width so the arrows never move.
@@ -90,7 +95,7 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <Arrow dir="prev" onClick={onPrev} />
+      <Arrow dir="prev" unit={unit} onClick={onPrev} />
 
       {/* Both spans share one grid cell: the hidden one sets the width from
           the longest possible label, the visible one carries the real text.
@@ -110,10 +115,12 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
         }}
       >
         <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>{widthSample}</span>
-        <span style={{ gridArea: '1 / 1' }}>{label}</span>
+        {/* Announced after each arrow tap: otherwise a screen reader user
+            presses "next" and hears nothing about where they landed. */}
+        <span aria-live="polite" style={{ gridArea: '1 / 1' }}>{label}</span>
       </span>
 
-      <Arrow dir="next" onClick={onNext} />
+      <Arrow dir="next" unit={unit} onClick={onNext} />
 
       {/* Always rendered, hidden when there is nowhere to go back to.
           Dropping it from the tree shrank the whole navigator, and since
@@ -124,7 +131,7 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
       <button
         type="button"
         onClick={() => { if (onToday) { haptic('light'); onToday(); } }}
-        aria-label={t('nav.backToCurrentMonth')}
+        aria-label={unit === 'period' ? t('nav.backToCurrentPeriod') : t('nav.backToCurrentMonth')}
         aria-hidden={!onToday}
         disabled={!onToday}
         tabIndex={onToday ? undefined : -1}
@@ -161,13 +168,16 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
   );
 }
 
-function Arrow({ dir, onClick }: { dir: 'prev' | 'next'; onClick: () => void }) {
+function Arrow({ dir, unit, onClick }: { dir: 'prev' | 'next'; unit: 'month' | 'period'; onClick: () => void }) {
   const t = useT();
+  const label = unit === 'period'
+    ? (dir === 'prev' ? t('nav.prevPeriod') : t('nav.nextPeriod'))
+    : (dir === 'prev' ? t('nav.prevMonth') : t('nav.nextMonth'));
   return (
     <button
       type="button"
       onClick={() => { haptic('light'); onClick(); }}
-      aria-label={dir === 'prev' ? t('nav.prevMonth') : t('nav.nextMonth')}
+      aria-label={label}
       style={{
         width: 'var(--tap)', height: 'var(--tap)', display: 'grid', placeItems: 'center',
         border: 'none', background: 'none', color: 'var(--q10-text)', fontSize: 20,

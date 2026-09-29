@@ -1,4 +1,4 @@
-import { copyFileSync } from 'node:fs';
+import { copyFileSync, readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -74,8 +74,17 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
+// Shown in the footer: the version baked into the code that is RUNNING,
+// so after a deploy it's plain whether the phone already has it.
+// Bumped by hand in package.json on every change: patch = small fix,
+// minor = new feature, major = big overhaul.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string };
+
 export default defineConfig({
   base: '/step-up/',
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(version),
+  },
   plugins: [
     contentSecurityPolicy(),
     react(),

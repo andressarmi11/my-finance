@@ -66,7 +66,28 @@ export function defaultRange(today = todayISO()): Range {
   };
 }
 
-export async function materializeRecurringRules(range: Range = defaultRange()): Promise<number> {
+/**
+ * How far ahead occurrences are ever generated: two years.
+ *
+ * Every screen that pages through months asks for its range, and nothing
+ * bounded it: tapping "next year" in Analytics fifty times wrote ~12,000
+ * pending rows for 20 rules, all of which then sync to the server and
+ * stay there. Two years covers any real forecast; past it a screen just
+ * shows the months without their recurring payments. Here and not in each
+ * screen, so Home, Transactions and Analytics share one limit.
+ */
+export const MAX_AHEAD_DAYS = 730;
+
+/** `range` cut at the horizon; null when it lies entirely beyond it. */
+export function withinHorizon(range: Range, today = todayISO()): Range | null {
+  const horizon = toISO(addDays(parseISO(today), MAX_AHEAD_DAYS));
+  if (range.from > horizon) return null;
+  return { from: range.from, to: range.to < horizon ? range.to : horizon };
+}
+
+export async function materializeRecurringRules(requested: Range = defaultRange()): Promise<number> {
+  const range = withinHorizon(requested);
+  if (!range) return 0;
   const [allRules, paymentMethods] = await Promise.all([
     db.recurringRules.toArray(),
     db.paymentMethods.toArray(),

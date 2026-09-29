@@ -56,6 +56,11 @@ export function LegalFooter() {
       <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
         © {year} Step up
       </p>
+      {/* Which build is running: after a deploy, this is how to tell the
+          phone already has it instead of reopening the app and guessing. */}
+      <p style={{ margin: '4px 0 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
+        v{import.meta.env.VITE_APP_VERSION as string}
+      </p>
     </footer>
   );
 }

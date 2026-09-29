@@ -101,7 +101,7 @@ export function toYearlyPoints(points: MonthPoint[]): PeriodPoint[] {
    fixed vs. variable) showed exactly the same thing under Month,
    Quarter and Year. With `to` bounded, each range covers only its own period.
 --------------------------------------------------------------------- */
-import { daysInMonth } from '@/domain/dates';
+import { addDays, daysInMonth, parseISO, toISO } from '@/domain/dates';
 import { chargeDate } from '@/domain/period/chargeDate';
 import { calculatePeriod, DEFAULT_PAY_DAYS, type PayDays } from '@/domain/period/period';
 import type { Transaction } from '@/domain/types';
@@ -140,6 +140,25 @@ export function rangeBounds(
     return { from: iso(y, first, 1), to: iso(y, last, daysInMonth(y, last)) };
   }
   return { from: iso(y, 1, 1), to: iso(y, 12, 31) };
+}
+
+/**
+ * The same kind of range, one step back or forward from `anchor`.
+ *
+ * Jumps to the day just outside the current bounds instead of doing
+ * month arithmetic per range: that way a pay period (25th → 9th) moves to
+ * the neighbouring pay period, a quarter to the next quarter, and so on,
+ * with the one definition of "range" rangeBounds already has.
+ */
+export function shiftAnchor(range: Range, anchor: string, dir: -1 | 1, payDays: PayDays = DEFAULT_PAY_DAYS): string {
+  const { from, to } = rangeBounds(range, anchor, payDays);
+  return dir < 0 ? toISO(addDays(parseISO(from), -1)) : toISO(addDays(parseISO(to), 1));
+}
+
+/** Whether the range around `anchor` is the one happening now. */
+export function containsToday(range: Range, anchor: string, today: string, payDays: PayDays = DEFAULT_PAY_DAYS): boolean {
+  const { from, to } = rangeBounds(range, anchor, payDays);
+  return from <= today && today <= to;
 }
 
 /**

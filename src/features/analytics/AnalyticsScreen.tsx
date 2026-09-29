@@ -1,6 +1,8 @@
 import { useT } from '@/i18n/language';
 import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { MonthNav, widestMonthLabel } from '@/components/ui/MonthNav';
+import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
@@ -14,7 +16,7 @@ import { formatCompact, formatMoney } from '@/domain/money/format';
 import { calculateDebitVsCredit, calculateFixedVsVariable, monthlySeries } from '@/domain/analytics/series';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
-import { filterByRange, untilToday, rangeBounds, fillGaps, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, type PeriodPoint, type Range } from './periodAggregate';
+import { filterByRange, untilToday, rangeBounds, fillGaps, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, shiftAnchor, containsToday, type PeriodPoint, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
@@ -67,18 +69,42 @@ export function AnalyticsScreen() {
   // Filter transactions by the selected range — ALL the cards
   // (balance, pie, fijos/variables, débito/tarjeta) usan este filtro.
   const today = todayISO();
+  // The day the range is built around. Starts today; the arrows move it a
+  // whole range at a time, so last month's split or next quarter's plan is
+  // one tap away. Switching Month → Quarter keeps it: the quarter shown is
+  // the one containing the month you were on.
+  const [anchor, setAnchor] = useState(today);
+  const isCurrent = containsToday(range, anchor, today, settings.payDays);
+  const { from: rangeFrom, to: rangeTo } = rangeBounds(range, anchor, settings.payDays);
+  // Budgets are monthly. On the current range, this month's; paged away,
+  // the month the range starts in. ONE value feeds both the budgets and the
+  // spending they're measured against — they used to come from different
+  // months, so paging showed August's budgets against September's spend.
+  const budgetMonth = (isCurrent ? today : rangeFrom).slice(0, 7);
   const budgets = useLiveQuery(
-    () => localRepository.listBudgets(Number(today.slice(0, 4)), Number(today.slice(5, 7))),
-    [today],
+    () => localRepository.listBudgets(Number(budgetMonth.slice(0, 4)), Number(budgetMonth.slice(5, 7))),
+    [budgetMonth],
   ) ?? EMPTY;
   const rangedTransactions = useMemo(
-    () => filterByRange(transactions, range, today, settings.payDays),
-    [transactions, range, today, settings.payDays],
+    () => filterByRange(transactions, range, anchor, settings.payDays),
+    [transactions, range, anchor, settings.payDays],
   );
   const rangeLabel = useMemo(
-    () => describeRange(range, today, settings.payDays),
-    [range, today, settings.payDays],
+    () => describeRange(range, anchor, settings.payDays),
+    [range, anchor, settings.payDays],
   );
+
+  // A future range needs its recurring payments to exist to be a forecast.
+  // One pass over the whole range (materialize reads the table once), not
+  // one per month; it only adds what's missing, so paging back is free.
+  // How far ahead it will generate is capped inside materialize itself.
+  useEffect(() => {
+    materializeRecurringRules({ from: rangeFrom, to: rangeTo }).catch((e: unknown) => {
+      // Not worth interrupting anyone: the range just shows without its
+      // forecast, and the next visit tries again.
+      console.warn('Analytics: could not generate recurring payments for the range', e);
+    });
+  }, [rangeFrom, rangeTo]);
 
   // Spend by category (top N + "Others")
   const spendByCategory = useMemo(() => calculateSpendByCategory(rangedTransactions), [rangedTransactions]);
@@ -255,14 +281,14 @@ export function AnalyticsScreen() {
           categories={categories}
           budgets={budgets}
           transactions={transactions}
-          monthPrefix={today.slice(0, 7)}
+          monthPrefix={budgetMonth}
         />
       ),
     },
   };
 
   return (
-    <Screen title={t('analytics.title')} subtitle={rangeLabel}>
+    <Screen title={t('analytics.title')}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
           <button
@@ -277,6 +303,20 @@ export function AnalyticsScreen() {
             {r}
           </button>
         ))}
+      </div>
+
+      {/* Its own row: "Octubre – Diciembre 2026" doesn't fit beside the
+          title on a phone. Same navigator as Home, so paging feels the same. */}
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+        <MonthNav
+          label={rangeLabel}
+          widthSample={widestRangeLabel(range)}
+          unit="period"
+          todayIsAhead={!isCurrent && anchor < today}
+          onPrev={() => setAnchor((a) => shiftAnchor(range, a, -1, settings.payDays))}
+          onNext={() => setAnchor((a) => shiftAnchor(range, a, 1, settings.payDays))}
+          onToday={isCurrent ? undefined : () => setAnchor(today)}
+        />
       </div>
 
       {layout.order
@@ -500,6 +540,19 @@ const tooltipStyle: React.CSSProperties = {
 };
 
 const MONTH_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/**
+ * The widest label a range can show, so the arrows keep their place while
+ * paging within it (MonthNav reserves this width). It can change when the
+ * range type changes — that's a different control state anyway.
+ */
+function widestRangeLabel(range: Range): string {
+  if (range === 'mes') return widestMonthLabel();
+  if (range === 'año') return '0000 completo';
+  if (range === 'quincena') return '00 sept. – 00 sept.';
+  const quarters = [0, 3, 6, 9].map((q) => `${MONTH_LONG[q]} – ${MONTH_LONG[q + 2]} 0000`);
+  return quarters.reduce((a, b) => (b.length > a.length ? b : a));
+}
 
 /** Label for the period being looked at, so the user can see the selector does change something. */
 function describeRange(range: Range, today: string, payDays: number[]): string {
