@@ -16,7 +16,7 @@
     "preview:iphone": "node scripts/iphone-preview.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.116.0",
+    "@supabase/supabase-js": "^2.117.2",
     "@tabler/icons-react": "^3.48.0",
     "dexie": "^4.0.10",
     "dexie-react-hooks": "^1.1.7",
@@ -39,7 +39,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.0",
+    "typescript-eslint": "^8.70.1",
     "vite": "^6.0.5",
     "vitest": "^5.0.2"
   }
