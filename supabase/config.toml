@@ -23,6 +23,10 @@ additional_redirect_urls = [
 # La app ya lo exige (MIN_PASSWORD en authStyles.ts); esto lo hace valer
 # también en el servidor, para quien llame a la API sin pasar por la app.
 minimum_password_length = 8
+# El captcha (Cloudflare Turnstile) está encendido en el panel y NO se
+# declara aquí a propósito: su secret key vive solo en Supabase. Sin
+# declararlo, `config push` lo deja intacto; declararlo sin el secret lo
+# rompería. La site key pública va en el build (VITE_TURNSTILE_SITE_KEY).
 
 [auth.email]
 # Encendido: con la app abierta a amigos, sin confirmar cualquiera podía
