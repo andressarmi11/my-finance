@@ -69,6 +69,10 @@ export default defineConfig({
         // archivos con hash que ya no existen: el import de Análisis
         // fallaba y la pantalla quedaba en blanco.
         cleanupOutdatedCaches: true,
+        // Push lives in its own file (public/push-sw.js): Workbox generates
+        // this worker and has no notion of push, so without it every
+        // reminder reached the phone and nothing displayed it.
+        importScripts: ['push-sw.js'],
       },
       devOptions: { enabled: false },
     }),
