@@ -1,0 +1,4 @@
+# Every file in this repository belongs to its owner. With the branch
+# ruleset requiring code-owner review, no pull request into main, dev, qa or
+# staging can be merged without @andressarmi11's approval.
+* @andressarmi11
