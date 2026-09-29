@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getSupabase } from '@/data/supabase/client';
 import { buttonStyle, linkStyle, inputStyle, MIN_PASSWORD, translateError } from './authStyles';
+import { useTurnstile } from './useTurnstile';
 import { Logo } from '@/components/ui/Logo';
 import { useT } from '@/i18n/language';
 
@@ -27,9 +28,15 @@ export function SignInScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const captchaBox = useRef<HTMLDivElement>(null);
+  const captcha = useTurnstile(captchaBox);
+  // Undefined when there's no captcha configured: Supabase ignores it then.
+  const captchaToken = captcha.token ?? undefined;
+  const waitingForCaptcha = captcha.enabled && !captcha.token;
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
+    if (waitingForCaptcha) return;
     setBusy(true);
     setError('');
     setNotice('');
@@ -38,7 +45,7 @@ export function SignInScreen() {
 
       if (mode === 'crear') {
         if (key.length < MIN_PASSWORD) throw new Error(`La contraseña necesita al menos ${MIN_PASSWORD} caracteres.`);
-        const { data, error: err } = await supabase.auth.signUp({ email, password: key });
+        const { data, error: err } = await supabase.auth.signUp({ email, password: key, options: { captchaToken } });
         if (err) throw err;
         // If the project requires confirming the email, there's no session yet.
         if (!data.session) {
@@ -49,7 +56,7 @@ export function SignInScreen() {
       }
 
       if (mode === 'entrar') {
-        const { error: err } = await supabase.auth.signInWithPassword({ email, password: key });
+        const { error: err } = await supabase.auth.signInWithPassword({ email, password: key, options: { captchaToken } });
         if (err) throw err;
         return;
       }
@@ -57,6 +64,7 @@ export function SignInScreen() {
       // forgot
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: window.location.origin + window.location.pathname,
+        captchaToken,
       });
       if (err) throw err;
       setNotice(`Te enviamos un enlace a ${email}. Ábrelo y te va a pedir la contraseña nueva.`);
@@ -64,6 +72,8 @@ export function SignInScreen() {
       setError(translateError(e));
     } finally {
       setBusy(false);
+      // Spent either way: a wrong password must not leave the button stuck.
+      captcha.reset();
     }
   }
 
@@ -114,7 +124,9 @@ export function SignInScreen() {
             />
           )}
 
-          <button type="submit" disabled={busy} style={buttonStyle}>
+          {captcha.enabled && <div ref={captchaBox} style={{ minHeight: 65, marginBottom: 10 }} />}
+
+          <button type="submit" disabled={busy || waitingForCaptcha} style={buttonStyle}>
             {busy ? t('auth.oneMoment')
               : mode === 'crear' ? t('auth.createAccount')
               : mode === 'olvide' ? t('auth.sendLink')

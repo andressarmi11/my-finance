@@ -43,16 +43,21 @@ function copiarIndexA404() {
  */
 function contentSecurityPolicy(): Plugin {
   let supabase = '';
+  // Cloudflare Turnstile (sign-in captcha) loads a script and an iframe from
+  // here. Only allowed when the build actually has a captcha key.
+  let captcha = '';
   return {
     name: 'content-security-policy',
     apply: 'build',
     configResolved(config) {
       supabase = config.env.VITE_SUPABASE_URL ?? '';
+      captcha = config.env.VITE_TURNSTILE_SITE_KEY ? ' https://challenges.cloudflare.com' : '';
     },
     transformIndexHtml() {
       const policy = [
         "default-src 'self'",
-        "script-src 'self'",
+        `script-src 'self'${captcha}`,
+        `frame-src 'self'${captcha}`,
         // React sets style attributes and the charts inline theirs.
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob:",

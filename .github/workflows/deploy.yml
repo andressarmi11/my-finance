@@ -33,6 +33,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
+          # Public site key of the sign-in captcha (Cloudflare Turnstile).
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
       # GitHub Pages no tiene rewrites: 404.html sirve de fallback SPA.
       - run: cp dist/index.html dist/404.html
       - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5

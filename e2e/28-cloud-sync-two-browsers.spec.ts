@@ -59,8 +59,21 @@ function makeBackend() {
   let clock = Date.now();
   const serverNow = () => new Date(++clock).toISOString();
 
+  // Captcha tokens that reached the password sign-in, and sign-ins without one.
+  const captcha = { withToken: 0, without: 0 };
+
   async function handle(context: BrowserContext) {
     cycles.set(context, 0);
+    // Stand-in for Cloudflare Turnstile: the build carries the captcha
+    // (playwright.config.ts), this answers its script without the network
+    // and hands the widget a token at once.
+    await context.route('https://challenges.cloudflare.com/**', (route) => route.fulfill({
+      contentType: 'application/javascript',
+      body: `window.turnstile = {
+        render: (el, o) => { setTimeout(() => o.callback('test-captcha-token-' + Math.random()), 50); return 'w1'; },
+        reset: () => {}, remove: () => {},
+      };`,
+    }));
     await context.route(`${HOST}/**`, async (route) => {
       const req = route.request();
       const url = new URL(req.url());
@@ -76,6 +89,11 @@ function makeBackend() {
       if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
 
       if (url.pathname.startsWith('/auth/v1/token')) {
+        if (url.searchParams.get('grant_type') === 'password') {
+          const body = req.postDataJSON() as { gotrue_meta_security?: { captcha_token?: string } };
+          if (body.gotrue_meta_security?.captcha_token?.startsWith('test-captcha-token-')) captcha.withToken += 1;
+          else captcha.without += 1;
+        }
         return json(200, { access_token: accessToken, token_type: 'bearer', expires_in: 3600 * 24, expires_at: exp, refresh_token: 'refresh', user });
       }
       if (url.pathname.startsWith('/auth/v1/user')) return json(200, user);
@@ -137,7 +155,7 @@ function makeBackend() {
   }
 
   return {
-    tables: t, handle, serverNow,
+    tables: t, handle, serverNow, captcha,
     cycles: (c: BrowserContext) => cycles.get(c) ?? 0,
     txDownloaded: (c: BrowserContext) => txDownloaded.get(c) ?? 0,
   };
@@ -216,6 +234,8 @@ test('expenses, income and checks travel between two browsers, both ways', async
   seedAccount(backend);
 
   const a = await openBrowser(browser, backend);
+  // The build carries the captcha: the sign-in had to wait for its token and send it.
+  expect(backend.captcha).toEqual({ withToken: 1, without: 0 });
   await addMovement(a.page, 'Almuerzo prueba', '25000');
   await addMovement(a.page, 'Ingreso prueba', '45000', true);
 

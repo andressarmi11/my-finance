@@ -14,20 +14,21 @@ project_id = "xuguvoikrxzvklflikdh"
 # Adónde puede volver el enlace de "olvidé mi contraseña". Sin esto, el
 # enlace llega pero rebota fuera de la app.
 site_url = "https://andressarmi11.github.io/step-up/"
+# Solo el sitio publicado. localhost estaba aquí para probar la
+# recuperación en desarrollo, pero en producción dejaba que un enlace de
+# "olvidé mi contraseña" terminara en un servidor local de quien lo abriera.
 additional_redirect_urls = [
   "https://andressarmi11.github.io/step-up/",
-  "http://localhost:5173/step-up/",
-  "http://localhost:5199/step-up/",
 ]
+# La app ya lo exige (MIN_PASSWORD en authStyles.ts); esto lo hace valer
+# también en el servidor, para quien llame a la API sin pasar por la app.
+minimum_password_length = 8
 
 [auth.email]
-# Apagado a propósito. El SMTP que trae Supabase de fábrica está limitado a
-# un puñado de correos por hora, así que confirmar por correo hacía que
-# crear cuenta devolviera "email rate limit exceeded" al segundo intento.
-# Para una app personal el correo no es la barrera: lo que protege los
-# datos es RLS por user_id (supabase/migrations/0001_init.sql), y la
-# contraseña ya se exige desde el primer momento.
+# Encendido: con la app abierta a amigos, sin confirmar cualquiera podía
+# registrarse con un correo ajeno. La app ya muestra "confirma el correo".
 #
-# Si algún día hay más de un usuario, el camino es SMTP propio (Resend,
-# SendGrid) y volver a poner esto en true — no dejarlo así por inercia.
-enable_confirmations = false
+# OJO: el SMTP que trae Supabase de fábrica manda solo un puñado de correos
+# por hora; con varios registros seguidos devuelve "email rate limit
+# exceeded". Cuando eso moleste, el camino es SMTP propio (Resend, SendGrid).
+enable_confirmations = true

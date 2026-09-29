@@ -62,7 +62,9 @@ export default defineConfig({
       // and the service worker, so a policy that blocked login or sync
       // fails here. Its own outDir so it doesn't race the other build — under
       // node_modules/.cache, which git and ESLint already ignore.
-      command: `VITE_SUPABASE_URL=http://fake-supabase.test VITE_SUPABASE_ANON_KEY=fake-anon-key npx vite build --outDir node_modules/.cache/dist-sync --emptyOutDir && npx vite preview --outDir node_modules/.cache/dist-sync --port ${PORT_SYNC} --strictPort`,
+      // Cloudflare's public always-pass test key: the build carries the
+      // captcha and its CSP; the spec answers the Turnstile script itself.
+      command: `VITE_SUPABASE_URL=http://fake-supabase.test VITE_SUPABASE_ANON_KEY=fake-anon-key VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA npx vite build --outDir node_modules/.cache/dist-sync --emptyOutDir && npx vite preview --outDir node_modules/.cache/dist-sync --port ${PORT_SYNC} --strictPort`,
       url: `http://localhost:${PORT_SYNC}/step-up/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
