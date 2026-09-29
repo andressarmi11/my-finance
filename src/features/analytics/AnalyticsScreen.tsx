@@ -1,7 +1,8 @@
 import { useT } from '@/i18n/language';
 import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
-import { useEffect, useMemo, useState } from 'react';
-import { MonthNav, widestMonthLabel } from '@/components/ui/MonthNav';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { MonthNav } from '@/components/ui/MonthNav';
+import { describeRange, RANGE_KEY, widestRangeLabel } from './rangeLabel';
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -18,7 +19,6 @@ import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { filterByRange, untilToday, rangeBounds, fillGaps, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, shiftAnchor, containsToday, type PeriodPoint, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
-import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO } from '@/lib/todayISO';
 import { BudgetColumns } from './BudgetColumns';
 import { ChartManager } from './ChartManager';
@@ -89,22 +89,61 @@ export function AnalyticsScreen() {
     () => filterByRange(transactions, range, anchor, settings.payDays),
     [transactions, range, anchor, settings.payDays],
   );
-  const rangeLabel = useMemo(
-    () => describeRange(range, anchor, settings.payDays),
-    [range, anchor, settings.payDays],
-  );
+  // Not memoised: it reads the active language's month names, and a memo
+  // keyed on the dates alone kept the old language after switching.
+  const rangeLabel = describeRange(range, anchor, settings.payDays);
 
   // A future range needs its recurring payments to exist to be a forecast.
   // One pass over the whole range (materialize reads the table once), not
   // one per month; it only adds what's missing, so paging back is free.
   // How far ahead it will generate is capped inside materialize itself.
+  //
+  // Paging used to just freeze for a moment while this and the charts
+  // caught up, with nothing on screen to say why. Now the screen is "busy"
+  // until the period is really ready, and the arrows wait for it:
+  //   * React is still rendering the new period (the transition), or
+  //   * this generation hasn't finished — and when it wrote new rows, until
+  //     those rows have come back through the live query into `transactions`.
+  // Derived during render rather than set in an effect: `ready` is written
+  // only from the async callback, never synchronously in an effect.
+  const rangeKey = `${rangeFrom}|${rangeTo}`;
+  // Ranges already generated this visit: paging back to one is not "busy".
+  const [readyKeys, setReadyKeys] = useState<ReadonlySet<string>>(() => new Set());
+  // A range whose generation wrote rows: it stays busy until `transactions`
+  // is no longer the array that was current BEFORE the write — so an update
+  // that lands before the promise resolves still counts as arrived.
+  const [arriving, setArriving] = useState<{ key: string; before: readonly Transaction[] } | null>(null);
+  const latestTransactions = useRef(transactions);
+  useEffect(() => { latestTransactions.current = transactions; }, [transactions]);
   useEffect(() => {
-    materializeRecurringRules({ from: rangeFrom, to: rangeTo }).catch((e: unknown) => {
-      // Not worth interrupting anyone: the range just shows without its
-      // forecast, and the next visit tries again.
-      console.warn('Analytics: could not generate recurring payments for the range', e);
-    });
-  }, [rangeFrom, rangeTo]);
+    let cancelled = false;
+    const before = latestTransactions.current;
+    const markReady = () => {
+      if (!cancelled) setReadyKeys((keys) => (keys.has(rangeKey) ? keys : new Set(keys).add(rangeKey)));
+    };
+    // Hard ceiling: whatever happens below, the arrows come back.
+    const ceiling = setTimeout(markReady, 2500);
+    materializeRecurringRules({ from: rangeFrom, to: rangeTo })
+      .then((fresh) => {
+        if (cancelled) return;
+        if (fresh > 0) setArriving({ key: rangeKey, before });
+        markReady();
+      })
+      .catch((e: unknown) => {
+        // Not worth interrupting anyone: the range just shows without its
+        // forecast, and the next visit tries again.
+        console.warn('Analytics: could not generate recurring payments for the range', e);
+        markReady();
+      });
+    return () => { cancelled = true; clearTimeout(ceiling); };
+  }, [rangeFrom, rangeTo, rangeKey]);
+  const [isRendering, startTransition] = useTransition();
+  const stillArriving = arriving?.key === rangeKey && arriving.before === transactions;
+  const busy = isRendering || !readyKeys.has(rangeKey) || stillArriving;
+  // Inert while busy: pointer-events alone left the dimmed charts reachable
+  // by keyboard. React 18 has no `inert` prop, so it's set on the element.
+  const chartsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { chartsRef.current?.toggleAttribute('inert', busy); }, [busy]);
 
   // Spend by category (top N + "Others")
   const spendByCategory = useMemo(() => calculateSpendByCategory(rangedTransactions), [rangedTransactions]);
@@ -292,7 +331,7 @@ export function AnalyticsScreen() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
           <button
-            key={r} type="button" onClick={() => setRange(r)} aria-pressed={range === r}
+            key={r} type="button" onClick={() => startTransition(() => setRange(r))} aria-pressed={range === r}
             style={{
               flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
               background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? '#fff' : 'var(--text)',
@@ -300,32 +339,48 @@ export function AnalyticsScreen() {
               transition: 'all var(--dur-fast) var(--ease-spring-out)',
             }}
           >
-            {r}
+            {t(RANGE_KEY[r])}
           </button>
         ))}
       </div>
 
-      {/* Its own row: "Octubre – Diciembre 2026" doesn't fit beside the
-          title on a phone. Same navigator as Home, so paging feels the same. */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+      {/* Its own row, centred: "Octubre – Diciembre 2026" doesn't fit beside
+          the title on a phone. Today sits on the side you paged towards. */}
+      <div style={{ marginBottom: 20 }}>
         <MonthNav
+          centered
+          busy={busy}
           label={rangeLabel}
           widthSample={widestRangeLabel(range)}
           unit="period"
           todayIsAhead={!isCurrent && anchor < today}
-          onPrev={() => setAnchor((a) => shiftAnchor(range, a, -1, settings.payDays))}
-          onNext={() => setAnchor((a) => shiftAnchor(range, a, 1, settings.payDays))}
-          onToday={isCurrent ? undefined : () => setAnchor(today)}
+          onPrev={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, -1, settings.payDays)))}
+          onNext={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, 1, settings.payDays)))}
+          onToday={isCurrent ? undefined : () => startTransition(() => setAnchor(today))}
         />
       </div>
 
-      {layout.order
-        .filter((id) => !layout.hiddenIds.includes(id))
-        .map((id) => (
-          <ChartCard key={id} title={sections[id].title}>
-            {sections[id].content}
-          </ChartCard>
-        ))}
+      {/* Dimmed and inert while the period loads: the numbers on screen
+          belong to the period you're leaving. */}
+      <div
+        ref={chartsRef}
+        aria-busy={busy}
+        style={{
+          opacity: busy ? 0.45 : 1,
+          pointerEvents: busy ? 'none' : undefined,
+          // Dims only if loading actually takes a moment: a quick period
+          // swap shows no flash. Brightening back is immediate.
+          transition: busy ? 'opacity 150ms ease 150ms' : 'opacity 100ms ease',
+        }}
+      >
+        {layout.order
+          .filter((id) => !layout.hiddenIds.includes(id))
+          .map((id) => (
+            <ChartCard key={id} title={sections[id].title}>
+              {sections[id].content}
+            </ChartCard>
+          ))}
+      </div>
 
       <ChartManager
         layout={layout}
@@ -539,34 +594,3 @@ const tooltipStyle: React.CSSProperties = {
   background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--text-sm)',
 };
 
-const MONTH_LONG = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-/**
- * The widest label a range can show, so the arrows keep their place while
- * paging within it (MonthNav reserves this width). It can change when the
- * range type changes — that's a different control state anyway.
- */
-function widestRangeLabel(range: Range): string {
-  if (range === 'mes') return widestMonthLabel();
-  if (range === 'año') return '0000 completo';
-  if (range === 'quincena') return '00 sept. – 00 sept.';
-  const quarters = [0, 3, 6, 9].map((q) => `${MONTH_LONG[q]} – ${MONTH_LONG[q + 2]} 0000`);
-  return quarters.reduce((a, b) => (b.length > a.length ? b : a));
-}
-
-/** Label for the period being looked at, so the user can see the selector does change something. */
-function describeRange(range: Range, today: string, payDays: number[]): string {
-  const { from, to } = rangeBounds(range, today, payDays);
-  const [y, m] = from.split('-').map(Number) as [number, number];
-  // A pay period is stated in days, not months: its whole point is that it
-  // crosses the month boundary, and saying just "September" would hide that.
-  if (range === 'quincena') {
-    const d = formatShortDate(from);
-    const h = formatShortDate(to);
-    return `${d.day} ${d.month} – ${h.day} ${h.month}`;
-  }
-  if (range === 'mes') return `${MONTH_LONG[m - 1]} ${y}`;
-  if (range === 'año') return `${y} completo`;
-  const mTo = Number(to.split('-')[1]);
-  return `${MONTH_LONG[m - 1]} – ${MONTH_LONG[mTo - 1]} ${y}`;
-}

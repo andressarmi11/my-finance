@@ -112,11 +112,11 @@ export function CalendarScreen() {
       {dayTransactions.length === 0 && dayPayments.length === 0 ? (
         <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>{t('calendar.noTransactionsToday')}</p>
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px' }}>
+        <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px' }}>
           {dayTransactions.map((tx) => {
             const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
             return (
-              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
                 <CategoryAvatar
                   icon={cat?.icon ?? 'other'}
                   color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
@@ -130,7 +130,7 @@ export function CalendarScreen() {
             );
           })}
           {dayPayments.map((tx) => (
-            <div key={`pay-${tx.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+            <div key={`pay-${tx.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
               <span
                 aria-hidden
                 style={{

@@ -71,6 +71,17 @@ button { font: inherit; color: inherit; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Separador ENTRE filas de una lista, nunca después de la última. Con
+   borderBottom en cada fila, la última dejaba una raya suelta al fondo de
+   la tarjeta sin nada que separar (Calendario → movimientos del día). */
+.divided > * + * {
+  border-top: 1px solid var(--line);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

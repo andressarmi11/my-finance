@@ -1,4 +1,4 @@
-import { IconArrowBackUp, IconArrowForwardUp } from '@tabler/icons-react';
+import { IconArrowBackUp, IconArrowForwardUp, IconLoader2 } from '@tabler/icons-react';
 import { useT } from '@/i18n/language';
 import { haptic } from '@/lib/haptic';
 
@@ -21,6 +21,12 @@ let MONTH_NAMES = MONTHS_ES;
 export function setMonthNames(language: 'es' | 'en'): void {
   MONTH_NAMES = language === 'en' ? MONTHS_EN : MONTHS_ES;
 }
+
+/**
+ * How long a load has to take before it shows. A period that's ready at
+ * once swaps without a flash; a slow one shows "Loading…" and dimmed arrows.
+ */
+const BUSY_DELAY_MS = 150;
 
 /** Month name, 1-12. Returns '' out of range rather than undefined. */
 export function monthName(m: number): string {
@@ -63,7 +69,9 @@ const TODAY_IN_EVERY_LANGUAGE = ['Hoy', 'Today'];
  * forward a year, getting back was a punishment. An invisible affordance is
  * the same as no affordance.
  */
-export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month' }: {
+export function MonthNav({
+  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false,
+}: {
   label: string;
   /**
    * What one step is, for screen readers. Analytics pages by quincena,
@@ -84,23 +92,96 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
   /** undefined = you are already on the current month; Today is hidden. */
   onToday?: () => void;
   /**
-   * Whether today lies FORWARD from where you are. It only decides which
-   * way the arrow on the Today button points: back when you have paged into
-   * the future, forward when you have paged into the past. Purely visual,
-   * but an arrow pointing the wrong way is a small lie.
+   * Whether today lies FORWARD from where you are. It decides which way
+   * the arrow on the Today button points: back when you have paged into
+   * the future, forward when you have paged into the past. In `centered`
+   * mode it also decides the side the button sits on.
    */
   todayIsAhead?: boolean;
+  /**
+   * Arrows and label dead-centre across the full width, with Today in a side
+   * column: left after paging back, right after paging forward. The side
+   * columns are equal, so the arrows never move when Today comes and goes.
+   * Off by default: Home keeps it compact beside its title.
+   */
+  centered?: boolean;
+  /**
+   * The screen is still building the period just asked for. The arrows wait
+   * — a second tap would queue work on top of work — and the label says so,
+   * instead of a delay the user can't explain.
+   */
+  busy?: boolean;
 }) {
   const t = useT();
+  const loadingText = t('home.loading');
 
-  return (
+  const todayButton = (
+    <button
+      type="button"
+      onClick={() => { if (onToday && !busy) { haptic('light'); onToday(); } }}
+      aria-label={unit === 'period' ? t('nav.backToCurrentPeriod') : t('nav.backToCurrentMonth')}
+      aria-hidden={!onToday}
+      // aria-disabled, not disabled, while busy: disabling the focused button
+      // threw keyboard and VoiceOver focus back to the top of the page.
+      disabled={!onToday}
+      aria-disabled={busy || undefined}
+      tabIndex={onToday ? undefined : -1}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        minHeight: 32, margin: centered ? '0 2px' : '0 0 0 2px', padding: '0 9px 0 7px',
+        // Centred, the button lives in a side column whose width depends on
+        // the phone, the font and the language ("Hoy" vs "Today"). Instead
+        // of guessing a breakpoint, the word WRAPS to a second line when it
+        // doesn't fit, and that line is clipped: the browser decides, from
+        // the real space, whether there's room for the word or only the arrow.
+        ...(centered ? {
+          height: 32, maxWidth: '100%', minWidth: 0, flexWrap: 'wrap' as const,
+          alignContent: 'flex-start', justifyContent: 'center', overflow: 'hidden', paddingRight: 7,
+        } : {}),
+        borderRadius: 999, border: '1px solid var(--q10)',
+        background: 'var(--q10-soft)', color: 'var(--q10-text)',
+        fontSize: 'var(--text-sm)', fontWeight: 700,
+        cursor: onToday && !busy ? 'pointer' : 'default',
+        whiteSpace: 'nowrap',
+        visibility: onToday ? 'visible' : 'hidden',
+        opacity: busy ? 0.5 : 1,
+        transition: busy ? `opacity 120ms ease ${BUSY_DELAY_MS}ms` : 'none',
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', height: 30 }}>
+        {todayIsAhead
+          ? <IconArrowForwardUp size={15} stroke={2.2} aria-hidden />
+          : <IconArrowBackUp size={15} stroke={2.2} aria-hidden />}
+      </span>
+
+      {/* Same stacking trick as the label, for the word itself: "Today"
+          is wider than "Hoy", so without this the whole navigator —and
+          with it the arrows— shifted the moment someone switched
+          language. Both words are laid out hidden in the same grid cell;
+          the cell takes the wider of the two, whatever the font says. */}
+      <span style={{ display: 'inline-grid', alignItems: 'center', justifyItems: 'center', height: 30, paddingRight: centered ? 2 : 0 }}>
+        {/* Not needed when centred: the side column absorbs the width
+            change, the arrows don't move — and the saved width is what lets
+            the word fit beside them on a 390px phone. */}
+        {!centered && TODAY_IN_EVERY_LANGUAGE.map((word) => (
+          <span key={word} aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>
+            {word}
+          </span>
+        ))}
+        <span style={{ gridArea: '1 / 1' }}>{t('nav.today')}</span>
+      </span>
+    </button>
+  );
+
+  const arrowsAndLabel = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <Arrow dir="prev" unit={unit} onClick={onPrev} />
+      <Arrow dir="prev" unit={unit} disabled={busy} onClick={onPrev} />
 
-      {/* Both spans share one grid cell: the hidden one sets the width from
-          the longest possible label, the visible one carries the real text.
-          Measuring this way is exact, unlike guessing in `ch` or px, which
-          drifts with the font and with the language. */}
+      {/* Every span shares one grid cell: the hidden ones set the width from
+          the longest possible label (and from "Loading…", so swapping to it
+          moves nothing), the visible one carries the real text. Measuring
+          this way is exact, unlike guessing in `ch` or px, which drifts with
+          the font and with the language. */}
       <span
         style={{
           display: 'inline-grid',
@@ -115,60 +196,63 @@ export function MonthNav({ label, widthSample, onPrev, onNext, onToday, todayIsA
         }}
       >
         <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>{widthSample}</span>
+        <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden', paddingLeft: 20 }}>{loadingText}</span>
         {/* Announced after each arrow tap: otherwise a screen reader user
-            presses "next" and hears nothing about where they landed. */}
-        <span aria-live="polite" style={{ gridArea: '1 / 1' }}>{label}</span>
+            presses "next" and hears nothing about where they landed. The
+            label and "Loading…" cross-fade with a short delay, so a period
+            that loads at once shows no flash at all. */}
+        <span
+          aria-live="polite"
+          style={{ gridArea: '1 / 1', opacity: busy ? 0 : 1, transition: busy ? `opacity 120ms ease ${BUSY_DELAY_MS}ms` : 'none' }}
+        >
+          {label}
+        </span>
+        <span
+          aria-hidden
+          style={{
+            gridArea: '1 / 1', display: 'inline-flex', alignItems: 'center', gap: 6,
+            opacity: busy ? 1 : 0, transition: busy ? `opacity 120ms ease ${BUSY_DELAY_MS}ms` : 'none',
+          }}
+        >
+          <IconLoader2 size={14} stroke={2.2} style={{ animation: busy ? 'spin 0.8s linear infinite' : undefined }} />
+          {loadingText}
+        </span>
       </span>
 
-      <Arrow dir="next" unit={unit} onClick={onNext} />
+      <Arrow dir="next" unit={unit} disabled={busy} onClick={onNext} />
+    </div>
+  );
 
-      {/* Always rendered, hidden when there is nowhere to go back to.
-          Dropping it from the tree shrank the whole navigator, and since
-          the navigator is centred, everything shifted — which is the very
-          thing this component now promises never to do. Hidden it still
-          reserves its box, and aria-hidden + disabled keep it out of the
-          tab order and out of a screen reader. */}
-      <button
-        type="button"
-        onClick={() => { if (onToday) { haptic('light'); onToday(); } }}
-        aria-label={unit === 'period' ? t('nav.backToCurrentPeriod') : t('nav.backToCurrentMonth')}
-        aria-hidden={!onToday}
-        disabled={!onToday}
-        tabIndex={onToday ? undefined : -1}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 4,
-          minHeight: 32, marginLeft: 2, padding: '0 9px 0 7px',
-          borderRadius: 999, border: '1px solid var(--q10)',
-          background: 'var(--q10-soft)', color: 'var(--q10-text)',
-          fontSize: 'var(--text-sm)', fontWeight: 700,
-          cursor: onToday ? 'pointer' : 'default',
-          whiteSpace: 'nowrap',
-          visibility: onToday ? 'visible' : 'hidden',
-        }}
-      >
-        {todayIsAhead
-          ? <IconArrowForwardUp size={15} stroke={2.2} aria-hidden />
-          : <IconArrowBackUp size={15} stroke={2.2} aria-hidden />}
+  if (!centered) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        {arrowsAndLabel}
+        {/* Always rendered, hidden when there is nowhere to go back to.
+            Dropping it from the tree shrank the whole navigator, and since
+            the navigator is centred, everything shifted — which is the very
+            thing this component now promises never to do. Hidden it still
+            reserves its box, and aria-hidden + disabled keep it out of the
+            tab order and out of a screen reader. */}
+        {todayButton}
+      </div>
+    );
+  }
 
-        {/* Same stacking trick as the label, for the word itself: "Today"
-            is wider than "Hoy", so without this the whole navigator —and
-            with it the arrows— shifted the moment someone switched
-            language. Both words are laid out hidden in the same grid cell;
-            the cell takes the wider of the two, whatever the font says. */}
-        <span style={{ display: 'inline-grid', alignItems: 'center', justifyItems: 'center' }}>
-          {TODAY_IN_EVERY_LANGUAGE.map((word) => (
-            <span key={word} aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>
-              {word}
-            </span>
-          ))}
-          <span style={{ gridArea: '1 / 1' }}>{t('nav.today')}</span>
-        </span>
-      </button>
+  // Two equal side columns keep the middle one — arrows and label — on the
+  // exact centre at any width. minmax(0, 1fr) lets them shrink on a narrow
+  // phone instead of pushing the centre off.
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', alignItems: 'center', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>{onToday && todayIsAhead ? todayButton : null}</div>
+      {arrowsAndLabel}
+      <div style={{ display: 'flex', justifyContent: 'flex-start', minWidth: 0 }}>{onToday && !todayIsAhead ? todayButton : null}</div>
     </div>
   );
 }
 
-function Arrow({ dir, unit, onClick }: { dir: 'prev' | 'next'; unit: 'month' | 'period'; onClick: () => void }) {
+function Arrow({ dir, unit, disabled = false, onClick }: {
+  dir: 'prev' | 'next'; unit: 'month' | 'period'; disabled?: boolean; onClick: () => void;
+}) {
   const t = useT();
   const label = unit === 'period'
     ? (dir === 'prev' ? t('nav.prevPeriod') : t('nav.nextPeriod'))
@@ -176,12 +260,18 @@ function Arrow({ dir, unit, onClick }: { dir: 'prev' | 'next'; unit: 'month' | '
   return (
     <button
       type="button"
-      onClick={() => { haptic('light'); onClick(); }}
+      onClick={() => { if (!disabled) { haptic('light'); onClick(); } }}
       aria-label={label}
+      // aria-disabled keeps focus on the arrow just pressed; `disabled` threw
+      // it to the top of the page on every tap. The click guard above does
+      // the actual blocking.
+      aria-disabled={disabled || undefined}
       style={{
         width: 'var(--tap)', height: 'var(--tap)', display: 'grid', placeItems: 'center',
         border: 'none', background: 'none', color: 'var(--q10-text)', fontSize: 20,
-        cursor: 'pointer', borderRadius: 'var(--radius-s)',
+        cursor: disabled ? 'default' : 'pointer', borderRadius: 'var(--radius-s)',
+        opacity: disabled ? 0.35 : 1,
+        transition: disabled ? `opacity 120ms ease ${BUSY_DELAY_MS}ms` : 'none',
       }}
     >
       {dir === 'prev' ? '‹' : '›'}

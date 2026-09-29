@@ -58,18 +58,30 @@ export function translate(key: TextKey): string {
   return TEXTS[currentLanguage][key] ?? TEXTS.es[key] ?? key;
 }
 
+/** Every module-level language table, switched together. */
+function syncModuleLanguage(language: Language): void {
+  currentLanguage = language;
+  setShortMonthNames(language);
+  setMonthNames(language);
+  setPeriodLabelLanguage(language);
+}
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
+
+  // The module-level tables (month names, period labels, translate()) switch
+  // DURING this render, before the children render — not in an effect, which
+  // runs after them. From an effect, a screen already on show (Analytics'
+  // period label) rendered once with the new t() and the old month names,
+  // and nothing re-rendered it afterwards. Idempotent: it only does
+  // anything when the language actually changed.
+  if (currentLanguage !== language) syncModuleLanguage(language);
 
   useEffect(() => {
     // lang on the <html>: screen readers use it to pick a voice
     // and the browser to hyphenate. Without this, a screen reader would read
     // English with Spanish phonetics.
-    currentLanguage = language;
     document.documentElement.lang = language === 'en' ? 'en' : 'es-CO';
-    setShortMonthNames(language);
-    setMonthNames(language);
-    setPeriodLabelLanguage(language);
   }, [language]);
 
   const setLanguage = useCallback((i: Language) => {

@@ -45,7 +45,9 @@ test.describe('list filters', () => {
     await page.goto('analisis');
     await page.getByRole('button', { name: 'quincena' }).click();
     // The pay period crosses the month boundary, so it is labelled with days.
-    await expect(page.getByText(/\d+ \w{3} – \d+ \w{3}/)).toBeVisible();
+    // Visible only: the navigator also lays out a hidden width sample in the
+    // same shape ("00 Mmm – 00 Mmm") so its arrows never move.
+    await expect(page.getByText(/\d+ \w{3} – \d+ \w{3}/).filter({ visible: true })).toBeVisible();
   });
 });
 
