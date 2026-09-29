@@ -27,6 +27,17 @@ import {
 } from './chartLayout';
 import { EMPTY } from '@/lib/empty';
 
+/**
+ * Chart motion. Recharts' defaults were the bulk of the "delay" when paging:
+ * the pie waited 400 ms and then animated for 1500 ms after EVERY change,
+ * ~2 s with the data already there. Short and immediate now — and none at
+ * all under "Reduce motion", which recharts (JS-driven) never honoured; the
+ * CSS rule in index.css doesn't reach it.
+ */
+const CHART_ANIMATION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  ? { isAnimationActive: false }
+  : { isAnimationActive: true, animationBegin: 0, animationDuration: 350 };
+
 const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#FFCC00', '#5AC8FA', '#FF2D55'];
 
 export function AnalyticsScreen() {
@@ -241,6 +252,7 @@ export function AnalyticsScreen() {
                 innerRadius={40}
                 outerRadius={65}
                 paddingAngle={2}
+                {...CHART_ANIMATION}
                 onClick={(entry) => {
                   const id = (entry as unknown as { id?: string })?.id;
                   if (typeof id === 'string' && id !== '__other__') {
@@ -294,8 +306,8 @@ export function AnalyticsScreen() {
             <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCompact(v)} width={44} />
             <Tooltip formatter={(v) => formatMoney(typeof v === 'number' ? v : Number(v ?? 0))} contentStyle={tooltipStyle} />
-            <Bar dataKey="income" name="Ingresos" fill="var(--positive)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expense" name="Gastos" fill="var(--danger)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="income" name="Ingresos" fill="var(--positive)" radius={[4, 4, 0, 0]} {...CHART_ANIMATION} />
+            <Bar dataKey="expense" name="Gastos" fill="var(--danger)" radius={[4, 4, 0, 0]} {...CHART_ANIMATION} />
           </BarChart>
         </ResponsiveContainer>
     </>) },

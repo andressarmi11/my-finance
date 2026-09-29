@@ -15,7 +15,7 @@
 import { addDays, daysInMonth, parseISO, toISO } from '@/domain/dates';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
 import { expandRecurringRule } from '@/domain/recurring/expansion';
-import type { ISODate, Transaction } from '@/domain/types';
+import type { ISODate, RecurringRule, Transaction } from '@/domain/types';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { db } from '../db';
 import { deletedIdsOf } from '../sync/tombstones';
@@ -85,6 +85,30 @@ export function withinHorizon(range: Range, today = todayISO()): Range | null {
   return { from: range.from, to: range.to < horizon ? range.to : horizon };
 }
 
+/**
+ * Ranges already generated in this session, for one set of rules.
+ *
+ * Every page turn (Home, Transactions, Analytics) asked for its range, and
+ * each call scanned the whole transactions table to find what was missing —
+ * even for months already generated a moment ago. Paging back and forth
+ * paid that scan every time. Now a range inside one already done is free.
+ *
+ * Keyed on the rules: creating, editing or switching off a rule (here or
+ * pulled from another device) changes the signature and forgets it all.
+ * In memory only, so a reload starts clean.
+ */
+let coveredFor = '';
+let covered: Range[] = [];
+
+export function rulesSignature(rules: RecurringRule[]): string {
+  return rules.map((r) => `${r.id}:${r.updatedAt}:${r.isActive ? 1 : 0}`).sort().join('|');
+}
+
+/** Whether `range` lies inside one of the ranges already generated. */
+export function isCovered(done: readonly Range[], range: Range): boolean {
+  return done.some((c) => c.from <= range.from && range.to <= c.to);
+}
+
 export async function materializeRecurringRules(requested: Range = defaultRange()): Promise<number> {
   const range = withinHorizon(requested);
   if (!range) return 0;
@@ -92,6 +116,13 @@ export async function materializeRecurringRules(requested: Range = defaultRange(
     db.recurringRules.toArray(),
     db.paymentMethods.toArray(),
   ]);
+  const signature = rulesSignature(allRules);
+  if (signature !== coveredFor) {
+    coveredFor = signature;
+    covered = [];
+  }
+  if (isCovered(covered, range)) return 0;
+
   const rules = allRules.filter((r) => r.isActive);
   if (rules.length === 0) return 0;
 
@@ -146,12 +177,15 @@ export async function materializeRecurringRules(requested: Range = defaultRange(
     }
   }
 
-  if (fresh.length === 0) return 0;
-  // Tolerant bulkAdd: if another tab put the same instance in first, the
-  // unique index rejects just that row instead of taking down the whole batch.
-  await db.transactions.bulkAdd(fresh).catch((e: unknown) => {
-    if (!(e instanceof Error) || !e.name.includes('Bulk')) throw e;
-  });
+  if (fresh.length > 0) {
+    // Tolerant bulkAdd: if another tab put the same instance in first, the
+    // unique index rejects just that row instead of taking down the whole batch.
+    await db.transactions.bulkAdd(fresh).catch((e: unknown) => {
+      if (!(e instanceof Error) || !e.name.includes('Bulk')) throw e;
+    });
+  }
+  // Only after the write went through: a failed call must be retried.
+  if (signature === coveredFor) covered.push(range);
   return fresh.length;
 }
 
