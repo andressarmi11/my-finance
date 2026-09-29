@@ -46,10 +46,14 @@ export function interpretText(text: string, today: ISODate, ctx: UserContext): I
   // What's been learned goes first, the keyword table is the floor.
   const categoryId = finalCategory(learned?.categoryId ?? null, parsed.categoryIdSugerida, ctx.categoryIds);
 
-  // The method the text names wins ("con la tarjeta" is explicit);
-  // then what's been learned, and last the usual one.
+  // Income always lands in the debit account: money comes in there, never
+  // on a credit card. Without this "Recibí 400 mil" took the usual method,
+  // which for someone who mostly pays by card was the card.
+  // Otherwise the method the text names wins ("con la tarjeta" is
+  // explicit); then what's been learned, and last the usual one.
   const paymentMethodId =
-    methodByType(ctx.methodRows, parsed.method)
+    (parsed.type === 'income' ? methodByType(ctx.methodRows, 'debit') : null)
+    ?? methodByType(ctx.methodRows, parsed.method)
     ?? learned?.paymentMethodId
     ?? ctx.defaultMethodId
     ?? ctx.methodRows.find((m) => m.isDefault)?.id

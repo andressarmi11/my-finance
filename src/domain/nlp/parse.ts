@@ -189,7 +189,10 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
   return {
     type,
     amount: amount?.value ?? null,
-    concept: pretty(concept),
+    // "Recibí 400 mil" says nothing else, and an entry without a concept
+    // can't be logged — it sat in the inbox with the button off. For
+    // money coming in, "Ingreso" is an honest name; an expense still asks.
+    concept: pretty(concept) || (type === 'income' ? 'Ingreso' : ''),
     date: date.date,
     method,
     categoryIdSugerida: guessCategory(concept || text),

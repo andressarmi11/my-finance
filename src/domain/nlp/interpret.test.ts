@@ -83,3 +83,11 @@ describe('interpretarTexto — the payment method', () => {
     expect(r.paymentMethodId).toBe('pm-debito');
   });
 });
+
+describe('income always lands in debit', () => {
+  it('even when the usual method is the card', () => {
+    const r = interpretText('Recibí 400,000', TODAY, ctx({ defaultMethodId: 'pm-credito' }));
+    expect(r.parsed).toMatchObject({ type: 'income', amount: 400_000, concept: 'Ingreso' });
+    expect(r.paymentMethodId).toBe('pm-debito');
+  });
+});

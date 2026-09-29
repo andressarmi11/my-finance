@@ -106,7 +106,8 @@ describe('bank SMS', () => {
   });
 
   it('spoken income: "recibí" and "vendí"', () => {
-    expect(p('Recibí 45 mil')).toMatchObject({ type: 'income', amount: 45_000 });
+    expect(p('Recibí 45 mil')).toMatchObject({ type: 'income', amount: 45_000, concept: 'Ingreso' });
+    expect(p('Recibí 400,000')).toMatchObject({ type: 'income', amount: 400_000, concept: 'Ingreso' });
     expect(p('Vendí la bicicleta en 500 mil')).toMatchObject({ type: 'income', amount: 500_000 });
   });
 
