@@ -3,6 +3,7 @@ import { TabBar } from '@/components/ui/TabBar';
 import { InstallBanner } from '@/components/ui/InstallBanner';
 import { InboxBanner } from '@/features/inbox/InboxBanner';
 import { SyncIndicator } from '@/components/ui/SyncIndicator';
+import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { LegalFooter } from '@/features/legal/LegalFooter';
 import { Logo } from '@/components/ui/Logo';
 import { AuthGate } from '@/features/auth/AuthGate';
@@ -55,6 +56,7 @@ function AppShell() {
           <LegalFooter />
         </main>
         <TabBar />
+        <PullToRefresh />
         <SyncIndicator status={status} error={error} onReintentar={() => void sync(true)} />
       </div>
     </OnboardingGate>

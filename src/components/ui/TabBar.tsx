@@ -1,5 +1,6 @@
 import { useT } from '@/i18n/language';
-import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
+import { IconCurrencyDollar, IconMicrophone, IconRefresh, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
+import { refreshApp } from '@/components/ui/PullToRefresh';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useNavigate } from 'react-router-dom';
@@ -79,6 +80,7 @@ export function TabBar() {
           zIndex: 40,
         }}
       >
+        <RefreshButton hidden={fabHidden} label={t('action.refresh')} />
         <AddButton
           hidden={fabHidden}
           onClick={() => {
@@ -195,6 +197,43 @@ function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean 
       }}
     >
       +
+    </button>
+  );
+}
+
+/**
+ * Sits on top of the +, and hides and comes back with it. Reloads the app
+ * — what the user had to do by closing and reopening it to see what the
+ * Shortcuts had just sent in.
+ */
+function RefreshButton({ hidden, label }: { hidden: boolean; label: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={refreshApp}
+      style={{
+        position: 'absolute',
+        // Centred over the + (56 wide, right: 16) with a 12px gap above it.
+        right: 22,
+        bottom: 'calc(100% + 14px + 56px + 12px)',
+        transform: `scale(${hidden ? 0 : 1})`,
+        opacity: hidden ? 0 : 1,
+        pointerEvents: hidden ? 'none' : 'auto',
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        display: 'grid',
+        placeItems: 'center',
+        border: '1px solid var(--line-strong)',
+        background: 'var(--surface)',
+        color: 'var(--q10)',
+        cursor: 'pointer',
+        boxShadow: 'var(--shadow-2)',
+        transition: 'transform var(--dur-med) var(--ease-spring-out), opacity var(--dur-med) var(--ease-spring-out)',
+      }}
+    >
+      <IconRefresh size={20} stroke={2} aria-hidden />
     </button>
   );
 }
