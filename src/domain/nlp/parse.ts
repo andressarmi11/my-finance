@@ -34,7 +34,7 @@ export interface Parsed {
 const INCOME_VERBS = [
   'me llego', 'me llegaron', 'recibi', 'me pagaron', 'cobre', 'me consignaron',
   'me transfirieron', 'me entro', 'entro', 'ingreso', 'me depositaron',
-  'recibiste', 'abono', 'abonaron', 'te consignaron', 'nomina', 'salario',
+  'recibiste', 'abono', 'abonaron', 'te consignaron', 'nomina', 'salario', 'vendi',
 ];
 
 const EXPENSE_VERBS = [
@@ -43,10 +43,10 @@ const EXPENSE_VERBS = [
 ];
 
 const METHOD_KEYWORDS: Array<{ type: PaymentMethodType; keywords: string[] }> = [
-  { type: 'credit', keywords: ['tarjeta de credito', 'con la tarjeta', 'con tarjeta', 'tc', 'credito', 'visa', 'mastercard'] },
+  { type: 'credit', keywords: ['tarjeta de credito', 'con la tarjeta', 'con tarjeta', 'tc', 'credito', 'visa', 'mastercard', 't.cred'] },
   { type: 'cash', keywords: ['efectivo', 'en efectivo', 'cash', 'billete'] },
   { type: 'transfer', keywords: ['transferencia', 'nequi', 'daviplata', 'pse', 'transfiri'] },
-  { type: 'debit', keywords: ['debito', 'con la debito', 'tarjeta debito', 'ahorros'] },
+  { type: 'debit', keywords: ['debito', 'con la debito', 'tarjeta debito', 'ahorros', 't.deb', 'desde tu cuenta'] },
 ];
 
 /** Words that are noise in the concept once everything else has been stripped out. */
@@ -131,6 +131,21 @@ function extractConcept(text: string, aQuitar: Array<string | null>): string {
   return words.join(' ').trim();
 }
 
+/**
+ * Bancolombia's templates put the merchant between fixed phrases
+ * ("Compraste $X en EXITO LAURELES con tu T.Cred"), so read it from there
+ * instead of hoping the leftovers read well — the generic path turned the
+ * real SMS into "Compraste exito laureles tu t cred 1234 si tienes dudas…".
+ * Bounded, no nested quantifiers: this text comes from a public endpoint.
+ */
+function bankConcept(text: string): string | null {
+  const compra = /\sen ([^,]{1,60}?) con tu t\./.exec(text);
+  if (compra) return compra[1]!.trim();
+  if (/\scodigo qr\s/.test(text)) return 'pago qr';
+  if (/\sconsignacion\s/.test(text)) return 'consignacion';
+  return null;
+}
+
 /** Capitalises the first letter; the rest is left as it came. */
 function pretty(s: string): string {
   if (!s) return s;
@@ -160,7 +175,7 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     }
   }
 
-  const concept = extractConcept(text, [
+  const concept = bankConcept(text) ?? extractConcept(text, [
     amount ? normalizeText(amount.text) : null,
     date.text,
     methodText,
