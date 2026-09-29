@@ -17,7 +17,22 @@ export function usePushNotifications() {
   useEffect(() => {
     if (!isSupabaseConfigured() || !vapidPublicKey) { setState('unconfigured'); return; }
     if (!supportsPush()) { setState('unsupported'); return; }
-    setState(Notification.permission === 'granted' ? 'granted' : Notification.permission === 'denied' ? 'denied' : 'default');
+    if (Notification.permission === 'denied') { setState('denied'); return; }
+    if (Notification.permission !== 'granted') { setState('default'); return; }
+
+    // Permission granted is not the same as subscribed. A device whose
+    // subscription never reached the server (the first attempt failed,
+    // or iOS dropped it) showed "turn off" and nothing else: no way to
+    // register again, and no reminder would ever arrive. Check the real
+    // subscription; if it exists, re-save it — that repairs those devices.
+    void navigator.serviceWorker.ready
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((subscription) => {
+        if (!subscription) { setState('default'); return; }
+        setState('granted');
+        void savePushSubscription(subscription).catch(() => { /* next visit retries */ });
+      })
+      .catch(() => setState('default'));
   }, []);
 
   async function subscribe() {

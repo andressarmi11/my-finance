@@ -14,7 +14,9 @@
 // codigo): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VAPID_PUBLIC_KEY,
 // VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:tucorreo@dominio.com).
 //
-// Desplegar con: supabase functions deploy send-reminders
+// Desplegar con: supabase functions deploy send-reminders --no-verify-jwt
+//   (--no-verify-jwt: quien la llama es pg_cron, que no tiene sesión; la
+//    autorización es CRON_SECRET, que esta función verifica ella misma.)
 // Configurar secrets con: supabase secrets set VAPID_PUBLIC_KEY=... etc.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -58,6 +60,30 @@ Deno.serve(async (req) => {
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  // Test mode: one notification to one user's devices, touching no data.
+  // Behind the same secret as the cron, so only whoever holds it can fire it.
+  const body = await req.json().catch(() => ({})) as { test?: boolean; userId?: string };
+  if (body.test && body.userId) {
+    const { data: subs } = await supabase
+      .from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', body.userId);
+    const payload = JSON.stringify({ title: 'Step up', body: '🔔 Prueba: los recordatorios ya te llegan.' });
+    let delivered = 0;
+    const errors: string[] = [];
+    for (const sub of (subs ?? []) as SubscriptionRow[]) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          payload,
+          { timeout: 10_000, TTL: 60 * 60 },
+        );
+        delivered += 1;
+      } catch (err) {
+        errors.push(String((err as { statusCode?: number }).statusCode ?? err));
+      }
+    }
+    return new Response(JSON.stringify({ subscriptions: subs?.length ?? 0, delivered, errors }), { status: 200 });
+  }
 
   const { data: dueReminders, error: remindersError } = await supabase
     .from('reminders')
