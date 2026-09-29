@@ -105,7 +105,7 @@ async function applyTombstonesLocally(tombstones: Tombstone[]): Promise<number> 
   return deletedCount;
 }
 
-export async function pullCloudToLocal(): Promise<SyncResult> {
+export async function pullCloudToLocal(): Promise<SyncResult & { remoteTombstones: Tombstone[] }> {
   const remoteTombstones = await listRemoteTombstones();
   const localTombstones = await db.deletions.toArray();
   const all = mergeTombstones(localTombstones, remoteTombstones);
@@ -194,6 +194,7 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
     pushed: 0,
     pulled: toPut.length + planBudgets.saveLocal.length + remindersToSave.length,
     deleted,
+    remoteTombstones,
   };
 }
 
@@ -206,14 +207,22 @@ function newerThanRemote<T extends { id: string; updatedAt: string }>(local: T[]
   });
 }
 
-export async function pushLocalToCloud(): Promise<SyncResult> {
+/**
+ * @param knownRemote the cloud's tombstones, when the caller just pulled
+ * them — downloading the whole list twice per cycle was pure egress.
+ * A stale list is harmless: re-sending a tombstone is an idempotent upsert.
+ */
+export async function pushLocalToCloud(knownRemote?: Tombstone[]): Promise<SyncResult> {
   const userId = await currentUserId();
 
   // 1. Deletions first: push the tombstone and delete over there. Only the
   //    ones the cloud doesn't have yet — re-sending the whole history on
   //    every cycle grew without limit, and the delete's id list, which
   //    travels in the URL, eventually got too long for the server.
-  const [tombstones, remoteTombstones] = await Promise.all([db.deletions.toArray(), listRemoteTombstones()]);
+  const [tombstones, remoteTombstones] = await Promise.all([
+    db.deletions.toArray(),
+    knownRemote ?? listRemoteTombstones(),
+  ]);
   const known = new Set(remoteTombstones.map((t) => t.id));
   const newTombstones = tombstones.filter((t) => !known.has(t.id));
   await saveRemoteTombstones(newTombstones);
@@ -279,7 +288,7 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
 
 export async function syncBidirectional(): Promise<SyncResult> {
   const pull = await pullCloudToLocal();
-  const push = await pushLocalToCloud();
+  const push = await pushLocalToCloud(pull.remoteTombstones);
   return { pushed: push.pushed, pulled: pull.pulled, deleted: pull.deleted };
 }
 

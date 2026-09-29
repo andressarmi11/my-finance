@@ -238,7 +238,11 @@ test('a check on a recurring payment is not undone by the other browser generati
   // leaves the app.
   for (let i = 0; i < 4; i++) await b.page.getByRole('button', { name: 'Mes siguiente' }).click();
   await expect(b.page.getByText('Arriendo').first()).toBeVisible();
-  await leaveAndReturn(b.page, backend);
+  // B only looked, so leaving has nothing to upload; its next sync is the
+  // next time it opens. That reload generates the month again BEFORE
+  // pulling — the moment the stale copy used to win.
+  await syncAfter(b.page, backend, () => b.page.reload());
+  for (let i = 0; i < 4; i++) await b.page.getByRole('button', { name: 'Mes siguiente' }).click();
 
   // The check has to survive, in the cloud and in B.
   expect(paidInCloud()).toHaveLength(1);

@@ -20,6 +20,7 @@ test('pulling down from the top reloads the home-screen app', async ({ page, bro
     Object.defineProperty(navigator, 'standalone', { value: true, configurable: true });
   });
   await page.goto('');
+  await expect(page.locator('main')).toBeVisible();
 
   const reloaded = page.waitForEvent('load');
   await page.evaluate(async () => {
@@ -36,6 +37,9 @@ test('pulling down from the top reloads the home-screen app', async ({ page, bro
       await new Promise((r) => requestAnimationFrame(r));
     }
     fire('touchend', null);
+  }).catch((e: unknown) => {
+    // The reload can land before evaluate returns: that IS the success.
+    if (!String(e).includes('Execution context was destroyed')) throw e;
   });
   await reloaded;
 });

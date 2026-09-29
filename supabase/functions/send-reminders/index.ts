@@ -50,8 +50,10 @@ Deno.serve(async (req) => {
   // La funcion solo la debe llamar el cron (con el secret configurado),
   // nunca el cliente directamente.
   const auth = req.headers.get('Authorization');
-  const expected = `Bearer ${Deno.env.get('CRON_SECRET') ?? ''}`;
-  if (!auth || auth !== expected) {
+  const secret = Deno.env.get('CRON_SECRET') ?? '';
+  // Without a secret configured, "Bearer " would be the password: anyone
+  // could invoke this — and every invocation is billed.
+  if (!secret || !auth || auth !== `Bearer ${secret}`) {
     return new Response('No autorizado', { status: 401 });
   }
 
@@ -74,13 +76,24 @@ Deno.serve(async (req) => {
   let sent = 0;
   let failed = 0;
 
-  for (const reminder of dueReminders as ReminderRow[]) {
-    const [{ data: subs }, { data: tx }] = await Promise.all([
-      supabase.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', reminder.user_id),
-      supabase.from('transactions').select('id, concept, amount').eq('id', reminder.transaction_id).maybeSingle(),
-    ]);
+  // Two queries for the whole batch instead of two per reminder: with the
+  // 200-row cap that was up to 400 round-trips per run, every 15 minutes.
+  const reminders = dueReminders as ReminderRow[];
+  const userIds = [...new Set(reminders.map((r) => r.user_id))];
+  const txIds = [...new Set(reminders.map((r) => r.transaction_id))];
+  const [{ data: allSubs }, { data: allTx }] = await Promise.all([
+    supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth').in('user_id', userIds),
+    supabase.from('transactions').select('id, concept, amount').in('id', txIds),
+  ]);
+  const subsByUser = new Map<string, SubscriptionRow[]>();
+  for (const sub of (allSubs ?? []) as Array<SubscriptionRow & { user_id: string }>) {
+    subsByUser.set(sub.user_id, [...(subsByUser.get(sub.user_id) ?? []), sub]);
+  }
+  const txById = new Map(((allTx ?? []) as TransactionRow[]).map((t) => [t.id, t]));
 
-    const transaction = tx as TransactionRow | null;
+  for (const reminder of reminders) {
+    const subs = subsByUser.get(reminder.user_id) ?? [];
+    const transaction = txById.get(reminder.transaction_id) ?? null;
     const payload = JSON.stringify({
       title: 'Step up',
       body: transaction
@@ -89,11 +102,14 @@ Deno.serve(async (req) => {
     });
 
     let anySucceeded = false;
-    for (const sub of (subs ?? []) as SubscriptionRow[]) {
+    for (const sub of subs) {
       try {
+        // A push service that never answers used to hold the whole run —
+        // billed by wall-clock time — until the platform killed it.
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           payload,
+          { timeout: 10_000, TTL: 24 * 60 * 60 },
         );
         anySucceeded = true;
       } catch (err) {
