@@ -122,6 +122,7 @@ export function TransactionsScreen() {
         categoryId,
         paymentMethodId,
         markPaidNow: read.yaOcurrio,
+        currency: read.currency,
       };
     } else {
       next = {
@@ -625,6 +626,8 @@ export function TransactionsScreen() {
           categories={categories}
           paymentMethods={paymentMethods}
           defaultPaymentMethodId={settings.defaultPaymentMethodId ?? paymentMethods.find((m) => m.isDefault)?.id ?? null}
+          mainCurrency={settings.currency}
+          quickCurrencies={settings.quickCurrencies}
           onSave={handleSave}
           onDelete={editing ? handleDelete : undefined}
           onDuplicate={editing ? handleDuplicate : undefined}

@@ -64,7 +64,7 @@ test('a bank SMS comes in through a URL and ends up interpreted', async ({ page 
 
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByLabel('Valor')).toHaveValue('$ 145.000');
+  await expect(dialog.getByLabel('Valor')).toHaveValue('145.000');
   await expect(dialog.getByPlaceholder('Ej. Restaurante')).toHaveValue(/exito/i);
   await expect(dialog.getByText('Nuevo gasto')).toBeVisible();
 });

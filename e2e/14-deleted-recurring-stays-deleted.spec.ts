@@ -29,6 +29,8 @@ test('a deleted recurring transaction does not come back on reload', async ({ pa
   await page.getByRole('button', { name: 'Eliminar' }).click();
   const confirmar = page.getByRole('dialog', { name: 'Confirmar eliminación' });
   await confirmar.getByRole('button', { name: 'Sí, eliminar' }).click();
+  // The confirmation lists what it deletes, so wait for it to close first.
+  await expect(confirmar).toBeHidden();
   await expect(page.getByText('Gimnasio Zombi')).toBeHidden();
 
   // Reloading runs materializeRecurringRules() again: this is where it came back.

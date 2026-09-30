@@ -37,11 +37,13 @@ test('each card works out its payment date from ITS OWN days', async ({ page }) 
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Compra Amex');
   await dialog.getByPlaceholder('$ 0').fill('250000');
+  // Two cards now: Crédito shows their names to pick one.
+  await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
   await dialog.getByRole('button', { name: 'Amex Oro' }).click();
 
   // The preview comes from THIS card's cutoff 5 / payment 20, not the 15/2
   // of the one the app ships with.
-  await expect(dialog.getByText(/Se paga el 20/)).toBeVisible();
+  await expect(dialog.getByText(/Corte 5 · se paga el 20/)).toBeVisible();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 });
@@ -56,6 +58,8 @@ test('the credit limit shows the available amount and deducts from it', async ({
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Mercado');
   await dialog.getByPlaceholder('$ 0').fill('300000');
+  // Two cards now: Crédito shows their names to pick one.
+  await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
   await dialog.getByRole('button', { name: 'Visa Cupo' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
@@ -71,6 +75,8 @@ test('deleting a card leaves its transactions without a method, it does not dele
   const nuevo = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await nuevo.getByPlaceholder('Ej. Restaurante').fill('Gasto huérfano');
   await nuevo.getByPlaceholder('$ 0').fill('90000');
+  // Two cards now: Crédito shows their names to pick one.
+  await nuevo.getByRole('button', { name: 'Crédito', exact: true }).click();
   await nuevo.getByRole('button', { name: 'Temporal' }).click();
   await nuevo.getByRole('button', { name: 'Guardar' }).click();
   await expect(nuevo).toBeHidden();

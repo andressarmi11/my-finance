@@ -127,3 +127,63 @@ describe('reminder round-trip', () => {
     expect(reminderFromRow(reminderToRow(USER, reminder))).toEqual(reminder);
   });
 });
+
+describe('foreign currency and per-transaction reminder (migrations 0013/0014)', () => {
+  const base: Transaction = {
+    id: 't9', type: 'expense', concept: 'Libro', amount: 80_000, date: '2026-09-20',
+    categoryId: null, paymentMethodId: 'pm-efectivo', status: 'paid', quincenaKey: null,
+    createdAt: '2026-09-20T10:00:00Z', updatedAt: '2026-09-20T10:00:00Z',
+  };
+
+  it('a USD transaction keeps its original amount and rate', () => {
+    const tx: Transaction = { ...base, currency: 'USD', originalAmount: 20, fxRate: 4000 };
+    const row = transactionToRow(USER, tx);
+    expect(row).toMatchObject({ currency: 'USD', original_amount: 20, fx_rate: 4000 });
+    expect(transactionFromRow(row)).toEqual(tx);
+  });
+
+  it('a main-currency transaction sends nulls, so switching back clears the columns', () => {
+    const row = transactionToRow(USER, base);
+    expect(row).toMatchObject({ currency: null, original_amount: null, fx_rate: null, reminder: null, time: null });
+    expect(transactionFromRow(row)).toEqual(base);
+  });
+
+  it('a half-filled foreign amount is not trusted: it reads as main currency', () => {
+    const row = { ...transactionToRow(USER, base), currency: 'USD', original_amount: 20, fx_rate: null };
+    expect(transactionFromRow(row).currency).toBeUndefined();
+  });
+
+  it('numeric rates that come back as strings are parsed', () => {
+    const row = { ...transactionToRow(USER, base), currency: 'EUR', original_amount: 10, fx_rate: '4350.5' };
+    expect(transactionFromRow(row)).toMatchObject({ currency: 'EUR', originalAmount: 10, fxRate: 4350.5 });
+  });
+
+  it('keeps the reminder override and the time', () => {
+    const own: Transaction = {
+      ...base, time: '18:30',
+      reminder: { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'hours', value: 1 } },
+    };
+    expect(transactionFromRow(transactionToRow(USER, own))).toEqual(own);
+    const none: Transaction = { ...base, reminder: 'none' };
+    expect(transactionFromRow(transactionToRow(USER, none))).toEqual(none);
+  });
+
+  it('a recurring rule keeps its foreign amount', () => {
+    const rule: RecurringRule = {
+      id: 'r9', name: 'Spotify', type: 'expense', amount: 44_000, categoryId: null, paymentMethodId: null,
+      frequency: 'monthly', dayOfMonth: 5, startDate: '2026-09-05', isActive: true,
+      currency: 'USD', originalAmount: 11, fxRate: 4000, updatedAt: '2026-09-18T12:00:00.000Z',
+    };
+    expect(recurringRuleFromRow(recurringRuleToRow(USER, rule))).toEqual(rule);
+  });
+
+  it('settings keep the quick currencies, and absent means the default trio', () => {
+    const settings: Settings = {
+      id: 'singleton', displayName: 'A', onboardedAt: null, currency: 'COP', locale: 'es-CO',
+      payDays: [10, 25], defaultPaymentMethodId: null, reminderDefaultDaysBefore: 1, theme: 'dark',
+      quickCurrencies: ['COP', 'USD', 'MXN'], updatedAt: '2026-09-18T12:00:00.000Z',
+    };
+    expect(settingsFromRow(settingsToRow(USER, settings))).toEqual(settings);
+    expect(settingsToRow(USER, { ...settings, quickCurrencies: undefined }).quick_currencies).toBeNull();
+  });
+});

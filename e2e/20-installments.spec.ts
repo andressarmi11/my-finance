@@ -29,7 +29,10 @@ async function buyInInstallments(page: Page, concept: string, amount: string, ca
   const d = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await d.getByPlaceholder('Ej. Restaurante').fill(concept);
   await d.getByPlaceholder('$ 0').fill(amount);
+  // Two cards: Crédito first, then the card. Instalments live under "Más opciones".
+  await d.getByRole('button', { name: 'Crédito', exact: true }).click();
   await d.getByRole('button', { name: card }).click();
+  await d.getByRole('button', { name: 'Más opciones' }).click();
   await d.getByLabel('Cuotas').fill(installments);
   await d.getByRole('button', { name: 'Guardar' }).click();
   await expect(d).toBeHidden();

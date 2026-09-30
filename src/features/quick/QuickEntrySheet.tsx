@@ -16,6 +16,10 @@ import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { EMPTY } from '@/lib/empty';
 import { useT } from '@/i18n/language';
+import { CurrencyChips } from '@/components/ui/CurrencyChips';
+import { MethodPicker } from '@/components/ui/MethodPicker';
+import { fill } from '@/lib/dateLabels';
+import { CURRENCIES, convert, formatRate, parseRate, quickCurrencyList, rememberRate, suggestedRate } from '@/lib/currencies';
 
 const EXAMPLES = [
   'gasté 45 mil en el almuerzo',
@@ -43,6 +47,10 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   const [error, setError] = useState('');
   const [stored, setSaved] = useState<string | null>(null);
   const [categoriaElegida, setCategoriaElegida] = useState<string | null | undefined>(undefined);
+  // Corrections to what was understood. undefined = take what the text says.
+  const [chosenCurrency, setChosenCurrency] = useState<string | undefined>(undefined);
+  const [chosenMethod, setChosenMethod] = useState<string | undefined>(undefined);
+  const [fxRateText, setFxRateText] = useState('');
   const recRef = useRef<Recognizer | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -62,7 +70,16 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     }),
     [text, today, conceptIndex, cats, methodRows, settings.defaultPaymentMethodId],
   );
-  const { parsed, paymentMethodId } = read;
+  const { parsed } = read;
+  const paymentMethodId = chosenMethod ?? read.paymentMethodId;
+
+  // Currency: what the user picked, else what the text named, else the main one.
+  const mainCurrency = settings.currency;
+  const currency = chosenCurrency ?? (parsed.currency && CURRENCIES.some((c) => c.code === parsed.currency) ? parsed.currency : mainCurrency);
+  const isForeign = currency !== mainCurrency;
+  const suggested = suggestedRate(currency, mainCurrency);
+  const fxRate = isForeign ? (fxRateText ? parseRate(fxRateText) : suggested) : 1;
+  const amount = parsed.amount != null && fxRate != null ? convert(parsed.amount, fxRate) : null;
 
   // Whatever the user picks here wins over what was proposed.
   const categoryId = categoriaElegida !== undefined ? categoriaElegida : read.categoryId;
@@ -76,7 +93,14 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     learned: read.fromLearning && categoryId === read.categoryId,
   });
 
-  const canSubmit = parsed.amount != null && parsed.amount > 0 && parsed.concept.length > 0;
+  const canSubmit = amount != null && amount > 0 && parsed.concept.length > 0;
+
+  function resetCorrections() {
+    setCategoriaElegida(undefined);
+    setChosenCurrency(undefined);
+    setChosenMethod(undefined);
+    setFxRateText('');
+  }
 
   useEffect(() => () => recRef.current?.stop(), []);
 
@@ -104,7 +128,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   }
 
   async function save() {
-    if (!canSubmit || parsed.amount == null) return;
+    if (!canSubmit || parsed.amount == null || amount == null || fxRate == null) return;
     const method = methodRows.find((m) => m.id === paymentMethodId);
     const cycle = method?.type === 'credit'
       ? calculateCreditCardCycle(parsed.date, method.cutoffDay, method.paymentDay)
@@ -115,7 +139,8 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
       id: crypto.randomUUID(),
       type: parsed.type,
       concept: parsed.concept,
-      amount: parsed.amount,
+      amount,
+      ...(isForeign ? { currency, originalAmount: parsed.amount, fxRate } : {}),
       date: parsed.date,
       categoryId,
       paymentMethodId,
@@ -128,12 +153,13 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
       updatedAt: now,
     };
     await localRepository.saveTransaction(tx);
+    if (isForeign) rememberRate(currency, mainCurrency, fxRate);
     haptic('medium');
     setSaved(t('quick.savedAs')
-      .replace('{amount}', formatMoney(parsed.amount))
+      .replace('{amount}', formatMoney(amount))
       .replace('{concept}', parsed.concept));
     setTexto('');
-    setCategoriaElegida(undefined);
+    resetCorrections();
     setTimeout(() => setSaved(null), 2600);
     inputRef.current?.focus();
   }
@@ -141,6 +167,8 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   const visibleCategories = cats.filter(
     (c) => c.kind === 'both' || c.kind === parsed.type,
   );
+  const visibleMethods = methodRows.filter((m) => parsed.type !== 'income' || m.type !== 'credit');
+  const understood = text.trim().length > 0;
 
   const dialogRef = useDialogo(onClose);
   return (
@@ -164,62 +192,108 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 8px' }} />
 
-        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>{t('quick.title')}</h2>
-        <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: 6 }}>
+          <button type="button" onClick={onClose} style={{ ...textButton, justifySelf: 'start' }}>{t('action.close')}</button>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>{t('quick.title')}</h2>
+          <span />
+        </div>
+        <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
           {t('quick.subtitle')}
         </p>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-          <input
-            ref={inputRef}
-            value={text}
-            onChange={(e) => { setTexto(e.target.value); setCategoriaElegida(undefined); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) void save(); }}
-            placeholder={EXAMPLES[0]}
-            aria-label={t('quick.whatHappened')}
-            autoFocus
-            style={{
-              flex: 1, minWidth: 0, minHeight: 'var(--tap)', padding: '0 14px',
-              borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-              background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
-            }}
-          />
-          {hasDictation() && (
+        {/* The mic is the main action: big and centred. */}
+        {hasDictation() && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
             <button
               type="button"
               onClick={dictate}
-              aria-label={escuchando ? 'Dejar de escuchar' : 'Dictar'}
+              aria-label={escuchando ? t('quick.stopListening') : t('quick.dictate')}
               aria-pressed={escuchando}
               style={{
-                width: 48, height: 48, flex: 'none', borderRadius: 24, border: 'none',
+                width: 72, height: 72, borderRadius: 36, border: 'none', display: 'grid', placeItems: 'center',
                 background: escuchando ? 'var(--danger)' : 'var(--q10)',
-                color: 'var(--on-accent)', fontSize: 20, cursor: 'pointer',
+                color: 'var(--on-accent)', cursor: 'pointer',
+                boxShadow: `0 10px 30px color-mix(in srgb, ${escuchando ? 'var(--danger)' : 'var(--q10)'} 35%, transparent)`,
                 animation: escuchando ? 'fadeIn 0.6s ease-in-out infinite alternate' : undefined,
               }}
             >
               {escuchando
-                ? <IconPlayerStopFilled size={26} aria-hidden />
-                : <IconMicrophone size={26} stroke={1.9} aria-hidden />}
+                ? <IconPlayerStopFilled size={30} aria-hidden />
+                : <IconMicrophone size={32} stroke={1.9} aria-hidden />}
             </button>
-          )}
-        </div>
-
-        {escuchando && (
-          <p style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--q10-text)', fontWeight: 600 }}>
-            Te escucho…
-          </p>
+            {escuchando && (
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--q10-text)', fontWeight: 600 }}>{t('quick.listening')}</span>
+            )}
+          </div>
         )}
 
-        {text.trim().length > 0 && (
+        <input
+          ref={inputRef}
+          value={text}
+          onChange={(e) => { setTexto(e.target.value); resetCorrections(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) void save(); }}
+          placeholder={EXAMPLES[0]}
+          aria-label={t('quick.whatHappened')}
+          autoFocus
+          style={{
+            width: '100%', minHeight: 'var(--tap)', padding: '0 14px', marginBottom: 12,
+            borderRadius: 14, border: '1px solid var(--line-strong)',
+            background: 'var(--surface-sunken)', color: 'var(--text)', fontSize: 16,
+          }}
+        />
+
+        {!understood && (
+          <div role="group" aria-label={t('quick.forExample')} style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, marginBottom: 14 }}>
+            {EXAMPLES.map((e) => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => setTexto(e)}
+                style={{
+                  flex: 'none', minHeight: 34, padding: '0 12px', borderRadius: 999, whiteSpace: 'nowrap',
+                  border: '1px solid var(--line-strong)', background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 'var(--text-sm)', cursor: 'pointer',
+                }}
+              >
+                “{e}”
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* "Entendí": the parser's reading, before anything is saved. */}
+        {understood && (
           <div
             style={{
-              background: 'var(--surface-sunken)', borderRadius: 'var(--radius-m)',
+              background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16,
               padding: '12px 14px', marginBottom: 12,
             }}
           >
+            <p style={{ margin: '0 0 4px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--q10-text)' }}>{t('quick.understood')}</p>
             <p style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</p>
+            {isForeign && (
+              <p className="figures" style={{ margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+                <span>
+                  {parsed.amount != null ? `${formatMoney(parsed.amount, currency)} ${currency}` : ''}
+                  {amount != null ? ` ${fill(t('form.fxApprox'), { amount: formatMoney(amount, mainCurrency), main: mainCurrency })}` : ''}
+                </span>
+                <span aria-hidden>·</span>
+                <span>{t('form.fxRate')}</span>
+                <input
+                  value={fxRateText || (suggested ? formatRate(suggested) : '')}
+                  onChange={(e) => setFxRateText(e.target.value.replace(/[^0-9.,]/g, '').slice(0, 12))}
+                  inputMode="decimal"
+                  aria-label={fill(t('form.fxRateLabel'), { main: mainCurrency, currency })}
+                  style={{
+                    width: 76, minHeight: 30, padding: '0 8px', borderRadius: 8, textAlign: 'center',
+                    border: '1px solid var(--line-strong)', background: 'var(--surface-sunken)', color: 'var(--text)',
+                    fontSize: 16, fontWeight: 600,
+                  }}
+                />
+              </p>
+            )}
             {desc.missing && (
               <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{desc.missing}</p>
             )}
@@ -229,12 +303,10 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
           </div>
         )}
 
-        {text.trim().length > 0 && parsed.concept && (
+        {/* The same chips as the full sheet, to correct it in place. */}
+        {understood && parsed.concept && (
           <>
-            <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-              {t('form.category')}
-            </p>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
               {visibleCategories.map((c) => (
                 <button
                   key={c.id}
@@ -254,65 +326,53 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
                 </button>
               ))}
             </div>
+            <CurrencyChips
+              value={currency}
+              quick={quickCurrencyList(mainCurrency, settings.quickCurrencies)}
+              onChange={(code) => { setChosenCurrency(code); setFxRateText(''); }}
+            />
+            <MethodPicker methods={visibleMethods} value={paymentMethodId} onChange={setChosenMethod} />
           </>
-        )}
-
-        {text.trim().length === 0 && (
-          <div style={{ marginBottom: 14 }}>
-            <p style={{ margin: '0 0 8px', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>Por ejemplo:</p>
-            {EXAMPLES.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setTexto(e)}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left', marginBottom: 6,
-                  minHeight: 40, padding: '8px 12px', borderRadius: 'var(--radius-s)',
-                  border: '1px solid var(--line)', background: 'var(--surface)',
-                  color: 'var(--text-muted)', fontSize: 'var(--text-sm)', cursor: 'pointer',
-                }}
-              >
-                “{e}”
-              </button>
-            ))}
-          </div>
         )}
 
         {error && <p role="alert" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{error}</p>}
         {stored && <p role="status" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--positive-text)', fontWeight: 600 }}>{stored}</p>}
 
-        <button
-          type="button"
-          onClick={save}
-          disabled={!canSubmit}
-          style={{
-            width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-            background: canSubmit ? 'var(--q10)' : 'var(--surface-sunken)',
-            color: canSubmit ? 'var(--on-accent)' : 'var(--text-faint)',
-            fontWeight: 700, fontSize: 16, cursor: canSubmit ? 'pointer' : 'not-allowed',
-          }}
-        >
-          Guardar
-        </button>
-
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <button
             type="button"
             onClick={() => onAdjust(text)}
-            disabled={text.trim().length === 0}
+            disabled={!understood}
             style={secondary}
           >
-            Ajustar todo
+            {t('quick.adjust')}
           </button>
-          <button type="button" onClick={onClose} style={secondary}>Cerrar</button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!canSubmit}
+            style={{
+              flex: 1, minHeight: 48, borderRadius: 14, border: 'none',
+              background: canSubmit ? 'var(--q10)' : 'var(--surface-sunken)',
+              color: canSubmit ? 'var(--on-accent)' : 'var(--text-faint)',
+              fontWeight: 700, fontSize: 16, cursor: canSubmit ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {t('action.save')}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+const textButton: React.CSSProperties = {
+  minHeight: 'var(--tap)', padding: '0 2px', border: 'none', background: 'none',
+  color: 'var(--q10-text)', fontSize: 'var(--text-md)', cursor: 'pointer',
+};
+
 const secondary: React.CSSProperties = {
-  flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-  background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
+  flex: 1, minHeight: 48, borderRadius: 14, border: '1px solid var(--line-strong)',
+  background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
   fontSize: 'var(--text-base)',
 };

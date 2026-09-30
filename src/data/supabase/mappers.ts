@@ -5,13 +5,45 @@
  */
 import { cleanInterval, cleanMonths } from '@/domain/recurring/expansion';
 import type {
-  Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction,
+  Budget, Category, ForeignAmount, PaymentMethod, RecurringRule, Reminder, ReminderRule, Settings, Transaction,
 } from '@/domain/types';
+
+/**
+ * Foreign-currency columns (migration 0013). All three or none: a row with
+ * only some of them is treated as main currency rather than half-converted.
+ */
+interface ForeignAmountRow {
+  currency?: string | null; original_amount?: number | null; fx_rate?: number | string | null;
+}
+function foreignFromRow(row: ForeignAmountRow): ForeignAmount {
+  if (!row.currency || row.original_amount == null || row.fx_rate == null) return {};
+  // numeric comes back from PostgREST as a string when it has many digits.
+  const fxRate = Number(row.fx_rate);
+  if (!Number.isFinite(fxRate) || fxRate <= 0) return {};
+  return { currency: row.currency, originalAmount: row.original_amount, fxRate };
+}
+function foreignToRow(f: ForeignAmount): { currency: string | null; original_amount: number | null; fx_rate: number | null } {
+  const complete = f.currency && f.originalAmount != null && f.fxRate != null;
+  return {
+    currency: complete ? f.currency! : null,
+    original_amount: complete ? f.originalAmount! : null,
+    fx_rate: complete ? f.fxRate! : null,
+  };
+}
+
+/** Migration 0014: 'none', a rule object, or null (= the general reminder). */
+function reminderFromJson(value: unknown): Transaction['reminder'] {
+  if (value === 'none') return 'none';
+  if (value && typeof value === 'object') return value as ReminderRule;
+  return undefined;
+}
 
 export interface SettingsRow {
   user_id: string; display_name: string | null; onboarded_at: string | null;
   currency: string; locale: string; quincena_start_days: number[];
   default_payment_method_id: string | null; reminder_default_days_before: number; theme: string;
+  /** Migration 0013. null = the default trio. */
+  quick_currencies?: string[] | null;
   updated_at: string;
 }
 export function settingsFromRow(row: SettingsRow): Settings {
@@ -29,6 +61,7 @@ export function settingsFromRow(row: SettingsRow): Settings {
     defaultPaymentMethodId: row.default_payment_method_id,
     reminderDefaultDaysBefore: row.reminder_default_days_before,
     theme: row.theme as Settings['theme'],
+    ...(row.quick_currencies?.length ? { quickCurrencies: [...row.quick_currencies] } : {}),
     updatedAt: row.updated_at,
   };
 }
@@ -42,6 +75,7 @@ export function settingsToRow(userId: string, s: Settings): SettingsRow {
     default_payment_method_id: s.defaultPaymentMethodId,
     reminder_default_days_before: s.reminderDefaultDaysBefore,
     theme: s.theme,
+    quick_currencies: s.quickCurrencies?.length ? [...s.quickCurrencies] : null,
     // Explicit: if it's not sent, Postgres's now() default overwrites the
     // date and the remote row always looks newer than the local one.
     updated_at: s.updatedAt || new Date().toISOString(),
@@ -98,6 +132,10 @@ export interface TransactionRow {
   recurring_rule_id: string | null; period_key: string | null;
   installment_group_id: string | null; installment_number: number | null;
   installment_count: number | null; purchase_date: string | null;
+  /** Migration 0013. */
+  currency?: string | null; original_amount?: number | null; fx_rate?: number | string | null;
+  /** Migration 0014. */
+  reminder?: unknown; time?: string | null;
   created_at: string; updated_at: string;
 }
 export function transactionFromRow(row: TransactionRow): Transaction {
@@ -111,6 +149,9 @@ export function transactionFromRow(row: TransactionRow): Transaction {
     purchaseDate: row.purchase_date ?? undefined,
     cyclePaymentDate: row.cycle_payment_date ?? undefined, quincenaKey: row.quincena_key,
     recurringRuleId: row.recurring_rule_id ?? undefined, periodKey: row.period_key ?? undefined,
+    ...foreignFromRow(row),
+    ...(row.time ? { time: row.time } : {}),
+    ...(reminderFromJson(row.reminder) !== undefined ? { reminder: reminderFromJson(row.reminder) } : {}),
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -124,6 +165,9 @@ export function transactionToRow(userId: string, t: Transaction): TransactionRow
     installment_count: t.installmentCount ?? null,
     purchase_date: t.purchaseDate ?? null,
     quincena_key: t.quincenaKey, recurring_rule_id: t.recurringRuleId ?? null, period_key: t.periodKey ?? null,
+    ...foreignToRow(t),
+    reminder: t.reminder ?? null,
+    time: t.time ?? null,
     created_at: t.createdAt, updated_at: t.updatedAt,
   };
 }
@@ -133,6 +177,8 @@ export interface RecurringRuleRow {
   category_id: string | null; payment_method_id: string | null; frequency: string;
   day_of_month: number | null; day_of_week: number | null; start_date: string; end_date: string | null; is_active: boolean; updated_at: string;
   interval_every: number | null; interval_unit: string | null; months: number[] | null;
+  /** Migration 0013. */
+  currency?: string | null; original_amount?: number | null; fx_rate?: number | string | null;
 }
 export function recurringRuleFromRow(row: RecurringRuleRow): RecurringRule {
   return {
@@ -144,6 +190,7 @@ export function recurringRuleFromRow(row: RecurringRuleRow): RecurringRule {
     interval: cleanInterval({ every: row.interval_every, unit: row.interval_unit }),
     months: cleanMonths(row.months),
     startDate: row.start_date, endDate: row.end_date ?? undefined, isActive: row.is_active,
+    ...foreignFromRow(row),
     updatedAt: row.updated_at,
   };
 }
@@ -155,6 +202,7 @@ export function recurringRuleToRow(userId: string, r: RecurringRule): RecurringR
     interval_every: r.interval?.every ?? null, interval_unit: r.interval?.unit ?? null,
     months: r.months?.length ? r.months : null,
     start_date: r.startDate, end_date: r.endDate ?? null, is_active: r.isActive,
+    ...foreignToRow(r),
     updated_at: r.updatedAt || new Date().toISOString(),
   };
 }

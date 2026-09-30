@@ -36,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultPaymentMethodId: null,
   reminderDefaultDaysBefore: 1,
   theme: 'system',
+  quickCurrencies: ['COP', 'USD', 'EUR'],
   onboardedAt: null,
   // Empty on purpose: a row that was never saved can't beat any row from
   // the cloud in the "which one is newer" comparison.

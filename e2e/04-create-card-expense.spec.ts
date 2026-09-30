@@ -6,10 +6,11 @@ test('creates an expense on a credit card', async ({ page }) => {
 
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Compra con TC');
   await dialog.getByPlaceholder('$ 0').fill('150000');
-  await dialog.getByRole('button', { name: 'Tarjeta de crédito' }).click();
+  // Redesign §9b: the method is Débito | Crédito | Efectivo; with one card, Crédito picks it.
+  await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
 
-  // The "Se paga el ..." preview has to appear BEFORE saving.
-  await expect(dialog.getByText(/Se paga el/)).toBeVisible();
+  // The "Corte … · se paga el …" preview has to appear BEFORE saving.
+  await expect(dialog.getByText(/Corte 15 · se paga el/)).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

@@ -5,6 +5,8 @@ import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor'
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
 import { formatMoney } from '@/domain/money/format';
 import { formatShortDate } from '@/lib/formatShortDate';
+import { fill } from '@/lib/dateLabels';
+import { formatRate } from '@/lib/currencies';
 
 function shortDate(iso: string): string {
   const { day, month } = formatShortDate(iso);
@@ -131,6 +133,17 @@ export function TransactionRow({
               {statusLabel}
             </span>
           </span>
+
+          {/* Entered in another currency: the original, as a note. */}
+          {tx.currency && tx.originalAmount != null && tx.fxRate != null && (
+            <span className="figures" style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)', marginTop: 1 }}>
+              {fill(t('form.originalNote'), {
+                original: formatMoney(tx.originalAmount, tx.currency),
+                currency: tx.currency,
+                rate: formatRate(tx.fxRate),
+              })}
+            </span>
+          )}
 
           {isCredit && tx.cyclePaymentDate && (
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--q25-text)', marginTop: 1 }}>
