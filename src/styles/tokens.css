@@ -55,6 +55,23 @@
   --line-strong: #D5DAE2;
   --handle: #C6CCD6;       /* the sheets' drag handle (prototype dim2) */
   --toast-action: #6B8AFF;  /* Deshacer on the inverted toast: the other theme's --q10 */
+  /* Glass nav bar (BARRA.md): the light edge, top highlight and drop shadow. */
+  --nav-glass-border: rgba(0, 0, 0, .08);
+  --nav-glass-highlight: rgba(255, 255, 255, .6);
+  --nav-glass-drop: rgba(0, 0, 0, .12);
+  /* The tab bar's look (src/lib/navBar.ts writes these on <html> before the
+     first paint, from the user's choice). Defaults = Translúcida, 88 %. */
+  --nav-bg: color-mix(in srgb, var(--surface) 88%, transparent);
+  --nav-filter: blur(20px) saturate(140%);
+  --nav-border: var(--line-strong);
+  --nav-shadow: var(--shadow-3);
+  --nav-active: color-mix(in srgb, var(--line-strong) 88%, transparent);
+  --nav-ink: var(--text-faint);
+  --fab-bg: var(--q10);
+  --fab-color: var(--on-accent);
+  --fab-border: transparent;
+  --fab-shadow: 0 10px 30px color-mix(in srgb, var(--q10) 35%, transparent);
+  --fab-filter: none;
   --text-dim: #9AA2B1;     /* row chevrons (prototype dim) */
 
   /* ────────────── Acentos de quincena ──────────────
@@ -249,6 +266,9 @@
     --line-strong: #2B323E;
     --handle: #3A4250;
     --toast-action: #2F4FE0;  /* Deshacer on the inverted toast: the other theme's --q10 */
+    --nav-glass-border: rgba(255, 255, 255, .14);
+    --nav-glass-highlight: rgba(255, 255, 255, .10);
+    --nav-glass-drop: rgba(0, 0, 0, .35);
     --text-dim: #4A5263;
 
     /* Acentos (versiones más brillantes de iOS Dark) */
@@ -329,6 +349,9 @@
   --line-strong: #2B323E;
   --handle: #3A4250;
   --toast-action: #2F4FE0;  /* Deshacer on the inverted toast: the other theme's --q10 */
+  --nav-glass-border: rgba(255, 255, 255, .14);
+  --nav-glass-highlight: rgba(255, 255, 255, .10);
+  --nav-glass-drop: rgba(0, 0, 0, .35);
   --text-dim: #4A5263;
 
   --q10: #6B8AFF;

@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased] — Tab bar transparency
+
+Plan and checklist: `docs/BARRA.md`. Prototype: `docs/barra/Step Up Barra.dc.html`.
+
+### Changed
+- Ajustes → "Tema y barra" (was "Tema"), now its own screen on the phone.
+  Under the three themes, "Barra de navegación": a live preview, Sólida /
+  Translúcida / Cristal (100 / 88 / 40 %), an opacity slider (15–100 %),
+  "Botón + también transparente" and a note per mode. The Ajustes row
+  reads e.g. "Oscuro · Cristal".
+- The tab bar and the + read `--nav-*` / `--fab-*`, written on <html>
+  before the first paint from localStorage (per device, not synced).
+  Glass adds a stronger blur, a light edge and a top highlight.
+  `prefers-reduced-transparency` forces Sólida. The desktop sidebar is
+  untouched.
+
+### Tests
+- Unit: `navBarVars` (100 / 88 / 40 / reduced transparency), presets,
+  slider range, persistence.
+- E2E 42-navbar-transparency (Cristal → blur → reload → still Cristal;
+  Sólida; a value between presets); 43 and 38 follow the new screen; 27
+  also checks Ajustes → Theme & bar in English.
+
 ## [Unreleased] — Inbox v2, part 2: web and moving between entries
 
 Plan and checklist: `docs/BANDEJA-WEB.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html` (3b, 4a, 4b).

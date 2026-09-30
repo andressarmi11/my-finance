@@ -1,3 +1,4 @@
+import { useNavBarStyle } from '@/lib/navBar';
 import { useT } from '@/i18n/language';
 import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -24,6 +25,8 @@ export function TabBar() {
   const [quickOpen, setQuickOpen] = useState(false);
   // 760–1099px: the same tabs as a 72px rail on the left, the + on top.
   const rail = useBreakpoint() === 'tablet';
+  // Keeps --nav-* / --fab-* in step with Ajustes → Tema y barra.
+  useNavBarStyle();
 
   // The + is always visible (it used to hide on scroll down): it's the main
   // action, and the pill it sits next to doesn't cover the content anyway.
@@ -50,8 +53,8 @@ export function TabBar() {
           borderRadius: rail ? 16 : 27,
           ...(rail ? { width: 60, height: 58 } : {}),
           textDecoration: 'none',
-          background: active ? 'var(--line-strong)' : 'transparent',
-          color: active ? 'var(--text)' : 'var(--text-faint)',
+          background: active ? (rail ? 'var(--line-strong)' : 'var(--nav-active)') : 'transparent',
+          color: active ? 'var(--text)' : rail ? 'var(--text-faint)' : 'var(--nav-ink)',
           fontSize: rail ? 10.5 : 11,
           fontWeight: 600,
           transition: 'background var(--dur-fast) var(--ease-spring-out), color var(--dur-fast) var(--ease-spring-out)',
@@ -129,11 +132,12 @@ export function TabBar() {
             padding: 4,
             display: 'grid',
             gridTemplateColumns: `repeat(${TABS.length}, 1fr)`,
-            background: 'color-mix(in srgb, var(--surface) 88%, transparent)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid var(--line-strong)',
-            boxShadow: 'var(--shadow-3)',
+            // Sólida / Translúcida / Cristal (BARRA.md): src/lib/navBar.ts.
+            background: 'var(--nav-bg)',
+            backdropFilter: 'var(--nav-filter)',
+            WebkitBackdropFilter: 'var(--nav-filter)',
+            border: '1px solid var(--nav-border)',
+            boxShadow: 'var(--nav-shadow)',
           }}
         >
           {tabs}
@@ -216,13 +220,16 @@ function AddButton({ onClick, hidden, size }: { onClick: () => void; hidden?: bo
         width: size ?? 'var(--tabbar-h)',
         height: size ?? 'var(--tabbar-h)',
         borderRadius: size ? size / 2 : 31,
-        border: 'none',
+        // Solid --q10, or the bar's glass when "Botón + también transparente".
+        border: '1px solid var(--fab-border)',
         display: 'grid',
         placeItems: 'center',
-        background: 'var(--q10)',
-        color: 'var(--on-accent)',
+        background: 'var(--fab-bg)',
+        color: 'var(--fab-color)',
+        backdropFilter: 'var(--fab-filter)',
+        WebkitBackdropFilter: 'var(--fab-filter)',
         cursor: 'pointer',
-        boxShadow: '0 10px 30px color-mix(in srgb, var(--q10) 35%, transparent)',
+        boxShadow: 'var(--fab-shadow)',
         transition: 'transform var(--dur-med) var(--ease-spring-out), opacity var(--dur-med) var(--ease-spring-out)',
         touchAction: 'none',
       }}

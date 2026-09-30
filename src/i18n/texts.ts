@@ -912,6 +912,20 @@ export const TEXTS = {
     'inbox.shortcutsHint': '⏎ anotar · ⌫ descartar · ↑↓ moverse · Esc cerrar',
     'inbox.openPanel': 'Abrir movimientos por revisar',
     'inbox.missingAmountShort': 'Sin monto',
+    // Barra de navegación (BARRA.md)
+    'settings.themeAndBar': 'Tema y barra',
+    'navBar.title': 'Barra de navegación',
+    'navBar.solid': 'Sólida',
+    'navBar.translucent': 'Translúcida',
+    'navBar.glass': 'Cristal',
+    'navBar.opacity': 'Opacidad',
+    'navBar.fabGlass': 'Botón + también transparente',
+    'navBar.fabGlassSub': 'Si lo apagas, el + queda de color sólido.',
+    'navBar.noteSolid': 'Sólida: no deja ver nada detrás. Es la más legible.',
+    'navBar.noteTranslucent': 'Translúcida: un poco de lo que hay detrás, casi sin afectar la lectura.',
+    'navBar.noteGlass': 'Cristal: se ve lo que hay detrás, con desenfoque. Los íconos mantienen el contraste.',
+    'navBar.style': 'Estilo de la barra',
+    'navBar.preview': 'Vista previa de la barra',
   },
 
   en: {
@@ -1793,6 +1807,20 @@ export const TEXTS = {
     'inbox.shortcutsHint': '⏎ log · ⌫ discard · ↑↓ move · Esc close',
     'inbox.openPanel': 'Open items to review',
     'inbox.missingAmountShort': 'No amount',
+    // Barra de navegación (BARRA.md)
+    'settings.themeAndBar': 'Theme & bar',
+    'navBar.title': 'Navigation bar',
+    'navBar.solid': 'Solid',
+    'navBar.translucent': 'Translucent',
+    'navBar.glass': 'Glass',
+    'navBar.opacity': 'Opacity',
+    'navBar.fabGlass': 'Make the + button transparent too',
+    'navBar.fabGlassSub': 'If off, the + stays a solid color.',
+    'navBar.noteSolid': 'Solid: nothing shows through. The most readable.',
+    'navBar.noteTranslucent': 'Translucent: a hint of what\'s behind, barely affects reading.',
+    'navBar.noteGlass': 'Glass: what\'s behind shows through, blurred. Icons keep their contrast.',
+    'navBar.style': 'Bar style',
+    'navBar.preview': 'Bar preview',
   },
 } as const;
 

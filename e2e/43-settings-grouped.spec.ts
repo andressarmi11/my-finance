@@ -42,24 +42,26 @@ test('the grouped list: groups, values on the right and the version footer', asy
   await expect(page).toHaveURL(/\/ajustes$/);
 });
 
-test('the theme applies at once, from the sheet', async ({ page }) => {
+test('the theme applies at once, from Tema y barra', async ({ page }) => {
   await page.goto('ajustes');
-  await page.getByRole('button', { name: /^Tema/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Tema' });
+  await page.getByRole('link', { name: /^Tema y barra/ }).click();
+  await expect(page).toHaveURL(/\/ajustes\/tema$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Tema y barra' })).toBeVisible();
+  const themes = page.getByRole('group', { name: 'Tema' });
   const html = page.locator('html');
 
-  await sheet.getByRole('button', { name: 'Claro' }).click();
+  await themes.getByRole('button', { name: 'Claro' }).click();
   await expect(html).toHaveAttribute('data-theme', 'light');
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(242, 244, 247)');
 
-  await sheet.getByRole('button', { name: 'Oscuro' }).click();
+  await themes.getByRole('button', { name: 'Oscuro' }).click();
   await expect(html).toHaveAttribute('data-theme', 'dark');
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe('rgb(11, 13, 18)');
 
-  await sheet.getByRole('button', { name: 'Sistema' }).click();
+  await themes.getByRole('button', { name: 'Sistema' }).click();
   await expect(html).not.toHaveAttribute('data-theme', /.+/);
-  await sheet.getByRole('button', { name: 'Listo' }).click();
-  await expect(page.getByRole('button', { name: 'Tema Sistema' })).toBeVisible();
+  await page.getByRole('link', { name: 'Ajustes' }).first().click();
+  await expect(page.getByRole('link', { name: /Tema y barra.*Sistema · Translúcida/ })).toBeVisible();
 });
 
 test('the name in Perfil is the greeting on Inicio', async ({ page }) => {

@@ -1488,7 +1488,21 @@ var TEXTS = {
     "inbox.originalMessage": "Mensaje original",
     "inbox.shortcutsHint": "\u23CE anotar \xB7 \u232B descartar \xB7 \u2191\u2193 moverse \xB7 Esc cerrar",
     "inbox.openPanel": "Abrir movimientos por revisar",
-    "inbox.missingAmountShort": "Sin monto"
+    "inbox.missingAmountShort": "Sin monto",
+    // Barra de navegación (BARRA.md)
+    "settings.themeAndBar": "Tema y barra",
+    "navBar.title": "Barra de navegaci\xF3n",
+    "navBar.solid": "S\xF3lida",
+    "navBar.translucent": "Transl\xFAcida",
+    "navBar.glass": "Cristal",
+    "navBar.opacity": "Opacidad",
+    "navBar.fabGlass": "Bot\xF3n + tambi\xE9n transparente",
+    "navBar.fabGlassSub": "Si lo apagas, el + queda de color s\xF3lido.",
+    "navBar.noteSolid": "S\xF3lida: no deja ver nada detr\xE1s. Es la m\xE1s legible.",
+    "navBar.noteTranslucent": "Transl\xFAcida: un poco de lo que hay detr\xE1s, casi sin afectar la lectura.",
+    "navBar.noteGlass": "Cristal: se ve lo que hay detr\xE1s, con desenfoque. Los \xEDconos mantienen el contraste.",
+    "navBar.style": "Estilo de la barra",
+    "navBar.preview": "Vista previa de la barra"
   },
   en: {
     "nav.home": "Home",
@@ -2352,7 +2366,21 @@ var TEXTS = {
     "inbox.originalMessage": "Original message",
     "inbox.shortcutsHint": "\u23CE log \xB7 \u232B discard \xB7 \u2191\u2193 move \xB7 Esc close",
     "inbox.openPanel": "Open items to review",
-    "inbox.missingAmountShort": "No amount"
+    "inbox.missingAmountShort": "No amount",
+    // Barra de navegación (BARRA.md)
+    "settings.themeAndBar": "Theme & bar",
+    "navBar.title": "Navigation bar",
+    "navBar.solid": "Solid",
+    "navBar.translucent": "Translucent",
+    "navBar.glass": "Glass",
+    "navBar.opacity": "Opacity",
+    "navBar.fabGlass": "Make the + button transparent too",
+    "navBar.fabGlassSub": "If off, the + stays a solid color.",
+    "navBar.noteSolid": "Solid: nothing shows through. The most readable.",
+    "navBar.noteTranslucent": "Translucent: a hint of what's behind, barely affects reading.",
+    "navBar.noteGlass": "Glass: what's behind shows through, blurred. Icons keep their contrast.",
+    "navBar.style": "Bar style",
+    "navBar.preview": "Bar preview"
   }
 };
 

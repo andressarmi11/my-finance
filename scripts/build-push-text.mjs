@@ -3,7 +3,7 @@
 // The output is committed: `supabase functions deploy ingest` ships it as is.
 // Re-run after touching the parser or the inbox.push* texts:
 //   npm run build:push-text
-// pushText.test.ts fails if the committed bundle is stale.
+// pushText.test.ts fails if the committed bundle answers differently from the source.
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 

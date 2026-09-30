@@ -18,7 +18,7 @@ import { todayISO } from '@/lib/todayISO';
 import type { Settings } from '@/domain/types';
 import { RowChevron, SettingsGroup, SettingsRow } from './ui';
 import { LanguageSheet } from './LanguageSheet';
-import { ThemeSheet } from './ThemeSheet';
+import { useNavBarLabel } from './NavBarSection';
 import { LogoutSheet } from './LogoutSheet';
 
 const THEME_LABEL: Record<Settings['theme'], TextKey> = {
@@ -62,7 +62,8 @@ export function SettingsScreen({ asNav = false }: {
     recurring: await db.recurringRules.count(),
     budgets: (await localRepository.listBudgets(year, month)).filter((b) => b.amount > 0).length,
   }), [year, month]);
-  const [sheet, setSheet] = useState<'language' | 'theme' | 'logout' | null>(null);
+  const [sheet, setSheet] = useState<'language' | 'logout' | null>(null);
+  const navBarLabel = useNavBarLabel();
 
   if (!settings) return null;
 
@@ -112,8 +113,8 @@ export function SettingsScreen({ asNav = false }: {
           ? { icon: <IconWorld {...ICON} />, tint: 'var(--q10)', label: t('desk.langTheme'), to: '/ajustes/preferencias' }
           : { icon: <IconWorld {...ICON} />, tint: 'var(--q10)', label: t('settings.language'),
               value: language === 'en' ? 'English' : 'Español', onClick: () => setSheet('language') })}
-        {!asNav && row({ icon: <IconMoon {...ICON} />, tint: 'var(--cat-servicios)', label: t('settings.theme'),
-          value: t(THEME_LABEL[settings.theme]), onClick: () => setSheet('theme') })}
+        {!asNav && row({ icon: <IconMoon {...ICON} />, tint: 'var(--cat-servicios)', label: t('settings.themeAndBar'),
+          value: `${t(THEME_LABEL[settings.theme])} · ${navBarLabel}`, to: '/ajustes/tema' })}
         {row({ icon: <IconCash {...ICON} />, tint: 'var(--positive)', label: t('settings.currency'),
           value: settings.currency, to: '/ajustes/moneda' })}
       </SettingsGroup>
@@ -156,7 +157,6 @@ export function SettingsScreen({ asNav = false }: {
       </p>
 
       {sheet === 'language' && <LanguageSheet onClose={() => setSheet(null)} />}
-      {sheet === 'theme' && <ThemeSheet settings={settings} onClose={() => setSheet(null)} />}
       {sheet === 'logout' && <LogoutSheet email={session?.user.email ?? ''} onClose={() => setSheet(null)} />}
   </>);
 
