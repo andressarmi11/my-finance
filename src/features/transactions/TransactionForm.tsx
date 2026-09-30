@@ -6,7 +6,8 @@ import { MoreOptions } from '@/components/ui/MoreOptions';
 import { CurrencyChips } from '@/components/ui/CurrencyChips';
 import { MethodPicker } from '@/components/ui/MethodPicker';
 import { ReminderChips } from '@/components/ui/ReminderChips';
-import { CURRENCIES, convert, formatRate, parseRate, quickCurrencyList, rememberRate, suggestedRate } from '@/lib/currencies';
+import { CURRENCIES, convert, formatRate, quickCurrencyList } from '@/lib/currencies';
+import { useFxRate } from '@/lib/fxRates';
 import { dateLabel, fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -50,8 +51,6 @@ export interface TransactionFormValue {
   paymentMethodId: string | null;
   markPaidNow: boolean;
   currency: string;
-  /** Main-currency units per 1 `currency`. Ignored for the main currency. */
-  fxRateText: string;
   reminder: Transaction['reminder'];
 }
 
@@ -86,16 +85,13 @@ function initialValue(
       paymentMethodId: existing.paymentMethodId,
       markPaidNow: existing.status === 'paid',
       currency: foreign ? existing.currency! : mainCurrency,
-      fxRateText: foreign ? formatRate(existing.fxRate!) : '',
       reminder: existing.reminder ?? null,
     };
   }
   const date = prefill?.date ?? todayISO();
   const currency = prefill?.currency && CURRENCIES.some((c) => c.code === prefill.currency) ? prefill.currency : mainCurrency;
-  const rate = suggestedRate(currency, mainCurrency);
   return {
     currency,
-    fxRateText: currency !== mainCurrency && rate ? formatRate(rate) : '',
     reminder: null,
     type: prefill?.type ?? 'expense',
     concept: prefill?.concept ?? '',
@@ -152,7 +148,13 @@ export function TransactionForm({
   // integer in the main currency, so no calculation in the domain changes.
   const originalAmount = parseMoney(value.amountText);
   const isForeign = value.currency !== mainCurrency;
-  const fxRate = isForeign ? parseRate(value.fxRateText) : 1;
+  // The rate is fetched, never typed (lib/fxRates). Editing a transaction
+  // keeps the rate it was saved with, as long as its currency doesn't change.
+  const fx = useFxRate(
+    value.currency, mainCurrency,
+    existing?.currency === value.currency ? existing.fxRate : undefined,
+  );
+  const fxRate = fx.status === 'same' ? 1 : fx.status === 'ready' ? fx.rate : null;
   const amount = originalAmount !== null && fxRate !== null ? convert(originalAmount, fxRate) : null;
   const selectedMethod = paymentMethods.find((m) => m.id === value.paymentMethodId);
   const isCredit = selectedMethod?.type === 'credit';
@@ -246,11 +248,7 @@ export function TransactionForm({
   const canSave = value.concept.trim().length > 0 && amount !== null && amount > 0 && !!value.date;
 
   function pickCurrency(code: string) {
-    setValue((v) => {
-      if (code === v.currency) return v;
-      const rate = suggestedRate(code, mainCurrency);
-      return { ...v, currency: code, fxRateText: code !== mainCurrency && rate ? formatRate(rate) : '' };
-    });
+    setValue((v) => (code === v.currency ? v : { ...v, currency: code }));
   }
 
   function handleSubmit() {
@@ -283,7 +281,6 @@ export function TransactionForm({
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    if (isForeign && fxRate !== null) rememberRate(value.currency, mainCurrency, fxRate);
     haptic('medium');
     // Editing a single installment does NOT re-split the plan: that's
     // what you do when you pay one. An installment plan is only built on create.
@@ -388,24 +385,9 @@ export function TransactionForm({
           )}
         </label>
 
-        {/* 3. Equivalence in the main currency, with an editable rate. */}
+        {/* 3. Equivalence in the main currency, at today's rate. */}
         {isForeign ? (
-          <p className="figures" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-            <span>{amount !== null ? fill(t('form.fxApprox'), { amount: formatMoney(amount, mainCurrency), main: mainCurrency }) : t('form.fxNeedsRate')}</span>
-            <span aria-hidden>·</span>
-            <span>{t('form.fxRate')}</span>
-            <input
-              value={value.fxRateText}
-              onChange={(e) => setValue((v) => ({ ...v, fxRateText: e.target.value.replace(/[^0-9.,]/g, '').slice(0, 12) }))}
-              inputMode="decimal"
-              aria-label={fill(t('form.fxRateLabel'), { main: mainCurrency, currency: value.currency })}
-              style={{
-                width: 76, minHeight: 30, padding: '0 8px', borderRadius: 8, textAlign: 'center',
-                border: '1px solid var(--line-strong)', background: 'var(--surface-sunken)', color: 'var(--text)',
-                fontSize: 16, fontWeight: 600,
-              }}
-            />
-          </p>
+          <FxLine fx={fx} amount={amount} main={mainCurrency} />
         ) : (
           <p style={{ margin: '0 0 10px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
             {isIncome ? t('form.howMuchIn') : t('form.howMuchOut')}
@@ -624,3 +606,34 @@ const secondaryButtonStyle: React.CSSProperties = {
   background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
   fontSize: 'var(--text-base)',
 };
+
+/** "≈ $ 80.000 COP · tasa de hoy 4.016" — read-only: the rate is fetched. */
+export function FxLine({ fx, amount, main }: {
+  fx: ReturnType<typeof useFxRate>; amount: number | null; main: string;
+}) {
+  const t = useT();
+  let text: string;
+  if (fx.status === 'loading') text = t('form.fxLoading');
+  else if (fx.status === 'unavailable') text = t('form.fxUnavailable');
+  else if (fx.status === 'ready') {
+    const approx = amount !== null ? `${fill(t('form.fxApprox'), { amount: formatMoney(amount, main), main })} · ` : '';
+    const rate = formatRate(fx.rate);
+    text = approx + (!fx.fetchedOn
+      ? fill(t('form.fxSavedRate'), { rate })
+      : fx.stale
+        ? fill(t('form.fxRateOn'), { rate, date: dateLabel(fx.fetchedOn, t, 'short') })
+        : fill(t('form.fxTodayRate'), { rate }));
+  } else text = '';
+  return (
+    <p
+      role="status"
+      className="figures"
+      style={{
+        margin: '0 0 10px', textAlign: 'center', fontSize: 'var(--text-sm)',
+        color: fx.status === 'unavailable' ? 'var(--danger-text)' : 'var(--text-muted)',
+      }}
+    >
+      {text}
+    </p>
+  );
+}

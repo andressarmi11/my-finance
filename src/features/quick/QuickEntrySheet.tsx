@@ -18,8 +18,9 @@ import { EMPTY } from '@/lib/empty';
 import { useT } from '@/i18n/language';
 import { CurrencyChips } from '@/components/ui/CurrencyChips';
 import { MethodPicker } from '@/components/ui/MethodPicker';
-import { fill } from '@/lib/dateLabels';
-import { CURRENCIES, convert, formatRate, parseRate, quickCurrencyList, rememberRate, suggestedRate } from '@/lib/currencies';
+import { CURRENCIES, convert, formatMoneyIn, quickCurrencyList } from '@/lib/currencies';
+import { useFxRate } from '@/lib/fxRates';
+import { FxLine } from '@/features/transactions/TransactionForm';
 
 const EXAMPLES = [
   'gasté 45 mil en el almuerzo',
@@ -50,7 +51,6 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   // Corrections to what was understood. undefined = take what the text says.
   const [chosenCurrency, setChosenCurrency] = useState<string | undefined>(undefined);
   const [chosenMethod, setChosenMethod] = useState<string | undefined>(undefined);
-  const [fxRateText, setFxRateText] = useState('');
   const recRef = useRef<Recognizer | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,8 +77,8 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   const mainCurrency = settings.currency;
   const currency = chosenCurrency ?? (parsed.currency && CURRENCIES.some((c) => c.code === parsed.currency) ? parsed.currency : mainCurrency);
   const isForeign = currency !== mainCurrency;
-  const suggested = suggestedRate(currency, mainCurrency);
-  const fxRate = isForeign ? (fxRateText ? parseRate(fxRateText) : suggested) : 1;
+  const fx = useFxRate(currency, mainCurrency);
+  const fxRate = fx.status === 'same' ? 1 : fx.status === 'ready' ? fx.rate : null;
   const amount = parsed.amount != null && fxRate != null ? convert(parsed.amount, fxRate) : null;
 
   // Whatever the user picks here wins over what was proposed.
@@ -99,7 +99,6 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
     setCategoriaElegida(undefined);
     setChosenCurrency(undefined);
     setChosenMethod(undefined);
-    setFxRateText('');
   }
 
   useEffect(() => () => recRef.current?.stop(), []);
@@ -153,7 +152,6 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
       updatedAt: now,
     };
     await localRepository.saveTransaction(tx);
-    if (isForeign) rememberRate(currency, mainCurrency, fxRate);
     haptic('medium');
     setSaved(t('quick.savedAs')
       .replace('{amount}', formatMoney(amount))
@@ -274,25 +272,14 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
             <p style={{ margin: '0 0 4px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--q10-text)' }}>{t('quick.understood')}</p>
             <p style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</p>
             {isForeign && (
-              <p className="figures" style={{ margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                <span>
-                  {parsed.amount != null ? `${formatMoney(parsed.amount, currency)} ${currency}` : ''}
-                  {amount != null ? ` ${fill(t('form.fxApprox'), { amount: formatMoney(amount, mainCurrency), main: mainCurrency })}` : ''}
-                </span>
-                <span aria-hidden>·</span>
-                <span>{t('form.fxRate')}</span>
-                <input
-                  value={fxRateText || (suggested ? formatRate(suggested) : '')}
-                  onChange={(e) => setFxRateText(e.target.value.replace(/[^0-9.,]/g, '').slice(0, 12))}
-                  inputMode="decimal"
-                  aria-label={fill(t('form.fxRateLabel'), { main: mainCurrency, currency })}
-                  style={{
-                    width: 76, minHeight: 30, padding: '0 8px', borderRadius: 8, textAlign: 'center',
-                    border: '1px solid var(--line-strong)', background: 'var(--surface-sunken)', color: 'var(--text)',
-                    fontSize: 16, fontWeight: 600,
-                  }}
-                />
-              </p>
+              <>
+                {parsed.amount != null && (
+                  <p className="figures" style={{ margin: '6px 0 2px', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                    {formatMoneyIn(parsed.amount, currency)} {currency}
+                  </p>
+                )}
+                <FxLine fx={fx} amount={amount} main={mainCurrency} />
+              </>
             )}
             {desc.missing && (
               <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{desc.missing}</p>
@@ -329,7 +316,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
             <CurrencyChips
               value={currency}
               quick={quickCurrencyList(mainCurrency, settings.quickCurrencies)}
-              onChange={(code) => { setChosenCurrency(code); setFxRateText(''); }}
+              onChange={setChosenCurrency}
             />
             <MethodPicker methods={visibleMethods} value={paymentMethodId} onChange={setChosenMethod} />
           </>

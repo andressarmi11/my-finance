@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { convert, formatRate, parseRate, quickCurrencyList, suggestedRate } from './currencies';
+import { convert, formatRate, quickCurrencyList } from './currencies';
 
 describe('quick currencies', () => {
   it('defaults to COP · USD · EUR', () => {
@@ -14,23 +14,13 @@ describe('quick currencies', () => {
 });
 
 describe('rates', () => {
-  it('the main currency converts 1:1', () => {
-    expect(suggestedRate('COP', 'COP')).toBe(1);
-  });
-  it('has a starting rate for COP, none for other main currencies', () => {
-    expect(suggestedRate('USD', 'COP')).toBeGreaterThan(0);
-    expect(suggestedRate('USD', 'MXN')).toBeNull();
-  });
   it('converts to a whole amount', () => {
     expect(convert(20, 4000)).toBe(80_000);
     expect(convert(3, 4350.5)).toBe(13_052);
   });
-  it('reads and writes rates the way the app writes numbers', () => {
+  it('writes rates the way the app writes numbers, 2 decimals max', () => {
     expect(formatRate(4000)).toBe('4.000');
     expect(formatRate(4350.5)).toBe('4.350,5');
-    expect(parseRate('4.000')).toBe(4000);
-    expect(parseRate('4350,5')).toBe(4350.5);
-    expect(parseRate('0')).toBeNull();
-    expect(parseRate('abc')).toBeNull();
+    expect(formatRate(4016.0643)).toBe('4.016,06');
   });
 });

@@ -25,8 +25,12 @@ pending 1 and 2, per-transaction reminder UI).
 ### Added
 - Per-transaction currency (pending 1): COP · USD · EUR chips (from
   `settings.quickCurrencies`) plus "Más" (MXN, ARS, CLP, PEN); the chosen one
-  stays as a chip. Outside the main currency, "≈ $ 80.000 COP · tasa [4.000]"
-  with an editable rate; the last rate used is remembered per currency.
+  stays as a chip. Outside the main currency, "≈ $ 80.000 COP · tasa de hoy
+  4.000". The rate is **fetched, not typed**: today's market rate from
+  open.er-api.com (no key, CORS), cached for the day and used offline with
+  its date; with no network and no cached table, a foreign amount can't be
+  saved. A saved transaction keeps its rate, so editing it never changes
+  what it cost.
   `amount` is still the integer in the main currency
   (`Math.round(originalAmount * fxRate)`), so nothing in the domain changes.
 - Types: `Transaction`/`RecurringRule` gain `currency`, `originalAmount`,
@@ -41,13 +45,16 @@ pending 1 and 2, per-transaction reminder UI).
   was already the cash method).
 - Reminder chips per transaction: General · Sin aviso · 1 día antes · Mismo
   día · 1 h antes · Mismo día · 8:00 a. m. (the schedule itself: phase 7).
-- `CurrencyChips`, `MethodPicker`, `ReminderChips`, `lib/currencies`.
+- `CurrencyChips`, `MethodPicker`, `ReminderChips`, `lib/currencies`,
+  `lib/fxRates` (CSP `connect-src` allows `https://open.er-api.com`).
 
 ### Tests
 - Unit: mapper round-trips (currency, reminder, quick currencies), currency
-  helpers, NLP currency words.
-- E2E updated: 04, 05, 09, 11, 12, 14, 18, 19, 20. New: 41 (dollars in cash,
-  "Más" currencies, quick entry with currency and method).
+  helpers, NLP currency words, rate fetching (inversion, daily cache,
+  offline fallback).
+- E2E updated: 04, 05, 09, 11, 12, 14, 18, 19, 20. New: 41 (dollars in cash
+  at today's rate, no rate field, offline blocks saving, "Más" currencies,
+  quick entry with currency and method), with the rates API mocked.
 
 ## [Unreleased] — Redesign v4, phase 3: Inicio and Movimientos
 
