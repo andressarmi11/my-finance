@@ -1,6 +1,6 @@
 import { useT } from '@/i18n/language';
 import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
-import { useEffect, useState, type ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
@@ -22,44 +22,13 @@ export const TABS = [
 export function TabBar() {
   const t = useT();
   const [quickOpen, setQuickOpen] = useState(false);
-  const [fabHidden, setFabHidden] = useState(false);
   // 760–1099px: the same tabs as a 72px rail on the left, the + on top.
   const rail = useBreakpoint() === 'tablet';
 
-  // The buttons hide on scroll DOWN and come back on any scroll UP. Small
-  // threshold to avoid flicker from micro-scrolls.
-  useEffect(() => {
-    let lastY = window.scrollY;
-    let ticking = false;
-    function onScroll() {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        ticking = false;
-        const y = window.scrollY;
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        // iOS rubber-band: past the top or the bottom the scroll position
-        // bounces back, which would read as a fake "scroll up" and flicker
-        // the buttons. Ignore it and keep the last real position.
-        if (y < 0 || y > max) return;
-        const delta = y - lastY;
-        if (Math.abs(delta) <= 6) return;
-        // Hide only if the page scrolls more than the area the button covers
-        // (~120px with its margins). Below that there is nothing to uncover
-        // and hiding just removes the main action. A hidden button also has
-        // pointer-events: none, so it must always be able to come back: any
-        // upward scroll, the top of the page, or a short page shows it.
-        setFabHidden(delta > 0 && y > 40 && max > 120);
-        lastY = y;
-      });
-    }
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // A new screen starts with the buttons visible, whatever the last one did.
+  // The + is always visible (it used to hide on scroll down): it's the main
+  // action, and the pill it sits next to doesn't cover the content anyway.
+  // It still hides while a dialog is open (index.css, by its aria-label).
   const { pathname } = useLocation();
-  useEffect(() => setFabHidden(false), [pathname]);
 
   const tabs = TABS.map((tab) => (
     <NavLink
@@ -104,7 +73,6 @@ export function TabBar() {
 
   const add = (
     <AddButton
-      hidden={!rail && fabHidden}
       size={rail ? 48 : undefined}
       onClick={() => {
         haptic('light');
@@ -230,6 +198,7 @@ function AddButton({ onClick, hidden, size }: { onClick: () => void; hidden?: bo
     <button
       type="button"
       aria-label={t('action.addTransaction')}
+      className="fab-add"
       // The action lives in onClick, not onPointerUp. Pointer events
       // only arrive with a finger or mouse: with the keyboard (Enter/Space) and
       // with VoiceOver —which activates by sending a click— this button did

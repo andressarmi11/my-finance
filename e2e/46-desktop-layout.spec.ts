@@ -96,6 +96,9 @@ test('selecting in the table: a bar on top, and deleting asks with the list and 
 test('⌘K / Ctrl+K focuses the search, from any screen, and it filters the table', async ({ page }) => {
   await withSampleData(page);
   await page.goto('analisis');
+  // Wait for the app to be mounted (Análisis is lazy): a key pressed before
+  // the shortcut's listener exists does nothing.
+  await expect(page.getByRole('heading', { level: 1, name: 'Análisis' })).toBeVisible();
   await page.keyboard.press('ControlOrMeta+k');
   await expect(page).toHaveURL(/\/step-up\/$/);
   const search = page.getByRole('searchbox', { name: 'Buscar movimientos' });

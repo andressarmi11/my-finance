@@ -117,11 +117,15 @@ button { font: inherit; color: inherit; }
   }
 }
 
-/* El FAB de "Agregar movimiento" se esconde cuando hay un modal abierto —
+/* El FAB de "Agregar movimiento" (clase .fab-add, no el aria-label, que
+   cambia con el idioma) se esconde cuando hay un modal abierto —
    si no, tocarlo por accidente cierra el modal (ej. estás llenando un
    recurrente y perdés todo). Requiere :has() → iOS 15.4+ / Safari 15.4+. */
-body:has([role="dialog"]) button[aria-label="Agregar movimiento"] {
-  display: none;
+body:has([role="dialog"]) .fab-add {
+  /* !important: the button sets display inline (it's a grid to centre the
+     icon), and an inline style beats any selector. Without it the + kept
+     showing over open sheets since the redesign's phase 2. */
+  display: none !important;
 }
 
 /* ------------------------------------------------------------------ */
