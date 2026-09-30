@@ -19,14 +19,16 @@ async function stubBackend(page: Page) {
     };`,
   }));
   const recover: unknown[] = [];
+  const signup: string[] = [];
   await page.route(`${HOST}/**`, async (route) => {
     const req = route.request();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
     if (new URL(req.url()).pathname.startsWith('/auth/v1/recover')) recover.push(req.postDataJSON());
+    if (req.method() === 'POST' && new URL(req.url()).pathname.startsWith('/auth/v1/signup')) signup.push(req.url());
     return route.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: '{}' });
   });
-  return { recover };
+  return { recover, signup };
 }
 
 const password = (page: Page) => page.getByLabel('Contraseña', { exact: true });
@@ -106,6 +108,23 @@ test.describe('phone', () => {
     // The legal links open the documents, readable before having an account.
     await expect(page.getByRole('link', { name: 'Términos' })).toHaveAttribute('href', /\/legal\/terminos$/);
     await expect(page.getByRole('link', { name: 'Política de privacidad' })).toHaveAttribute('href', /\/legal\/privacidad$/);
+  });
+
+  test('the confirmation email links back to the app, not to the bare domain', async ({ page }) => {
+    const backend = await stubBackend(page);
+    await page.goto('');
+    await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click();
+    await expect(page.getByText('Verificación de seguridad lista')).toBeVisible();
+    await page.getByLabel('Correo').fill('nueva@example.test');
+    await password(page).fill('Abcdef1!');
+    await page.getByRole('checkbox', { name: /Acepto los Términos y la Política de privacidad/ }).check();
+    await page.getByRole('button', { name: 'Crear mi cuenta' }).click();
+
+    await expect.poll(() => backend.signup.length).toBe(1);
+    // Without it Supabase falls back to the page's origin (the Referer):
+    // https://andressarmi11.github.io/, a 404.
+    const redirect = new URL(backend.signup[0]!).searchParams.get('redirect_to');
+    expect(redirect).toMatch(/^http:\/\/[^/]+\/step-up\/$/);
   });
 
   test('the eye shows and hides the password', async ({ page }) => {
