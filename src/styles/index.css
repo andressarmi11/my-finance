@@ -136,12 +136,26 @@ body:has([role="dialog"]) .fab-add {
 /* Screen: one width and gutter everywhere. `screen-wide` lets a screen use
    the desktop width (Análisis, Ajustes). */
 .screen { max-width: 560px; margin: 0 auto; padding: 0 var(--gap-l); }
-/* Ajustes on desktop: a sub-screen inside the right-hand panel. */
-.screen.screen-panel { max-width: 760px; margin: 0; padding: 0; }
-.screen.screen-panel h1 { font-size: 26px !important; }
-/* Moneda in the panel: the currencies in two columns. */
-.screen-panel .currency-main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.screen-panel .currency-main > div { border-top: none !important; }
+/* Ajustes on desktop (prototype 2c): each sub-screen is a card beside the
+   list, titled at 17px, its lists on --paper inside it. */
+.screen.screen-panel {
+  max-width: 900px; margin: 0; padding: 22px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 20px;
+}
+.screen.screen-panel.panel-free { background: none; border: none; padding: 0; }
+.screen.screen-panel > header { margin: 0 0 14px !important; }
+.screen.screen-panel > header h1 { font-size: 17px !important; letter-spacing: normal !important; line-height: 1.3 !important; }
+.screen.screen-panel > header p { font-size: 13px !important; margin-top: 2px !important; line-height: 1.45; }
+/* Moneda in the panel: the currencies as two columns of tiles, the chosen
+   one ringed in --q10 (prototype 2c). */
+.screen-panel .currency-main {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  background: none !important; border-radius: 0 !important;
+}
+.screen-panel .currency-main > div {
+  border: 1.5px solid transparent !important; border-radius: 14px; background: var(--paper); overflow: hidden;
+}
+.screen-panel .currency-main > div:has(button[aria-pressed="true"]) { border-color: var(--q10) !important; }
 
 /* Rows that open something: a quiet hover on pointer devices. Nothing
    depends on it — it only says "this is clickable". */

@@ -4,13 +4,12 @@ import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
 import { formatMoney } from '@/domain/money/format';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { shortDay } from '@/lib/formatShortDate';
 import { fill } from '@/lib/dateLabels';
 import { formatRate } from '@/lib/currencies';
 
 function shortDate(iso: string): string {
-  const { day, month } = formatShortDate(iso);
-  return `${day} ${month}`;
+  return shortDay(iso);
 }
 
 /**
@@ -58,7 +57,12 @@ export function TransactionRow({
     : 'var(--text-faint)';
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--line)' }}>
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
+        background: inSelection && selected ? 'color-mix(in srgb, var(--q10) 8%, transparent)' : 'transparent',
+      }}
+    >
       <button
         type="button"
         onClick={inSelection ? onSeleccionar : onTogglePaid}
@@ -84,7 +88,7 @@ export function TransactionRow({
           transition: 'all var(--dur-fast) var(--ease-spring-out)',
         }}
       >
-        <IconCheck size={15} stroke={2.6} aria-hidden />
+        <IconCheck size={14} stroke={3} aria-hidden />
       </button>
 
       <button
@@ -92,13 +96,13 @@ export function TransactionRow({
         onClick={inSelection ? onSeleccionar : onOpen}
         style={{
           flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
-          padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
+          padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text)',
         }}
       >
         <CategoryAvatar
           icon={category?.icon ?? (isIncome ? 'salary' : 'other')}
           color={category ? categoryColor(category) : UNCATEGORIZED_COLOR}
-          size={36}
+          size={38}
         />
 
         <span style={{ flex: 1, minWidth: 0 }}>
@@ -190,8 +194,7 @@ export function TransactionTableRow({
   const statusColor =
     isPaid ? 'var(--positive-text)'
     : tx.status === 'scheduled' ? 'var(--committed)'
-    : tx.status === 'cancelled' ? 'var(--text-faint)'
-    : 'var(--q25-text)';
+    : 'var(--text-faint)'; // pending and cancelled: grey, as in the prototype
 
   return (
     // The whole row is a mouse target; keyboard and screen readers use the

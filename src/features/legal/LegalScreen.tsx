@@ -1,5 +1,4 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { IconChevronRight } from '@tabler/icons-react';
 import { Screen } from '@/components/ui/Screen';
 import { useLanguage } from '@/i18n/language';
 import { useT } from '@/i18n/language';
@@ -13,49 +12,58 @@ const TITLE_KEY: Record<LegalSlug, 'legal.notice' | 'legal.privacy' | 'legal.ter
   propiedad: 'legal.property',
 };
 
-/** The index: the five documents. */
-export function LegalIndexScreen() {
+/**
+ * The index: the five documents. `inApp` is Ajustes → Legal on a phone
+ * (prototype 1a: "‹ Ajustes" and the tab bar); without it, the public page
+ * anyone can read before having an account.
+ */
+export function LegalIndexScreen({ inApp = false }: { inApp?: boolean }) {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
   const docs = documentsFor(language);
+  const base = inApp ? '/ajustes/legal' : '/legal';
 
   return (
-    <Screen title={t('legal.title')} subtitle={t('legal.subtitle')}>
-      <BackLink onClick={() => navigate(-1)} text={t('nav.backToSettings')} />
+    <Screen
+      title={t('legal.title')}
+      subtitle={t('legal.subtitle')}
+      back={inApp ? { label: t('nav.settings'), to: '/ajustes' } : undefined}
+    >
+      {!inApp && <BackLink onClick={() => navigate(-1)} text={t('nav.backToSettings')} />}
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '2px 14px' }}>
-        {SLUGS.map((slug, i) => (
+      <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
+        {SLUGS.map((slug) => (
           <button
             key={slug}
             type="button"
-            onClick={() => navigate(`/legal/${slug}`)}
+            className="row-hover"
+            onClick={() => navigate(`${base}/${slug}`)}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-              padding: '13px 0', background: 'none', border: 'none',
-              borderBottom: i < SLUGS.length - 1 ? '1px solid var(--line)' : 'none',
+              padding: '12px 14px', background: 'none', border: 'none',
               cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
             }}
           >
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: 'block', fontWeight: 600 }}>{t(TITLE_KEY[slug])}</span>
-              <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 16 }}>{t(TITLE_KEY[slug])}</span>
+              <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.35 }}>
                 {docs[slug].entrada}
               </span>
             </span>
-            <IconChevronRight size={18} stroke={1.75} color="var(--text-faint)" aria-hidden />
+            <span aria-hidden style={{ flex: 'none', color: 'var(--text-dim)', fontSize: 18 }}>›</span>
           </button>
         ))}
       </div>
 
-      <p style={{ marginTop: 16, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-        {t('legal.updated')}: {UPDATED}
+      <p style={{ margin: '8px 6px 0', fontSize: 12, color: 'var(--text-faint)' }}>
+        {t('legal.updated')}: {UPDATED} · Step up v{import.meta.env.VITE_APP_VERSION as string}
       </p>
     </Screen>
   );
 }
 
 /** A single document. */
-export function LegalDocScreen() {
+export function LegalDocScreen({ inApp = false }: { inApp?: boolean }) {
   const navigate = useNavigate();
   const { slug } = useParams<{ slug: string }>();
   const { language, t } = useLanguage();
@@ -75,8 +83,8 @@ export function LegalDocScreen() {
   const doc = documentsFor(language)[slug];
 
   return (
-    <Screen title={doc.title}>
-      <BackLink onClick={() => navigate('/legal')} text={t('legal.title')} />
+    <Screen title={doc.title} back={inApp ? { label: t('legal.title'), to: '/ajustes/legal' } : undefined}>
+      {!inApp && <BackLink onClick={() => navigate('/legal')} text={t('legal.title')} />}
 
       <LegalDocBody slug={slug} />
     </Screen>

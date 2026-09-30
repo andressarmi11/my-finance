@@ -45,24 +45,24 @@ export function MiniCalendar({ value, today, onChange }: {
   return (
     <div
       style={{
-        background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16,
-        padding: '8px 10px 10px', marginBottom: 14,
+        background: 'var(--paper)', borderRadius: 16,
+        padding: 10, marginBottom: 14,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 2px 6px' }}>
         <button type="button" aria-label={t('nav.prevMonth')} onClick={() => setView((v) => shiftMonthISO(v.year, v.month, -1))} style={arrowStyle}>‹</button>
-        <span aria-live="polite" style={{ fontSize: 'var(--text-base)', fontWeight: 600 }}>
+        <span aria-live="polite" style={{ fontSize: 14, fontWeight: 700 }}>
           {monthName(view.month)} {view.year}
         </span>
         <button type="button" aria-label={t('nav.nextMonth')} onClick={() => setView((v) => shiftMonthISO(v.year, v.month, 1))} style={arrowStyle}>›</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', paddingBottom: 2 }}>
         {weekdays.map((w, i) => (
           <span key={i} aria-hidden style={{ textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--text-faint)' }}>{w}</span>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 2 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {cells.map((cell) => {
           const selected = cell.date === value;
           const isToday = cell.date === today;
@@ -73,9 +73,13 @@ export function MiniCalendar({ value, today, onChange }: {
               onClick={() => pick(cell.date)}
               aria-pressed={selected}
               aria-label={dateLabel(cell.date, t, 'long')}
+              // Only this month's days (prototype): the others keep their
+              // cell, so the weeks stay aligned, but aren't shown.
+              aria-hidden={!cell.inMonth || undefined}
+              tabIndex={cell.inMonth ? undefined : -1}
               style={{
                 height: 36, border: 'none', background: 'transparent', padding: 0, cursor: 'pointer',
-                display: 'grid', placeItems: 'center', opacity: cell.inMonth ? 1 : 0.35,
+                display: 'grid', placeItems: 'center', visibility: cell.inMonth ? 'visible' : 'hidden',
               }}
             >
               <span
@@ -83,7 +87,8 @@ export function MiniCalendar({ value, today, onChange }: {
                   width: 32, height: 32, borderRadius: 16, display: 'grid', placeItems: 'center',
                   background: selected ? 'var(--q10)' : 'transparent',
                   boxShadow: isToday && !selected ? 'inset 0 0 0 1.5px var(--q10)' : 'none',
-                  color: selected ? 'var(--on-accent)' : 'var(--text)',
+                  // Past days a step quieter than the ones ahead.
+                  color: selected ? 'var(--on-accent)' : isToday ? 'var(--q10-text)' : cell.date > today ? 'var(--text)' : 'var(--text-muted)',
                   fontSize: 14, fontWeight: selected || isToday ? 700 : 500,
                 }}
               >
@@ -102,11 +107,10 @@ export function MiniCalendar({ value, today, onChange }: {
             onClick={() => pick(s.iso)}
             aria-pressed={value === s.iso}
             style={{
-              minHeight: 32, padding: '0 12px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${value === s.iso ? 'var(--q10)' : 'var(--line-strong)'}`,
-              background: value === s.iso ? 'var(--q10-soft)' : 'transparent',
-              color: value === s.iso ? 'var(--q10-text)' : 'var(--text)',
-              fontSize: 'var(--text-sm)', fontWeight: 600,
+              height: 30, padding: '0 12px', borderRadius: 15, cursor: 'pointer', border: 'none',
+              background: value === s.iso ? 'var(--q10-soft)' : 'var(--surface-sunken)',
+              color: value === s.iso ? 'var(--q10-text)' : 'var(--text-muted)',
+              fontSize: 12, fontWeight: 600,
             }}
           >
             {s.label}
@@ -118,6 +122,6 @@ export function MiniCalendar({ value, today, onChange }: {
 }
 
 const arrowStyle: React.CSSProperties = {
-  width: 'var(--tap)', height: 36, border: 'none', background: 'none', cursor: 'pointer',
-  color: 'var(--q10-text)', fontSize: 20,
+  width: 32, height: 32, border: 'none', borderRadius: 10, background: 'var(--surface-sunken)', cursor: 'pointer',
+  color: 'var(--text-muted)', fontSize: 18,
 };

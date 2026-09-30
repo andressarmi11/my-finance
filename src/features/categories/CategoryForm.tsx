@@ -100,10 +100,10 @@ export function CategoryForm({
         {touched && !name.trim() && <p style={{ margin: 0, fontSize: 12, color: 'var(--danger-text)' }}>{t('categories.giveItAName')}</p>}
       </div>
 
-      <Segmented label={t('set.appliesTo')} value={kind} onChange={setKind} options={kinds} size="s" />
+      <Segmented inset label={t('set.appliesTo')} value={kind} onChange={setKind} options={kinds} />
 
       <h3 style={sectionTitle}>{t('set.color')}</h3>
-      <div role="group" aria-label={t('set.color')} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center' }}>
+      <div role="group" aria-label={t('set.color')} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, justifyItems: 'center' }}>
         {COLORS.map((c, i) => (
           <button
             key={c}
@@ -112,27 +112,26 @@ export function CategoryForm({
             aria-pressed={color.toUpperCase() === c.toUpperCase()}
             aria-label={fill(t('set.colorN'), { n: i + 1 })}
             style={{
-              width: 38, height: 38, borderRadius: 19, padding: 0, cursor: 'pointer', background: paint(c),
+              width: 32, height: 32, borderRadius: 16, padding: 0, cursor: 'pointer', background: paint(c),
               border: `3px solid ${color.toUpperCase() === c.toUpperCase() ? 'var(--text)' : 'transparent'}`,
-              boxShadow: 'inset 0 0 0 2px var(--surface)',
             }}
           />
         ))}
       </div>
 
       <h3 style={sectionTitle}>{t('categories.icon')}</h3>
-      <div role="group" aria-label={t('categories.icon')} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+      <div role="group" aria-label={t('categories.icon')} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
         {icons.map((i) => {
           const active = icon === i;
           return (
             <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={active} aria-label={i}
               style={{
-                height: 50, borderRadius: 14, display: 'grid', placeItems: 'center', cursor: 'pointer',
+                height: 42, borderRadius: 12, display: 'grid', placeItems: 'center', cursor: 'pointer',
                 border: `1.5px solid ${active ? painted : 'var(--line)'}`,
-                background: active ? `color-mix(in srgb, ${painted} 16%, var(--surface))` : 'transparent',
+                background: active ? `color-mix(in srgb, ${painted} 18%, var(--surface))` : 'var(--paper)',
                 color: active ? painted : 'var(--text-muted)',
               }}>
-              <CategoryIcon icon={i} size={22} />
+              <CategoryIcon icon={i} size={20} />
             </button>
           );
         })}

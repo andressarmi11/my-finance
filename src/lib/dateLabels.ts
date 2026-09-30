@@ -15,6 +15,7 @@ export function fill(template: string, vars: Record<string, string | number>): s
 export function dateLabel(iso: string, t: (k: TextKey) => string, kind: 'short' | 'long' = 'short'): string {
   const { day, month, monthIndex } = formatShortDate(iso);
   return fill(t(kind === 'short' ? 'date.short' : 'date.long'), {
-    day, monthShort: month, monthLong: monthName(monthIndex).toLowerCase(), // Spanish writes months in lowercase
+    // Capitalised, as the prototype writes every month ("29 de Septiembre").
+    day, monthShort: month, monthLong: monthName(monthIndex),
   });
 }

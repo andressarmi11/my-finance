@@ -12,8 +12,8 @@ test('creates an income', async ({ page }) => {
   await page.goto('movimientos?nuevo=1&tipo=ingreso');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
 
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Pago freelance');
-  await dialog.getByPlaceholder('$ 0').fill('1200000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Pago freelance');
+  await dialog.getByLabel('Valor', { exact: true }).fill('1200000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
 

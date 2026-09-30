@@ -16,15 +16,11 @@ export function setPeriodLabelLanguage(language: 'es' | 'en'): void {
 }
 
 /**
- * "Quincena del" / "From the" — followed by the day.
- *
- * In English it's kept short on purpose: "Pay period from the 10" would wrap
- * onto two lines on the dashboard card and push the amount out of
- * view. In context —a period card, a group header— "From
- * the 10" reads fine and fits wherever the Spanish fits.
+ * "Quincena del" / "Pay period" — followed by the day: "Pay period 25", as
+ * the prototype writes it. It fits wherever the Spanish does.
  */
 export function payPeriodLabel(): string {
-  return currentLanguage === 'en' ? 'From the' : 'Quincena del';
+  return currentLanguage === 'en' ? 'Pay period' : 'Quincena del';
 }
 
 /** For someone who gets paid once a month and not on the 1st. */

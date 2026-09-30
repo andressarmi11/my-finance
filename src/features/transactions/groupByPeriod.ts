@@ -14,12 +14,10 @@ import { withResolvedPeriods } from '@/domain/period/resolve';
 import type { PeriodKey, Transaction } from '@/domain/types';
 import { monthName } from '@/components/ui/MonthNav';
 import { monthFromLabel, payPeriodLabel } from '@/i18n/periodLabels';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { shortRange } from '@/lib/formatShortDate';
 
 export function formatRangeLabel(start: string, end: string): string {
-  const s = formatShortDate(start);
-  const e = formatShortDate(end);
-  return s.month === e.month ? `${s.day} - ${e.day} ${s.month}` : `${s.day} ${s.month} - ${e.day} ${e.month}`;
+  return shortRange(start, end);
 }
 
 /**

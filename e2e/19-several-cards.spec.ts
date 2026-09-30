@@ -20,7 +20,7 @@ test.use({ reducedMotion: 'reduce' });
 async function crearTarjeta(page: Page, name: string, cutoff: string, payment: string, cupo?: string) {
   await page.goto('ajustes/metodos');
   await page.getByRole('button', { name: '+ Nuevo método de pago' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Nuevo método de pago' });
+  const dialog = page.getByRole('dialog', { name: 'Nuevo método' });
   await dialog.getByLabel('Nombre').fill(name);
   await dialog.getByRole('button', { name: 'Crédito' }).click();
   // Steppers now (redesign §9f): the middle is still a number field.
@@ -34,7 +34,7 @@ async function crearTarjeta(page: Page, name: string, cutoff: string, payment: s
 test('a second card can be created and shows up in the list', async ({ page }) => {
   await crearTarjeta(page, 'Amex Oro', '5', '20');
   await expect(page.getByText('Amex Oro')).toBeVisible();
-  await expect(page.getByText(/corte 5, paga 20/)).toBeVisible();
+  await expect(page.getByText(/corte 5, paga el 20/)).toBeVisible();
 });
 
 test('each card works out its payment date from ITS OWN days', async ({ page }) => {
@@ -42,8 +42,8 @@ test('each card works out its payment date from ITS OWN days', async ({ page }) 
 
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Compra Amex');
-  await dialog.getByPlaceholder('$ 0').fill('250000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Compra Amex');
+  await dialog.getByLabel('Valor', { exact: true }).fill('250000');
   // Two cards now: Crédito shows their names to pick one.
   await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
   await dialog.getByRole('button', { name: 'Amex Oro' }).click();
@@ -65,8 +65,8 @@ test('the credit limit shows the available amount and deducts from it', async ({
 
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Mercado');
-  await dialog.getByPlaceholder('$ 0').fill('300000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Mercado');
+  await dialog.getByLabel('Valor', { exact: true }).fill('300000');
   // Two cards now: Crédito shows their names to pick one.
   await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
   await dialog.getByRole('button', { name: 'Visa Cupo' }).click();
@@ -82,8 +82,8 @@ test('deleting a card leaves its transactions without a method, it does not dele
 
   await page.goto('movimientos?nuevo=1');
   const nuevo = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await nuevo.getByPlaceholder('Ej. Restaurante').fill('Gasto huérfano');
-  await nuevo.getByPlaceholder('$ 0').fill('90000');
+  await nuevo.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gasto huérfano');
+  await nuevo.getByLabel('Valor', { exact: true }).fill('90000');
   // Two cards now: Crédito shows their names to pick one.
   await nuevo.getByRole('button', { name: 'Crédito', exact: true }).click();
   await nuevo.getByRole('button', { name: 'Temporal' }).click();

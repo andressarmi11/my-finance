@@ -20,7 +20,7 @@ test.use({ reducedMotion: 'reduce' });
 async function crearTarjeta(page: Page, name: string, cutoff: string, payment: string, cupo?: string) {
   await page.goto('ajustes/metodos');
   await page.getByRole('button', { name: '+ Nuevo método de pago' }).click();
-  const d = page.getByRole('dialog', { name: 'Nuevo método de pago' });
+  const d = page.getByRole('dialog', { name: 'Nuevo método' });
   await d.getByLabel('Nombre').fill(name);
   await d.getByRole('button', { name: 'Crédito' }).click();
   await d.getByRole('spinbutton', { name: 'Día de corte' }).fill(cutoff);
@@ -33,8 +33,8 @@ async function crearTarjeta(page: Page, name: string, cutoff: string, payment: s
 async function buyInInstallments(page: Page, concept: string, amount: string, card: string, installments: string) {
   await page.goto('movimientos?nuevo=1');
   const d = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await d.getByPlaceholder('Ej. Restaurante').fill(concept);
-  await d.getByPlaceholder('$ 0').fill(amount);
+  await d.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+  await d.getByLabel('Valor', { exact: true }).fill(amount);
   // Two cards: Crédito first, then the card. Instalments live under "Más opciones".
   await d.getByRole('button', { name: 'Crédito', exact: true }).click();
   await d.getByRole('button', { name: card }).click();

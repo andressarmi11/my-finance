@@ -23,7 +23,7 @@ export const CURRENCIES: CurrencyOption[] = [
   { code: 'ARS', locale: 'es-AR', label: 'Peso argentino', sampleAmount: 2_500 },
   { code: 'CLP', locale: 'es-CL', label: 'Peso chileno', sampleAmount: 2_500 },
   { code: 'PEN', locale: 'es-PE', label: 'Sol peruano', sampleAmount: 2_500 },
-  { code: 'USD', locale: 'en-US', label: 'Dólar', sampleAmount: 2_500 },
+  { code: 'USD', locale: 'en-US', label: 'Dólar estadounidense', sampleAmount: 2_500 },
   { code: 'EUR', locale: 'es-ES', label: 'Euro', sampleAmount: 2_500 },
 ];
 

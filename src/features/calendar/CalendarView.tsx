@@ -141,14 +141,16 @@ export function CalendarView({ year: viewYear, month: viewMonth, wide = false }:
 
   return (
     <>
-      {wideGrid ?? (<>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
+      {wideGrid ?? (
+      // Prototype 1a: the month in its own card.
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: '12px 10px 8px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', paddingBottom: 6 }}>
         {weekdays.map((w, i) => (
           <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', fontWeight: 600 }}>{w}</div>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 2 }}>
         {cells.map((cell) => {
           const marker = markersByDate.get(cell.date);
           const isSelected = cell.date === selected;
@@ -161,23 +163,22 @@ export function CalendarView({ year: viewYear, month: viewMonth, wide = false }:
               onClick={() => setSelected(cell.date)}
               aria-pressed={isSelected}
               style={{
-                minHeight: 48, border: 'none', background: 'transparent', padding: 0,
+                height: 44, border: 'none', background: 'transparent', padding: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer',
-                opacity: cell.inMonth ? 1 : 0.35,
               }}
             >
               <span
                 style={{
                   width: 34, height: 34, borderRadius: 17, display: 'grid', placeItems: 'center',
                   background: isSelected ? 'var(--text)' : 'transparent',
-                  color: isSelected ? 'var(--paper)' : isToday ? 'var(--q10-text)' : (cell.inMonth ? 'var(--text)' : 'var(--text-faint)'),
+                  color: isSelected ? 'var(--paper)' : isToday ? 'var(--q10-text)' : (cell.inMonth ? 'var(--text)' : 'var(--text-dim)'),
                   fontSize: 15, fontWeight: isToday || isSelected ? 700 : 500,
                 }}
               >
                 {dayNum}
               </span>
               {/* At most three dots: income, expense, card payment. */}
-              <span style={{ display: 'flex', gap: 3, height: 4 }}>
+              <span style={{ display: 'flex', gap: 2, height: 4, opacity: cell.inMonth ? 1 : 0.5 }}>
                 {marker?.income && <Dot color="var(--positive)" />}
                 {marker?.expense && <Dot color="var(--text-faint)" />}
                 {marker?.tcPayment && <Dot color="var(--q25)" />}
@@ -186,45 +187,56 @@ export function CalendarView({ year: viewYear, month: viewMonth, wide = false }:
           );
         })}
       </div>
-      </>)}
+      </div>
+      )}
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '0 0 10px' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: wide ? '0 0 10px' : '22px 4px 10px' }}>
+        <h2 style={{ fontSize: wide ? 'var(--text-lg)' : 17, fontWeight: 700, margin: 0 }}>
           {dateLabel(selected, t, 'long')}
         </h2>
         {dayTransactions.length > 0 && (
-          <span className="figures" style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: dayNet >= 0 ? 'var(--positive-text)' : 'var(--text-muted)' }}>
+          <span className="figures" style={{ fontSize: 13, color: dayNet > 0 ? 'var(--positive-text)' : 'var(--text-muted)' }}>
             {dayNet > 0 ? '+ ' : dayNet < 0 ? '− ' : ''}{formatMoney(Math.abs(dayNet))}
           </span>
         )}
       </div>
 
       {dayTransactions.length === 0 && dayPayments.length === 0 ? (
-        <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>{t('calendar.noTransactionsToday')}</p>
+        <div
+          style={{
+            padding: 22, textAlign: 'center', color: 'var(--text-faint)', fontSize: 14,
+            background: 'var(--surface)', border: '1px dashed var(--line-strong)', borderRadius: 20,
+          }}
+        >
+          {t('calendar.noTransactionsToday')}
+        </div>
       ) : (
-        <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', padding: '4px 14px' }}>
+        <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
           {dayTransactions.map((tx) => {
             const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
             return (
-              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+              <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
                 <CategoryAvatar
                   icon={cat?.icon ?? 'other'}
                   color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
-                  size={32}
+                  size={38}
                 />
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
-                <span className="figures" style={{ fontWeight: 600, color: tx.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
-                  {tx.type === 'income' ? '+' : ''}{formatMoney(tx.amount)}
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                  {cat && <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{cat.name}</span>}
+                </span>
+                <span className="figures" style={{ fontWeight: 700, fontSize: 16, color: tx.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
+                  {tx.type === 'income' ? '+ ' : ''}{formatMoney(tx.amount)}
                 </span>
               </div>
             );
           })}
           {dayPayments.map((tx) => (
-            <div key={`pay-${tx.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
+            <div key={`pay-${tx.id}`} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
               <span
                 aria-hidden
                 style={{
-                  flex: 'none', width: 32, height: 32, borderRadius: 11, display: 'grid',
+                  flex: 'none', width: 38, height: 38, borderRadius: 12, display: 'grid',
                   placeItems: 'center', background: 'var(--q25-soft)', color: 'var(--q25-text)',
                 }}
               >

@@ -1,4 +1,4 @@
-import { IconBell, IconBellOff } from '@tabler/icons-react';
+import { IconBell } from '@tabler/icons-react';
 import type { ReminderRule, Transaction } from '@/domain/types';
 import { useT } from '@/i18n/language';
 import type { TextKey } from '@/i18n/texts';
@@ -29,10 +29,17 @@ function same(a: TxReminder, b: TxReminder): boolean {
  * Bell chips to override the general reminder for one transaction. Only the
  * presets: the full editor lives in Ajustes → Recordatorios.
  */
-export function ReminderChips({ value, onChange }: { value: TxReminder; onChange: (v: TxReminder) => void }) {
+export function ReminderChips({ value, onChange, wrap = false }: {
+  value: TxReminder; onChange: (v: TxReminder) => void;
+  /** Desktop form (prototype 2a): the chips wrap under an "Aviso" label, no bell. */
+  wrap?: boolean;
+}) {
   const t = useT();
   return (
-    <div role="group" aria-label={t('reminder.label')} style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, marginBottom: 12 }}>
+    // Prototype 1a: one bell in front of the row, plain chips after it.
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+    {!wrap && <IconBell size={17} stroke={1.9} aria-hidden style={{ flex: 'none', color: 'var(--text-faint)' }} />}
+    <div role="group" aria-label={t('reminder.label')} className="noscroll" style={{ display: 'flex', gap: 6, overflowX: wrap ? 'visible' : 'auto', flexWrap: wrap ? 'wrap' : 'nowrap', scrollbarWidth: 'none', minWidth: 0 }}>
       {PRESETS.map((p) => {
         const active = same(value, p.value);
         return (
@@ -42,21 +49,19 @@ export function ReminderChips({ value, onChange }: { value: TxReminder; onChange
             aria-pressed={active}
             onClick={() => onChange(p.value)}
             style={{
-              flex: 'none', display: 'flex', alignItems: 'center', gap: 5,
-              minHeight: 32, padding: '0 11px', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap',
-              border: `1px solid ${active ? 'var(--q10)' : 'var(--line-strong)'}`,
-              background: active ? 'var(--q10-soft)' : 'transparent',
-              color: active ? 'var(--q10-text)' : 'var(--text-muted)',
-              fontSize: 'var(--text-sm)', fontWeight: 600,
+              flex: 'none', display: 'flex', alignItems: 'center',
+              height: 30, padding: '0 11px', borderRadius: 15, cursor: 'pointer', whiteSpace: 'nowrap',
+              border: `1px solid ${active ? 'var(--q10)' : 'var(--line)'}`,
+              background: active ? 'var(--q10-soft)' : 'var(--paper)',
+              color: active ? 'var(--text)' : 'var(--text-muted)',
+              fontSize: 12, fontWeight: 600,
             }}
           >
-            {p.value === 'none'
-              ? <IconBellOff size={14} stroke={2} aria-hidden />
-              : <IconBell size={14} stroke={2} aria-hidden />}
             {t(p.key)}
           </button>
         );
       })}
+    </div>
     </div>
   );
 }

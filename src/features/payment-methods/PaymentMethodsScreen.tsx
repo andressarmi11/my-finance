@@ -1,4 +1,4 @@
-import { useT } from '@/i18n/language';
+import { useLanguage } from '@/i18n/language';
 import { IconBuildingBank, IconCash, IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -29,13 +29,27 @@ const TYPE_LOOK: Record<PaymentMethod['type'], { icon: typeof IconCreditCard; co
 
 /**
  * Métodos de pago (redesign §9f): one row per method with its type icon,
- * "Por defecto" on the default one, "Crédito · corte 15, paga 2" and, for a
+ * "Por defecto" on the default one, "Crédito · corte 15, paga el 2" and, for a
  * card with a limit, the bar of how much of it is used (creditLimit, 0007).
  */
+const TYPE_ORDER = ['debit', 'credit', 'cash', 'transfer'];
+
+/** "15" / "15th": the prototype's English writes the days as ordinals. */
+function ordinalDay(day: number, language: string): string {
+  if (language !== 'en') return String(day);
+  const s = day % 100 >= 11 && day % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] ?? 'th';
+  return `${day}${s}`;
+}
+
 export function PaymentMethodsScreen() {
-  const t = useT();
+  const { t, language } = useLanguage();
   const back = useSettingsBack();
   const methods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
+  // Debit, credit, cash (prototype order); within a type, as stored.
+  const sortedMethods = useMemo(
+    () => [...methods].sort((a, b) => TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type)),
+    [methods],
+  );
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
   const [editing, setEditing] = useState<PaymentMethod | null>(null);
@@ -76,7 +90,7 @@ export function PaymentMethodsScreen() {
     <Screen title={t('methods.title')} subtitle={t('set.methodsIntro')} back={back}>
       {methods.length > 0 && (
         <SettingsGroup style={{ marginTop: 0 }}>
-          {methods.map((m) => {
+          {sortedMethods.map((m) => {
             const credit = m.type === 'credit' ? calculateAvailableCredit(m, transactions, today) : null;
             const look = TYPE_LOOK[m.type];
             const Icon = look.icon;
@@ -91,20 +105,21 @@ export function PaymentMethodsScreen() {
                 </span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                    <span style={{ fontSize: 16, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
                     {m.id === defaultId && (
                       <span style={{ flex: 'none', fontSize: 11, fontWeight: 700, color: 'var(--q10-text)', background: 'var(--q10-soft)', padding: '2px 7px', borderRadius: 8 }}>
                         {t('set.defaultTag')}
                       </span>
                     )}
                   </span>
-                  <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 1 }}>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
                     {t(TYPE_LABEL[m.type])}
-                    {m.type === 'credit' && m.cutoffDay && m.paymentDay
-                      ? ` · ${t('methods.cycleShort')
-                          .replace('{cutoff}', String(m.cutoffDay))
-                          .replace('{payment}', String(m.paymentDay))}`
-                      : ''}
+                    {' · '}
+                    {m.type === 'credit'
+                      ? (m.cutoffDay && m.paymentDay
+                        ? fill(t('methods.cycleShort'), { cutoff: ordinalDay(m.cutoffDay, language), payment: ordinalDay(m.paymentDay, language) })
+                        : '')
+                      : t(m.type === 'cash' ? 'methods.subCash' : m.type === 'transfer' ? 'methods.subTransfer' : 'methods.subDebit')}
                   </span>
                   {credit && (
                     <>

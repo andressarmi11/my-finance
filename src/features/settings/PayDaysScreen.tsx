@@ -42,6 +42,7 @@ export function PayDaysScreen() {
   return (
     <Screen title={t('settings.howYouGetPaid')} subtitle={t('set.payIntro')} back={back}>
       <Segmented
+        tall
         label={t('settings.moneyComesIn')}
         value={twice ? 'two' : 'one'}
         onChange={(v) => {
@@ -98,7 +99,7 @@ export function PayDaysScreen() {
           {preview.periods.map((p) => (
             <li key={p.index} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: colorOf(p.index), flex: 'none' }} />
-              <span style={{ flex: 1, fontWeight: 600, fontSize: 'var(--text-md)' }}>{periodLabel(p.startDay)}</span>
+              <span style={{ flex: 1, fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap' }}>{periodLabel(p.startDay)}</span>
               <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', textAlign: 'right' }}>
                 {fill(t(p.endsNextMonth ? 'set.rangeNextMonth' : 'set.rangeSameMonth'), { from: p.startDay, to: p.endDay })}
               </span>
@@ -106,7 +107,12 @@ export function PayDaysScreen() {
           ))}
         </ul>
       </div>
-      <p style={{ ...noteStyle, fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>{t('set.payCrossNote')}</p>
+      <p style={{ ...noteStyle, fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+        {/* With two pay days, the prototype's concrete example on this month's dates. */}
+        {settings.payDays.length === 2
+          ? fill(t('set.payCrossNoteTwo'), { next: monthName((month % 12) + 1), day: settings.payDays[1]!, month: monthLabel })
+          : t('set.payCrossNote')}
+      </p>
     </Screen>
   );
 }

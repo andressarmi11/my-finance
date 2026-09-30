@@ -6,9 +6,8 @@ test('creates a recurring (fixed) expense and shows its instance in transactions
 
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
   await expect(dialog).toBeVisible();
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Gimnasio E2E');
-  await dialog.getByPlaceholder('$ 0').fill('100000');
-  await dialog.getByRole('button', { name: 'Mensual' }).click();
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gimnasio E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('100000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

@@ -85,8 +85,7 @@ async function sweep(page: Page, width: number): Promise<string[]> {
   await page.keyboard.press('Escape');
 
   await page.goto('');
-  await page.getByRole('button', { name: /^Still to pay/ }).first().click();
-  await page.getByRole('button', { name: 'What do these statuses mean?' }).click().catch(() => {});
+  await page.getByRole('button', { name: /^To pay/ }).first().click();
   await check('still to pay');
   await page.keyboard.press('Escape');
 

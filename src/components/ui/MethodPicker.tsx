@@ -13,10 +13,12 @@ const TYPE_KEY = {
  * per TYPE the user has. When a type has several methods —two cards, say—
  * its own names show underneath to pick one.
  */
-export function MethodPicker({ methods, value, onChange }: {
+export function MethodPicker({ methods, value, onChange, inset = false }: {
   methods: PaymentMethod[];
   value: string | null;
   onChange: (id: string) => void;
+  /** In the phone sheet: the sheet's inset segmented, no bottom margin (it shares a row with the date). */
+  inset?: boolean;
 }) {
   const t = useT();
   const selected = methods.find((m) => m.id === value);
@@ -37,8 +39,9 @@ export function MethodPicker({ methods, value, onChange }: {
   const siblings = selected ? ofType(selected.type) : [];
 
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: inset ? 0 : 10 }}>
       <Segmented
+        inset={inset}
         label={t('form.paymentMethod')}
         value={(selected?.type ?? '') as PaymentMethodType}
         onChange={pickType}

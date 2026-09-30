@@ -103,12 +103,12 @@ async function conDictadoFalso(page: Page) {
   });
 }
 
-/** Opens the "Contale a la app" sheet. */
+/** Opens the "Contarle a la app" sheet. */
 async function abrirHoja(page: Page) {
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
   await expect(sheet).toBeVisible();
   return sheet;
 }
@@ -211,7 +211,7 @@ test('closing while listening releases the microphone', async ({ page }) => {
   // Y dictar otra vez funciona.
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet2 = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet2 = page.getByRole('dialog', { name: 'Contarle a la app' });
   await sheet2.getByRole('button', { name: 'Dictar' }).click();
   await page.evaluate(() => (window as never as { __voz: Voz }).__voz.hablar('diez mil de taxi', true));
   await expect(sheet2.getByLabel('Qué pasó')).toHaveValue('diez mil de taxi');
@@ -249,7 +249,7 @@ test('a hung recognizer does not leave dictation unusable', async ({ page }) => 
   // browser won't let you dictate" until you reloaded.
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet2 = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet2 = page.getByRole('dialog', { name: 'Contarle a la app' });
   await sheet2.getByRole('button', { name: 'Dictar' }).click();
 
   await expect(sheet2.getByText(/navegador no deja dictar/)).toBeHidden();

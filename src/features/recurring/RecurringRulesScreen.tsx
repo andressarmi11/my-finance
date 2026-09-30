@@ -116,14 +116,14 @@ export function RecurringRulesScreen() {
           <CategoryIcon icon={category?.icon} size={19} />
         </span>
         <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ display: 'block', fontSize: 'var(--text-md)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+          <span style={{ display: 'block', fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
           <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             {describe(r)}
           </span>
         </span>
         <span className="figures" style={{ textAlign: 'right', flex: 'none' }}>
-          <span style={{ display: 'block', fontWeight: 600, color: r.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
-            {r.type === 'income' ? '+' : ''}{formatMoney(r.amount)}
+          <span className="figures" style={{ display: 'block', fontSize: 16, fontWeight: 700, color: r.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
+            {r.type === 'income' ? '+ ' : ''}{formatMoney(r.amount)}
           </span>
           {r.currency && r.originalAmount != null && r.currency !== settings?.currency && (
             <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
@@ -147,11 +147,11 @@ export function RecurringRulesScreen() {
           }}>
             <div style={{ background: 'var(--surface)', padding: '12px 14px' }}>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{t('set.inPerMonth')}</div>
-              <div className="figures" style={{ fontSize: 17, fontWeight: 700, color: 'var(--positive-text)' }}>{formatMoney(totals.income)}</div>
+              <div className="figures" style={{ fontSize: 17, fontWeight: 700, color: 'var(--positive-text)' }}>+ {formatMoney(totals.income)}</div>
             </div>
             <div style={{ background: 'var(--surface)', padding: '12px 14px' }}>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{t('set.outPerMonth')}</div>
-              <div className="figures" style={{ fontSize: 17, fontWeight: 700 }}>{formatMoney(totals.expense)}</div>
+              <div className="figures" style={{ fontSize: 17, fontWeight: 700 }}>− {formatMoney(totals.expense)}</div>
             </div>
           </div>
           {income.length > 0 && (
@@ -213,11 +213,11 @@ function ConfirmDeleteRule({ name, onConfirm, onCancel }: { name: string; onConf
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+          borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 16px' }} />
         <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>{fill(t('recurring.deleteQuestion'), { name })}</h2>
         <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>{t('recurring.deleteBody')}</p>
         <button type="button" onClick={onConfirm} style={{ width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none', background: 'var(--danger)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 8 }}>

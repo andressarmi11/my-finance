@@ -31,9 +31,9 @@ export function ShortcutsScreen() {
         ))}
       </SettingsGroup>
 
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', margin: '12px 6px 0' }}>
+      <p style={{ fontSize: 13, color: 'var(--text-faint)', margin: '12px 6px 0' }}>
         {t('set.fullGuide')}{' '}
-        <a href={SHORTCUTS_GUIDE_URL} target="_blank" rel="noreferrer" style={{ color: 'var(--q10-text)', fontWeight: 600 }}>
+        <a href={SHORTCUTS_GUIDE_URL} target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
           docs/ATAJOS_IOS.md
         </a>
       </p>

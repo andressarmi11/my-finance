@@ -9,8 +9,8 @@ test.use({ viewport: { width: 390, height: 844 } });
 test('deletes an expense', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Gasto a borrar');
-  await dialog.getByPlaceholder('$ 0').fill('20000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gasto a borrar');
+  await dialog.getByLabel('Valor', { exact: true }).fill('20000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

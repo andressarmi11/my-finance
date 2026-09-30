@@ -1,6 +1,6 @@
-import { Children, useEffect, useState, type ReactNode } from 'react';
+import { Children, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { IconChevronRight } from '@tabler/icons-react';
+import { SettingsPanelContext } from '@/components/ui/Screen';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useT } from '@/i18n/language';
 import { fill } from '@/lib/dateLabels';
@@ -26,6 +26,9 @@ export function SettingsGroup({ title, right, children, note, style, cardClassNa
 }) {
   // Conditional rows come in as null/false: only real ones get a divider.
   const rows = Children.toArray(children);
+  // Inside the desktop panel's card the lists sit on --paper, not on a
+  // second card (prototype 2c).
+  const inPanel = useContext(SettingsPanelContext);
   return (
     <section style={{ marginTop: title ? 0 : 22, ...style }}>
       {title && (
@@ -34,7 +37,7 @@ export function SettingsGroup({ title, right, children, note, style, cardClassNa
           {right && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>{right}</span>}
         </div>
       )}
-      <div className={cardClassName} style={card}>
+      <div className={cardClassName} style={inPanel ? { ...card, background: 'var(--paper)', border: 'none', borderRadius: 14 } : card}>
         {rows.map((row, i) => (
           <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line)' }}>{row}</div>
         ))}
@@ -82,13 +85,13 @@ export function SettingsRow({ icon, tint = 'var(--text-muted)', label, value, to
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0, padding: sub ? '8px 0' : 0 }}>
-        <span style={{ display: 'block', fontSize: 'var(--text-md)', color: danger ? 'var(--danger-text)' : 'var(--text)' }}>{label}</span>
+        <span style={{ display: 'block', fontSize: 16, color: danger ? 'var(--danger-text)' : 'var(--text)' }}>{label}</span>
         {sub && <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{sub}</span>}
       </span>
       {value && (
-        <span className="figures" style={{ fontSize: 'var(--text-base)', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{value}</span>
+        <span style={{ fontSize: 14, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{value}</span>
       )}
-      {chevron && <IconChevronRight aria-hidden size={18} stroke={1.75} style={{ flex: 'none', color: 'var(--text-faint)' }} />}
+      {chevron && <RowChevron />}
     </>
   );
   // On desktop the list stays beside the open sub-screen (§9g 2c): the row
@@ -109,6 +112,11 @@ export function SettingsRow({ icon, tint = 'var(--text-muted)', label, value, to
   return <button type="button" className="row-hover" onClick={onClick} style={rowStyle}>{inner}</button>;
 }
 
+/** The row's "›" (prototype: an 18px glyph in --text-dim). */
+export function RowChevron() {
+  return <span aria-hidden style={{ flex: 'none', color: 'var(--text-dim)', fontSize: 18, lineHeight: 1 }}>›</span>;
+}
+
 export const rowStyle: React.CSSProperties = {
   width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', minHeight: 52,
   border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
@@ -119,7 +127,7 @@ export const rowStyle: React.CSSProperties = {
  * [− 10 +]. The middle is a real number input (typing works, and so do the
  * e2e that fill it), clamped on blur. The buttons move by `step`.
  */
-export function Stepper({ value, onChange, label, min, max, step = 1, format, onValueClick, width = 34 }: {
+export function Stepper({ value, onChange, label, min, max, step = 1, format, onValueClick, width = 32 }: {
   value: number;
   onChange: (v: number) => void;
   /** Accessible name of the input; the buttons are "{label}: menos / más". */
@@ -188,7 +196,7 @@ export function Stepper({ value, onChange, label, min, max, step = 1, format, on
           className="figures stepper-input"
           style={{
             width, minWidth: width, border: 'none', background: 'none', textAlign: 'center',
-            color: 'var(--text)', fontWeight: 700, fontSize: 'var(--text-md)', padding: 0,
+            color: 'var(--text)', fontWeight: 700, fontSize: 16, padding: 0,
           }}
         />
       )}
@@ -207,8 +215,8 @@ export function Stepper({ value, onChange, label, min, max, step = 1, format, on
 
 function stepButton(disabled: boolean): React.CSSProperties {
   return {
-    width: 30, height: 30, border: 'none', borderRadius: 9, background: 'var(--surface-sunken)',
-    color: 'var(--text)', fontSize: 17, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 1,
+    width: 32, height: 32, border: 'none', borderRadius: 9, background: 'var(--surface-sunken)',
+    color: 'var(--text)', fontSize: 18, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.4 : 1,
   };
 }
 
@@ -245,9 +253,9 @@ export function Switch({ on, onChange, label, disabled }: {
 /** A labelled line inside a group: text on the left, a control on the right. */
 export function ControlRow({ label, children, dot }: { label: string; children: ReactNode; dot?: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 14px', minHeight: 54 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', minHeight: 54 }}>
       {dot && <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, background: dot, flex: 'none' }} />}
-      <span style={{ flex: 1, fontSize: 'var(--text-md)' }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 16 }}>{label}</span>
       {children}
     </div>
   );
@@ -331,7 +339,7 @@ export function DashedButton({ children, onClick }: { children: ReactNode; onCli
       onClick={onClick}
       style={{
         marginTop: 12, width: '100%', height: 48, borderRadius: 16, border: '1px dashed var(--line-strong)',
-        background: 'transparent', fontWeight: 600, fontSize: 'var(--text-md)', cursor: 'pointer', color: 'var(--q10-text)',
+        background: 'transparent', fontWeight: 600, fontSize: 15, cursor: 'pointer', color: 'var(--q10-text)',
       }}
     >
       {children}

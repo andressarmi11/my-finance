@@ -6,6 +6,9 @@ import { useT } from '@/i18n/language';
 import { ReminderRuleEditor } from '@/features/notifications/ReminderRuleEditor';
 import { generalReminderRule } from '@/domain/reminders/schedule';
 import { SettingsGroup, noteStyle, useSettingsBack } from './ui';
+import { fill } from '@/lib/dateLabels';
+import { monthName } from '@/components/ui/MonthNav';
+import { todayISO } from '@/lib/todayISO';
 
 /**
  * Recordatorios (redesign §9e/§9f): the switch for this device (push) and
@@ -35,7 +38,11 @@ export function RemindersScreen() {
           ...(reminder.mode === 'days' ? { reminderDefaultDaysBefore: reminder.days } : {}),
         })}
       />
-      <p style={noteStyle}>{t('set.remindersNote')}</p>
+      <p style={{ ...noteStyle, marginTop: 10 }}>
+        {generalReminderRule(settings).mode === 'sameDay'
+          ? t('set.remindersNoteSameDay')
+          : fill(t('set.remindersNote'), { month: monthName((Number(todayISO().slice(5, 7)) % 12) + 1) })}
+      </p>
     </Screen>
   );
 }

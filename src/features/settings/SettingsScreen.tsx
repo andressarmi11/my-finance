@@ -3,7 +3,7 @@ import { generalReminderRule } from '@/domain/reminders/schedule';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
-  IconBell, IconBolt, IconCalendar, IconChartBar, IconChevronRight, IconCoin, IconCreditCard,
+  IconBell, IconBolt, IconCalendar, IconCash, IconCreditCard,
   IconDatabase, IconFileText, IconLogout, IconMoon, IconRepeat, IconTag, IconWorld,
 } from '@tabler/icons-react';
 import { Screen } from '@/components/ui/Screen';
@@ -16,7 +16,7 @@ import type { TextKey } from '@/i18n/texts';
 import { fill } from '@/lib/dateLabels';
 import { todayISO } from '@/lib/todayISO';
 import type { Settings } from '@/domain/types';
-import { SettingsGroup, SettingsRow } from './ui';
+import { RowChevron, SettingsGroup, SettingsRow } from './ui';
 import { LanguageSheet } from './LanguageSheet';
 import { ThemeSheet } from './ThemeSheet';
 import { LogoutSheet } from './LogoutSheet';
@@ -28,6 +28,15 @@ const THEME_LABEL: Record<Settings['theme'], TextKey> = {
 };
 
 const ICON = { size: 17, stroke: 1.9 } as const;
+
+/** Presupuestos' three bars, the prototype's own (the same as the Análisis tab). */
+function BarsIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 20V11M12 20V4M19 20v-7" />
+    </svg>
+  );
+}
 
 /**
  * Settings as an iOS-style grouped list (redesign §7). Every row opens its
@@ -95,7 +104,7 @@ export function SettingsScreen({ asNav = false }: {
             </span>
           )}
         </span>
-        {!asNav && <IconChevronRight aria-hidden size={18} stroke={1.75} style={{ color: 'var(--text-faint)' }} />}
+        {!asNav && <RowChevron />}
       </Link>
 
       <SettingsGroup title={t('set.preferences')}>
@@ -105,7 +114,7 @@ export function SettingsScreen({ asNav = false }: {
               value: language === 'en' ? 'English' : 'Español', onClick: () => setSheet('language') })}
         {!asNav && row({ icon: <IconMoon {...ICON} />, tint: 'var(--cat-servicios)', label: t('settings.theme'),
           value: t(THEME_LABEL[settings.theme]), onClick: () => setSheet('theme') })}
-        {row({ icon: <IconCoin {...ICON} />, tint: 'var(--positive)', label: t('settings.currency'),
+        {row({ icon: <IconCash {...ICON} />, tint: 'var(--positive)', label: t('settings.currency'),
           value: settings.currency, to: '/ajustes/moneda' })}
       </SettingsGroup>
 
@@ -123,7 +132,7 @@ export function SettingsScreen({ asNav = false }: {
           value: counts ? String(counts.methods) : '', to: '/ajustes/metodos' })}
         {row({ icon: <IconRepeat {...ICON} />, tint: 'var(--cat-suscripciones)', label: t('recurring.title'),
           value: counts ? String(counts.recurring) : '', to: '/ajustes/recurrentes' })}
-        {row({ icon: <IconChartBar {...ICON} />, tint: 'var(--cat-entretenimiento)', label: t('budgets.title'),
+        {row({ icon: <BarsIcon />, tint: 'var(--cat-entretenimiento)', label: t('budgets.title'),
           value: counts ? (counts.budgets ? String(counts.budgets) : t('set.none')) : '', to: '/ajustes/presupuestos' })}
       </SettingsGroup>
 
@@ -132,7 +141,7 @@ export function SettingsScreen({ asNav = false }: {
         {row({ icon: <IconDatabase {...ICON} />, tint: 'var(--text-muted)', label: t('settings.yourData'),
           value: t('set.exportImport'), to: '/ajustes/datos' })}
         {row({ icon: <IconFileText {...ICON} />, tint: 'var(--text-muted)', label: t('settings.legal'),
-          to: asNav ? '/ajustes/legal' : '/legal' })}
+          to: '/ajustes/legal' })}
       </SettingsGroup>
 
       {cloud && (
@@ -161,7 +170,7 @@ export function Avatar({ name, size }: { name: string; size: number }) {
   return (
     <span aria-hidden style={{
       width: size, height: size, borderRadius: size / 2, flex: 'none', display: 'grid', placeItems: 'center',
-      background: 'var(--q10-soft)', color: 'var(--q10-text)', fontWeight: 700, fontSize: Math.round(size * 0.4),
+      background: 'var(--q10-soft)', color: 'var(--q10-text)', fontWeight: 700, fontSize: size <= 36 ? 16 : Math.round(size * 0.4),
     }}>
       {initial}
     </span>

@@ -8,12 +8,11 @@ test('editing the amount updates upcoming pending payments but not a paid one', 
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Gym E2E');
-  await dialog.getByPlaceholder('$ 0').fill('100000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gym E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('100000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
-  await dialog.getByRole('button', { name: 'Mensual' }).click();
   // Today's day, so the first copy is dated today (and counts as "paid" once marked).
-  await dialog.getByLabel('Día del mes').fill(String(new Date().getDate()));
+  await dialog.getByLabel('Cada mes, el día').fill(String(new Date().getDate()));
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 
@@ -25,7 +24,7 @@ test('editing the amount updates upcoming pending payments but not a paid one', 
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: /Gym E2E/ }).click();
   const edit = page.getByRole('dialog', { name: 'Editar' });
-  await edit.getByPlaceholder('$ 0').fill('150000');
+  await edit.getByLabel('Valor', { exact: true }).fill('150000');
   await expect(edit.getByRole('status')).toContainText(/Se actualizarán los \d+ pendientes desde el/);
   await edit.getByRole('button', { name: /^Guardar y actualizar \d+$/ }).click();
   await expect(page.getByRole('status')).toContainText(/Se actualizaron \d+ pagos futuros/);

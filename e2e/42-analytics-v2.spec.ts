@@ -14,7 +14,9 @@ test.beforeEach(async ({ page }) => {
 
 test('balance hero, no income-vs-expenses chart', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^Balance de/ })).toBeVisible();
-  await expect(page.getByText(/^Ingresos \$.* · Gastos \$/)).toBeVisible();
+  // Income and expenses under the balance (prototype: two labelled amounts).
+  await expect(page.getByText(/^Ingresos \$/)).toBeVisible();
+  await expect(page.getByText(/^Gastos \$/)).toBeVisible();
   await expect(page.getByText(/Ingresos vs\. gastos/)).toHaveCount(0);
 });
 

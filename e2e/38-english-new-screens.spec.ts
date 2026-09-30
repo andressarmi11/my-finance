@@ -34,9 +34,9 @@ test('budget months picker and custom recurrence have no Spanish in English', as
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ New recurring' }).click();
   const form = page.getByRole('dialog', { name: 'New recurring' });
-  await form.getByPlaceholder('e.g. Rent').fill('Insurance E2E');
-  await form.getByPlaceholder('$ 0').fill('90000');
-  await form.getByRole('button', { name: 'Débito' }).click();
+  await form.getByPlaceholder('What was it? e.g. Lunch').fill('Insurance E2E');
+  await form.getByLabel('Amount', { exact: true }).fill('90000');
+  await form.getByRole('button', { name: 'Debit' }).click();
   await form.getByRole('button', { name: 'More options' }).click();
   await form.getByRole('button', { name: 'Every so often' }).click();
   await expect(form.getByText(/^Next: /)).toBeVisible();
@@ -94,9 +94,9 @@ test('the grouped Settings, its sub-screens and sheets have no Spanish in Englis
   }
 
   await page.goto('ajustes/cuenta/contrasena');
-  await page.getByLabel('New password').fill('abc');
-  await page.getByLabel('Repeat the new one').fill('abd');
-  await expect(page.getByText('They do not match')).toBeVisible();
+  await page.getByLabel('New password', { exact: true }).fill('abc');
+  await page.getByLabel('Repeat new password').fill('abd');
+  await expect(page.getByText('They don’t match')).toBeVisible();
   await expect(page.getByText('Too short')).toBeVisible();
   await scan('change password');
 
@@ -108,7 +108,7 @@ test('the grouped Settings, its sub-screens and sheets have no Spanish in Englis
 
   await page.goto('ajustes/metodos');
   await page.getByRole('button', { name: /New payment method/ }).click();
-  const method = page.getByRole('dialog', { name: 'New payment method' });
+  const method = page.getByRole('dialog', { name: 'New method' });
   await method.getByRole('button', { name: 'Credit', exact: true }).click();
   await expect(method.getByText(/^Purchases from day 1 to day 15 are due on/)).toBeVisible();
   await scan('new method sheet');

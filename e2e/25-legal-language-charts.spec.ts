@@ -136,7 +136,7 @@ test.describe('organizing charts', () => {
     await page.getByRole('button', { name: /Organizar gráficos/ }).click();
     const sheet = page.getByRole('dialog', { name: 'Organizar gráficos' });
     await sheet.getByRole('button', { name: 'Ocultar Fijos vs. variables' }).click();
-    await sheet.getByRole('button', { name: 'Volver al orden original' }).click();
+    await sheet.getByRole('button', { name: 'Orden original' }).click();
     await sheet.getByRole('button', { name: 'Cerrar' }).click();
     await expect(page.getByRole('heading', { name: /Fijos vs\. variables/ })).toBeVisible();
   });
