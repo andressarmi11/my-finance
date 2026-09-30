@@ -36,3 +36,18 @@ minimum_password_length = 8
 # por hora; con varios registros seguidos devuelve "email rate limit
 # exceeded". Cuando eso moleste, el camino es SMTP propio (Resend, SendGrid).
 enable_confirmations = true
+
+# Edge Functions que llaman quienes no tienen sesión de Supabase: el Atajo
+# de iOS (ingest, con su propio token) y pg_cron (send-reminders y
+# fx-rates, con CRON_SECRET). Cada una verifica su propia credencial.
+# Declarado aquí, `supabase functions deploy <nombre>` ya no depende de
+# acordarse de --no-verify-jwt: sin él, el gateway rechazaba la llamada con
+# "Invalid JWT" antes de llegar a la función.
+[functions.ingest]
+verify_jwt = false
+
+[functions.send-reminders]
+verify_jwt = false
+
+[functions.fx-rates]
+verify_jwt = false
