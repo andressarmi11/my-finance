@@ -26,6 +26,7 @@ import type { Transaction } from '@/domain/types';
 import { groupByPeriod } from './groupByPeriod';
 import { applyFilters, type StatusFilter, type TypeFilter } from './filters';
 import { TABLE_COLUMNS, TransactionRow, TransactionTableRow } from './TransactionRow';
+import { useInboxContext } from '@/features/inbox/InboxProvider';
 import { TransactionForm, type Prefill } from './TransactionForm';
 import { EMPTY } from '@/lib/empty';
 
@@ -54,6 +55,8 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
   const setQuery = embedded ? embedded.onQueryChange : setOwnQuery;
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
+  // Just recorded from the inbox: first in its group, tinted for a few seconds (BANDEJA-WEB.md).
+  const { fresh } = useInboxContext();
   // "Tarjeta" (prototype 1a): only what went on a credit card.
   const [cardOnly, setCardOnly] = useState(false);
   // null = we're not selecting. An empty Set = selection mode, with nothing
@@ -599,10 +602,11 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                       }}
                     />
                   </button>
-                  {!isCollapsed && group.transactions.map((tx) => (
+                  {!isCollapsed && withFreshFirst(group.transactions, fresh).map((tx) => (
                     <TransactionTableRow
                       key={tx.id}
                       tx={tx}
+                      fresh={fresh.has(tx.id)}
                       category={tx.categoryId ? categoryById.get(tx.categoryId) : undefined}
                       paymentMethod={tx.paymentMethodId ? methodById.get(tx.paymentMethodId) : undefined}
                       onTogglePaid={() => togglePaid(tx)}
@@ -923,4 +927,10 @@ function saveCollapsed(value: Record<string, boolean>): void {
   } catch {
     // Private mode or storage full: folding just won't be remembered.
   }
+}
+
+/** What was just recorded from the inbox goes first; the rest keep their order. */
+function withFreshFirst(list: Transaction[], fresh: ReadonlySet<string>): Transaction[] {
+  if (fresh.size === 0) return list;
+  return [...list].sort((a, b) => Number(fresh.has(b.id)) - Number(fresh.has(a.id)));
 }

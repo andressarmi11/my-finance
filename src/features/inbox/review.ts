@@ -187,3 +187,17 @@ export function ago(createdAt: string, now = Date.now()): { n: number; unit: 'no
   if (hours < 24) return { n: hours, unit: 'h' };
   return { n: Math.floor(hours / 24), unit: 'd' };
 }
+
+/** Moving through the queue without deciding: stays within 0..length-1. */
+export function moveIndex(idx: number, delta: number, length: number): number {
+  if (length <= 0) return 0;
+  return Math.max(0, Math.min(length - 1, idx + delta));
+}
+
+/**
+ * The status dot and segment of each waiting entry (BANDEJA-WEB.md):
+ * red when something is missing, blue when it's for later, green otherwise.
+ */
+export function queueTone(d: Draft): 'missing' | 'future' | 'ok' {
+  return d.missing ? 'missing' : d.status === 'pending' ? 'future' : 'ok';
+}

@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/data/supabase/client';
 import type { SyncStatus } from '@/data/sync/useCloudSync';
 import { calculatePeriod, normalizePayDays } from '@/domain/period/period';
 import { useSession } from '@/features/auth/useSession';
+import { InboxNavItem } from '@/features/inbox/InboxButton';
 import { Avatar } from '@/features/settings/SettingsScreen';
 import { formatRangeLabel, periodGroupLabel } from '@/features/transactions/groupByPeriod';
 import { useT } from '@/i18n/language';
@@ -96,6 +97,7 @@ export function Sidebar({ status }: { status: SyncStatus }) {
           </NavLink>
         ))}
       </nav>
+      <InboxNavItem />
 
       <div style={{ flex: 1 }} />
 

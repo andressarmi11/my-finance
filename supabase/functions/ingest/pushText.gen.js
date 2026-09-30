@@ -1434,7 +1434,7 @@ var TEXTS = {
     "inbox.noAmount": "Sin monto",
     "inbox.review": "Revisar",
     "inbox.reviewAll": "Revisar los {n}",
-    "inbox.position": "{i} de {n}",
+    "inbox.position": "{n} de {total}",
     "inbox.progress": "Progreso de la revisi\xF3n",
     "inbox.amountPlaceholder": "Escribe el monto",
     "inbox.amountLabel": "Monto",
@@ -1480,7 +1480,15 @@ var TEXTS = {
     "inbox.pushUnreadable": "Lleg\xF3 un movimiento. No pude leer el monto.",
     "inbox.pushTapOne": "Toca para revisarlo antes de anotarlo.",
     "inbox.pushTapMany": "{n} por revisar. Toca para verlos.",
-    "inbox.typeLabel": "Gasto o ingreso"
+    "inbox.typeLabel": "Gasto o ingreso",
+    // Bandeja web (BANDEJA-WEB.md)
+    "inbox.navTitle": "Por revisar",
+    "inbox.prev": "Anterior",
+    "inbox.next": "Siguiente",
+    "inbox.originalMessage": "Mensaje original",
+    "inbox.shortcutsHint": "\u23CE anotar \xB7 \u232B descartar \xB7 \u2191\u2193 moverse \xB7 Esc cerrar",
+    "inbox.openPanel": "Abrir movimientos por revisar",
+    "inbox.missingAmountShort": "Sin monto"
   },
   en: {
     "nav.home": "Home",
@@ -2290,7 +2298,7 @@ var TEXTS = {
     "inbox.noAmount": "No amount",
     "inbox.review": "Review",
     "inbox.reviewAll": "Review all {n}",
-    "inbox.position": "{i} of {n}",
+    "inbox.position": "{n} of {total}",
     "inbox.progress": "Review progress",
     "inbox.amountPlaceholder": "Type the amount",
     "inbox.amountLabel": "Amount",
@@ -2336,7 +2344,15 @@ var TEXTS = {
     "inbox.pushUnreadable": "A transaction arrived. I couldn't read the amount.",
     "inbox.pushTapOne": "Tap to review it before recording it.",
     "inbox.pushTapMany": "{n} to review. Tap to see them.",
-    "inbox.typeLabel": "Expense or income"
+    "inbox.typeLabel": "Expense or income",
+    // Bandeja web (BANDEJA-WEB.md)
+    "inbox.navTitle": "To review",
+    "inbox.prev": "Previous",
+    "inbox.next": "Next",
+    "inbox.originalMessage": "Original message",
+    "inbox.shortcutsHint": "\u23CE log \xB7 \u232B discard \xB7 \u2191\u2193 move \xB7 Esc close",
+    "inbox.openPanel": "Open items to review",
+    "inbox.missingAmountShort": "No amount"
   }
 };
 
