@@ -1,8 +1,21 @@
 # Changelog
 
-## [Unreleased] — Bank SMS amounts and the sign-up email link
+Versions follow [Semantic Versioning](https://semver.org): MAJOR for a
+change that breaks existing data or flows, MINOR for new features, PATCH
+for fixes only. `package.json` holds the version; the app shows it in
+Ajustes and the legal pages. Each change goes under `[Unreleased]` and,
+when released, moves to its version with the date.
 
-### Fixed
+## [Unreleased]
+
+## [1.4.0] — 2026-09-30
+
+Redesign v4, inbox v2, tab-bar transparency, cost audit and bank-SMS
+reading. Each part below lists its own changes.
+
+### Bank SMS amounts and the sign-up email link
+
+#### Fixed
 - Bank SMS: the amount is the figure right after "$" ("$300,000.00",
   "$17.686,00", "$72,000"), never "una transferencia" (read as 1) nor a
   card or account number (*7145). New `bankSms.ts` reads the verb
@@ -16,15 +29,15 @@
   which gave a 404. An expired or used link (`#error_code=otp_expired`)
   lands on the sign-in screen with an explanation, and the hash is cleared.
 
-### Tests
+#### Tests
 - Unit: `bankSms.test.ts` with the real messages; parse expectations updated.
 - E2E 45: an expired confirmation link shows the explanation.
 
-## [Unreleased] — Tab bar transparency
+### Tab bar transparency
 
 Plan and checklist: `docs/BARRA.md`. Prototype: `docs/barra/Step Up Barra.dc.html`.
 
-### Changed
+#### Changed
 - Ajustes → "Tema y barra" (was "Tema"), now its own screen on the phone.
   Under the three themes, "Barra de navegación": a live preview, Sólida /
   Translúcida / Cristal (100 / 88 / 40 %), an opacity slider (15–100 %),
@@ -36,18 +49,18 @@ Plan and checklist: `docs/BARRA.md`. Prototype: `docs/barra/Step Up Barra.dc.htm
   `prefers-reduced-transparency` forces Sólida. The desktop sidebar is
   untouched.
 
-### Tests
+#### Tests
 - Unit: `navBarVars` (100 / 88 / 40 / reduced transparency), presets,
   slider range, persistence.
 - E2E 42-navbar-transparency (Cristal → blur → reload → still Cristal;
   Sólida; a value between presets); 43 and 38 follow the new screen; 27
   also checks Ajustes → Theme & bar in English.
 
-## [Unreleased] — Inbox v2, part 2: web and moving between entries
+### Inbox v2, part 2: web and moving between entries
 
 Plan and checklist: `docs/BANDEJA-WEB.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html` (3b, 4a, 4b).
 
-### Changed
+#### Changed
 - Move between what arrived on its own without deciding: `‹ N de M ›`,
   tappable progress segments (resolved in --q10, missing something in
   red) and a swipe on the card. What was typed in an entry survives
@@ -61,17 +74,17 @@ Plan and checklist: `docs/BANDEJA-WEB.md`. Prototype: `docs/bandeja/Step Up Band
   in its group, with a faint amber wash for a few seconds.
 - One hook, `useInboxReview()`, behind both the sheet and the panel.
 
-### Tests
+#### Tests
 - Unit: moving stays in range, edits are kept per entry, queue colours.
 - E2E 41-inbox-navigate (phone: ›, swipe, segments; desktop: ↓, queue
   click, ↑/←, Esc) and 27-english-has-no-spanish-inbox (sheet and panel
   in English). E2E 40 follows the panel on desktop.
 
-## [Unreleased] — Inbox v2: what arrives on its own
+### Inbox v2: what arrives on its own
 
 Plan and checklist: `docs/BANDEJA.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html`.
 
-### Changed
+#### Changed
 - The inbox banner is gone. Inicio has an inbox button beside the month
   (amber count) and a "N por revisar" card between the flow grid and
   "Falta este mes", only while something waits.
@@ -89,21 +102,21 @@ Plan and checklist: `docs/BANDEJA.md`. Prototype: `docs/bandeja/Step Up Bandeja.
   de $ 500.000 en Restaurante El Cielo"), grouped per user; tapping it opens
   the review on that entry (`/?revisar=<id>`).
 
-### Database
+#### Database
 - `0018_inbox_v2.sql`: `transactions.source` / `source_label` and
   `push_subscriptions.language`. Run it before recording from the inbox.
 
-### Tests
+#### Tests
 - Unit: review logic (drafts, hints, bulk, conversion), the sheet's
   "Anotar" button, the push text and its bundle, source round-trip.
 - E2E 40-inbox-review-one-by-one: type the missing amount, record, undo;
   the deep link; desktop shortcuts.
 
-## [Unreleased] — Cost audit: C1, C2, C3
+### Cost audit: C1, C2, C3
 
 Audit: `docs/auditoria/COSTOS.md`.
 
-### Changed
+#### Changed
 - C1, sync egress: the push reuses the lists the pull just downloaded
   instead of asking for them again, and the remote transaction versions are
   kept on the device: each incremental sync only asks for the ones changed
@@ -113,29 +126,29 @@ Audit: `docs/auditoria/COSTOS.md`.
   for everyone. A missing or old row (more than 2 days) falls back to
   open.er-api, as before.
 
-### Fixed
+#### Fixed
 - "Sync now" always said "3 uploaded, 14 downloaded" even with nothing
   changed. A budget with the same timestamp on both sides was re-uploaded on
   every sync, and every reminder in the cloud was counted (and rewritten) as
   downloaded. Now only what actually changed travels and is counted.
 
-### Database
+#### Database
 - `0016_rls_select_auth_uid.sql` (C2): re-runnable; rewrites any RLS policy
   still using `auth.uid()` as `(select auth.uid())`, as 0009 did.
 - `0017_fx_rates.sql` (C3): the `fx_rates` table (public read, written only
   by the service role) and the daily `fx-rates-daily` cron job.
 
-### Tests
+#### Tests
 - Unit: known remote versions (merge, reuse), the shared rate table (any base
   from the USD row, freshness, fallback to the API).
-## [Unreleased] — Redesign v4: visual polish against the prototype
+### Redesign v4: visual polish against the prototype
 
 The phases implemented `REDISENO.md`; this pass compares every screen with
 the prototype (`Step Up Rediseno.dc.html`, rendered locally) at 390px and
 1440px, in Spanish and English, and closes the gaps: sizes, weights,
 colours, spacing, labels and element order.
 
-### Changed
+#### Changed
 - Home: month pill with grey arrows (34px phone, 40px desktop), hero line at
   400, "$" top-aligned like a superscript, flow cells at 12/17px with zeros
   in grey, 19px "Falta este mes", 38px avatars and 26px checks.
@@ -175,17 +188,17 @@ colours, spacing, labels and element order.
 - English labels aligned with the prototype's ("To pay", "Pay period 25",
   "Analytics", "Pending", "Remaining", "Left for September"…), US spelling.
 
-### Tests
+#### Tests
 - Updated the E2E whose labels or layout changed on purpose (placeholders,
   "Nuevo método", "Orden original", the analytics navigator beside the
   title, export rows named "JSON / CSV / Excel", the reminder "A las",
   English strings); none removed.
 
-## [Unreleased] — Redesign v4, phase 10: language
+### Redesign v4, phase 10: language
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 10; §11 item 12).
 
-### Fixed
+#### Fixed
 - Hard-coded Spanish that English users saw, now in the dictionary: the
   "Still to pay" breakdown sheet (title, statuses, rows), the empty state of
   Transactions, the "Cancelled" status, the new-transaction dialog names,
@@ -193,7 +206,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 10; §11 item 12).
   and the lazy-screen "Loading…".
 - The Spanish text of the Shortcut instructions was in English.
 
-### Tests
+#### Tests
 - New E2E 48: walks every screen AND the main sheets (+ menu, new expense
   and income with "More options", new recurring, "Tell the app", the "Still
   to pay" breakdown) in English, at phone and desktop widths. The
@@ -203,7 +216,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 10; §11 item 12).
   flags the Spanish interface.
 - The dictionary has no key missing in English.
 
-## [Unreleased] — Redesign v4, phase 9: desktop and tablet
+### Redesign v4, phase 9: desktop and tablet
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 9; §9g). The
 desktop sign-in (2d, §9h) shipped with phase 8. One component tree for every
@@ -211,7 +224,7 @@ width: `useBreakpoint()` picks the arrangement ('phone' < 760, 'tablet'
 760–1099, 'desktop' ≥ 1100) and `index.css` media queries do the rest. Below
 760px nothing changes.
 
-### Added
+#### Added
 - Tablet (760–1099px): the tab bar becomes a 72px rail down the left edge
   (icon + small label) with the + on top of it; screens keep their centred
   560px column.
@@ -264,18 +277,18 @@ width: `useBreakpoint()` picks the arrangement ('phone' < 760, 'tablet'
     only on pointer devices; nothing depends on it.
 - Texts in ES and EN (`// Fase 9 — Escritorio`).
 
-### Changed
+#### Changed
 - `Screen` takes its width from the `.screen` class; `wide` lets a screen use
   the desktop width, and inside the Ajustes panel it drops "‹ Ajustes".
 - `LanguageSheet` / `ThemeSheet` expose their content (`LanguageOptions`,
   `ThemeOptions`) so the desktop panel reuses it.
 
-### Not done (on purpose)
+#### Not done (on purpose)
 - The sheets that 2c shows beside the list (nueva categoría, nuevo método,
   cambiar contraseña, cerrar sesión) stay centred dialogs on desktop, and
   Cambiar contraseña opens in the right panel; the plan makes this optional.
 
-### Tests
+#### Tests
 - New e2e: `46-desktop-layout` (sidebar, two-column Inicio with the table,
   selection bar and confirmation, ⌘K search, the 780px form with the
   calendar, Ajustes in two panels) and `47-tablet-rail` (the rail and the
@@ -286,19 +299,19 @@ width: `useBreakpoint()` picks the arrangement ('phone' < 760, 'tablet'
   390×844 viewport; `switchLanguage` in `fixtures.ts` uses the preferences
   panel on desktop.
 
-### Also in this release
+#### Also in this release
 - The + is always visible (it used to hide on scroll down).
 - The + now really steps aside while a sheet is open, in every language:
   the CSS rule matched the Spanish aria-label and lost to the button's
   inline `display`, so since phase 2 it stayed on top of open sheets.
 
-## [Unreleased] — Cost and security audit
+### Cost and security audit
 
 Reports: `docs/auditoria/COSTOS.md` and `docs/auditoria/SEGURIDAD.md`.
 No critical or high findings. Only changes that users can't see were applied;
 everything that changes behaviour, data or infrastructure waits for approval.
 
-### Changed
+#### Changed
 - Exchange-rate request gives up after 8 s and falls back to the cached table.
 - `ingest` Edge Function refuses bodies over 16 KB (413) before parsing them.
 - `send-reminders` logs only the push status code, not the error object
@@ -308,15 +321,15 @@ everything that changes behaviour, data or infrastructure waits for approval.
 - The manual cron template reads the secret from Vault instead of a
   plain-text placeholder.
 
-### Removed
+#### Removed
 - `recharts` dependency (unused since the Analytics redesign).
 
-## [Unreleased] — Redesign v4, phase 6: Settings
+### Redesign v4, phase 6: Settings
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
 §9f; pending 4 and 5).
 
-### Changed
+#### Changed
 - Settings (§7) is an iOS-style grouped list instead of one long page: a
   profile card (initial, name, email, "Sincronizado"), then Preferencias
   (Idioma, Tema, Moneda), Tu plata (Cómo te pagan, Recordatorios), Organizar
@@ -367,7 +380,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
   Restaurar (import a JSON backup, confirmed as before). The import sheet is
   translated.
 
-### Added
+#### Added
 - Change the password in the app (pending 5): current, new (with a 4-segment
   strength meter) and repeat, with a live "Coinciden / No coinciden". It
   re-authenticates with the current password (`signInWithPassword`, with the
@@ -383,10 +396,10 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
   row, stepper, switch and bottom sheet.
 - `data/sync/lastSynced.ts`: when this device last finished a sync.
 
-### Removed
+#### Removed
 - `BudgetBar` (the budget rows are steppers now; the columns show the fill).
 
-### Tests
+#### Tests
 - Unit: `passwordStrength`, the pay-days preview, the recurring monthly
   equivalents.
 - E2E updated: 10 (Cómo te pagan is its own screen), 13 (new case: the wipe
@@ -398,7 +411,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
   dollars) and 44 (change password and sign out with/without wiping, on the
   fake-Supabase build).
 
-### Integration (with phases 7 and 8)
+#### Integration (with phases 7 and 8)
 - Ajustes → Recordatorios mounts the v2 editor (days before at a time, or the
   same day: 1 h / N hours / N minutes before, or at an exact time) with its
   live preview; the Settings row shows the mode. The legacy days field is
@@ -407,7 +420,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
   notice ("Cerraste sesión…"), also after "Borrar también de este teléfono".
 - The password meter is the one from phase 8 (same API).
 
-## [Unreleased] — Redesign v4, phase 7: reminders v2 (backend)
+### Redesign v4, phase 7: reminders v2 (backend)
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f
 "Recordatorios v2"; pending 3, the schedule and the cron).
@@ -418,7 +431,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f
 > The migration also moves an existing reminder cron from every 15 to every
 > 10 minutes; a new project gets that from `supabase/manual/0003_reminder_cron.sql`.
 
-### Added
+#### Added
 - `Settings.reminder` (the general reminder: `{ mode: 'days' | 'sameDay',
   days, time, sameDay: { kind: 'hours' | 'minutes' | 'at', value } }`).
   Absent = derived from `reminderDefaultDaysBefore` (N days before at 09:00),
@@ -442,7 +455,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f
   mañana · $ 100.000 · Salud · Débito") with the time it would arrive.
   Texts in ES and EN.
 
-### Changed
+#### Changed
 - Saving a transaction schedules its reminder with `reminderInstant`, so the
   per-transaction chips from phase 4 now take effect. Choosing "Sin aviso"
   dismisses a still-pending reminder. Saving a transaction without changing
@@ -465,7 +478,7 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f
 - Mappers carry `settings.reminder` (always sent, `null` when absent); the
   backup schema accepts it (optional, validated like the per-transaction one).
 
-### Tests
+#### Tests
 - Unit: `reminderInstant` for every mode, month/leap-year/year boundaries,
   crossing midnight backwards, bad data, override precedence, and identical
   output to `calculateReminderTime` for the default rule; `planReminder`;
@@ -475,12 +488,12 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f
   (`vitest` now also runs `supabase/functions/**/*.test.ts`).
 - The reminder function skips a reminder whose transaction was paid or
   cancelled after it was scheduled: marked `dismissed`, no push sent.
-## [Unreleased] — Redesign v4, phase 8: sign-in
+### Redesign v4, phase 8: sign-in
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 8; §9f "Login y
 registro", §9g 2d, §9h).
 
-### Changed
+#### Changed
 - Sign-in screen (§9f), same auth logic (password sign-in, sign-up,
   `resetPasswordForEmail`, `translateError`, captcha token): left-aligned,
   no card; the 60px 1c logo tile; a big title per mode ("Hola de nuevo",
@@ -499,7 +512,7 @@ registro", §9g 2d, §9h).
   "Verificando…" until the token arrives.
 - The recovery-link notice is translated (it was Spanish-only).
 
-### Added
+#### Added
 - Sign-up: a 4-segment strength meter and a required "Acepto los Términos y
   la Política de privacidad" checkbox, linking to `/legal/terminos` and
   `/legal/privacidad` (opened in a new tab so the form isn't lost).
@@ -518,7 +531,7 @@ registro", §9g 2d, §9h).
   `prefers-reduced-motion`, the first phrase is shown fixed and the card
   doesn't rotate. Phones and tablets get the form only.
 
-### Tests
+#### Tests
 - Unit: `passwordStrength` levels.
 - E2E updated: 28 (exact "Contraseña" label and "Entrar" button, now that
   the eye button is named "Mostrar contraseña"). New: 45 (tabs switch the
@@ -530,12 +543,12 @@ registro", §9g 2d, §9h).
   sign-in screen): `CLOUD_SYNC` in `playwright.config.ts` now also matches
   `login-redesign`.
 
-## [Unreleased] — Redesign v4, phase 5: Análisis
+### Redesign v4, phase 5: Análisis
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 5; §6, §9c;
 pending 9 and 10).
 
-### Changed
+#### Changed
 - Period selector is the shared segmented control (Quincena · Mes ·
   Trimestre · Año); the centred navigator stays under it.
 - Hero: "Balance de {periodo}" at 50px (`+$` green / `−$` red) with
@@ -557,16 +570,16 @@ pending 9 and 10).
 - The category detail sheet had hard-coded Spanish (and a literal
   `{t('analytics.percentOfSpend')}` label); it's translated now.
 
-### Removed
+#### Removed
 - "Ingresos vs. gastos" (the hero already says both) and the donut. Saved
   layouts are migrated: old ids map onto the new cards.
 
-### Tests
+#### Tests
 - Unit: layout migration and folded cards, spend by method, short amounts.
 - E2E updated: 25. New: 42 (balance hero, folding survives a reload, a row
   opens its detail, "Definir" goes to Budgets).
 
-## [Unreleased] — Redesign v4, phase 4: the new-transaction sheet
+### Redesign v4, phase 4: the new-transaction sheet
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 4; §5, §9b;
 pending 1 and 2, per-transaction reminder UI).
@@ -574,7 +587,7 @@ pending 1 and 2, per-transaction reminder UI).
 > **Deploy note:** run Supabase migrations `0013_currency_cash.sql` and
 > `0014_transaction_reminder.sql` before deploying this version.
 
-### Changed
+#### Changed
 - New-transaction sheet (§5, §9b), same fields and validation, new order:
   Cancelar · title · Guardar pill on top; the amount at 48px with its
   currency symbol small and grey; the concept centred; currency chips;
@@ -588,7 +601,7 @@ pending 1 and 2, per-transaction reminder UI).
 - A row entered in another currency shows its original as a note
   ("$20 USD · tasa 4.000").
 
-### Added
+#### Added
 - Per-transaction currency (pending 1): COP · USD · EUR chips (from
   `settings.quickCurrencies`) plus "Más" (MXN, ARS, CLP, PEN); the chosen one
   stays as a chip. Outside the main currency, "≈ $ 80.000 COP · tasa de hoy
@@ -614,7 +627,7 @@ pending 1 and 2, per-transaction reminder UI).
 - `CurrencyChips`, `MethodPicker`, `ReminderChips`, `lib/currencies`,
   `lib/fxRates` (CSP `connect-src` allows `https://open.er-api.com`).
 
-### Tests
+#### Tests
 - Unit: mapper round-trips (currency, reminder, quick currencies), currency
   helpers, NLP currency words, rate fetching (inversion, daily cache,
   offline fallback).
@@ -622,12 +635,12 @@ pending 1 and 2, per-transaction reminder UI).
   at today's rate, no rate field, offline blocks saving, "Más" currencies,
   quick entry with currency and method), with the rates API mocked.
 
-## [Unreleased] — Redesign v4, phase 3: Inicio and Movimientos
+### Redesign v4, phase 3: Inicio and Movimientos
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 3; §3, §4;
 pending 6, 7 and 8).
 
-### Changed
+#### Changed
 - Inicio (§3): its own header (logo + "Step up" and a compact month pill)
   replaces the global brand bar. Centred hero with no coloured card: "Hola,
   {name}. Te queda en {mes}", the amount at 56px with the `$` smaller and
@@ -644,7 +657,7 @@ pending 6, 7 and 8).
   date.
 - `MonthNav` gains a `compact` pill variant; `Screen` a `backAction` slot.
 
-### Added
+#### Added
 - Folding period groups (pending 7): the header folds its group to "N mov. ·
   Restante $X", remembered per period key in `localStorage`. Groups read
   10 → 25; with one pay day there is a single month group.
@@ -658,19 +671,19 @@ pending 6, 7 and 8).
   "Queda pendiente y te avisamos".
 - `BigAmount` (one big number with a small grey symbol) and `MiniCalendar`.
 
-### Removed
+#### Removed
 - The global `BrandBar`.
 
-### Tests
+#### Tests
 - E2E updated: 08, 10, 12, 18. New: 08 ("Falta pagar" opens the breakdown,
   "Ver todos" → Movimientos → Inicio), 12 ("Todos", folding survives a
   reload), 40 (date chip: tomorrow stays pending).
 
-## [Unreleased] — Redesign v4, phase 2: navigation
+### Redesign v4, phase 2: navigation
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 2).
 
-### Changed
+#### Changed
 - Tab bar (§2): three tabs — Inicio, Análisis, Ajustes — in a floating pill,
   with the + as a 62px circle beside it (same line, never over the list).
   Inicio stays active on `/movimientos`. The + still hides on scroll down and
@@ -683,23 +696,23 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 2).
 - Main content, the selection toolbar and the sync indicator are spaced for
   the floating bar.
 
-### Added
+#### Added
 - `Segmented`: the single segmented control of the redesign (§0).
 
-### Removed
+#### Removed
 - The floating refresh button over the +. Pull-to-refresh (home-screen app)
   and Ajustes → "Sincronizar ahora" remain.
 
-### Tests
+#### Tests
 - E2E updated: 24 (plus: `/calendario` redirects), 25, 29 (no floating
   refresh; pull-to-refresh proves a real reload), 31, 32.
 - New E2E 39: three tabs, Inicio lit on Movimientos, + beside the pill.
 
-## [Unreleased] — Redesign v4, phase 1: foundations
+### Redesign v4, phase 1: foundations
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 1).
 
-### Changed
+#### Changed
 - Dark theme tokens (§1): blacker paper (`#0B0D12`), new surfaces, lines and
   text greys. Accents and category colors unchanged.
 - Logo 1c "S escalonada" (§9): five right-angled blocks with the amber accent.
@@ -713,13 +726,13 @@ Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 1).
   their portable hex, painted with the token). Analytics' fallback chart
   colors became the "no category" grey.
 
-### Added
+#### Added
 - Tokens `--radius-card`, `--tabbar-h`, `--hover`, `--on-accent`, `--knob`,
   `--brand-tile`, `--on-brand-tile`.
 - `useBreakpoint()` (`phone` < 760 ≤ `tablet` < 1100 ≤ `desktop`) with tests.
 - `docs/rediseno/`: the redesign plan and the prototype.
 
-### Fixed
+#### Fixed
 - E2E setup fixture: waited for the "Tu nombre" field to disappear, which
   raced with the Settings field of the same name on tests that start on
   `/ajustes`.
