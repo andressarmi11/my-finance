@@ -62,7 +62,8 @@ function contentSecurityPolicy(): Plugin {
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob:",
         "font-src 'self'",
-        `connect-src 'self'${supabase ? ` ${new URL(supabase).origin}` : ''}`,
+        // open.er-api.com: today's exchange rates (src/lib/fxRates.ts).
+        `connect-src 'self' https://open.er-api.com${supabase ? ` ${new URL(supabase).origin}` : ''}`,
         "worker-src 'self'",
         "manifest-src 'self'",
         "base-uri 'self'",

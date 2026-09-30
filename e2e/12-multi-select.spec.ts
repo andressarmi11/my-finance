@@ -48,6 +48,7 @@ test('deleting several asks for confirmation and says how much money they add up
   await expect(dialogo.getByRole('listitem')).toContainText('Mercado');
 
   await dialogo.getByRole('button', { name: 'Sí, eliminar' }).click();
+  await expect(dialogo).toBeHidden();
   await expect(page.getByText('Mercado')).toBeHidden();
 });
 

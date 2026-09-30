@@ -29,6 +29,12 @@ export interface Parsed {
   categoryIdSugerida: string | null;
   /** Already happened (said "gasté", or it's an SMS for a completed purchase). */
   yaOcurrio: boolean;
+  /**
+   * The currency it named ("20 dólares" -> 'USD'), only when it named one.
+   * The amount stays in that currency: converting is the UI's job, with the
+   * rate the user confirms (the app is local-first, no rates API).
+   */
+  currency?: string;
 }
 
 const INCOME_VERBS = [
@@ -76,6 +82,13 @@ const METHOD_KEYWORDS: Array<{ type: PaymentMethodType; keywords: string[] }> = 
   { type: 'cash', keywords: ['efectivo', 'en efectivo', 'cash', 'billete'] },
   { type: 'transfer', keywords: ['transferencia', 'nequi', 'daviplata', 'pse', 'transfiri'] },
   { type: 'debit', keywords: ['debito', 'con la debito', 'tarjeta debito', 'ahorros', 't.deb', 'desde tu cuenta'] },
+];
+
+// Longest first inside each list, so "dolares americanos" wins over "dolares".
+const CURRENCY_KEYWORDS: Array<{ code: string; keywords: string[] }> = [
+  { code: 'USD', keywords: ['dolares americanos', 'dolares', 'dolar', 'usd', 'dls'] },
+  { code: 'EUR', keywords: ['euros', 'euro', 'eur'] },
+  { code: 'MXN', keywords: ['pesos mexicanos', 'mxn'] },
 ];
 
 /** Words that are noise in the concept once everything else has been stripped out. */
@@ -238,9 +251,21 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     }
   }
 
+  let currency: string | undefined;
+  let currencyText: string | null = null;
+  for (const { code, keywords } of CURRENCY_KEYWORDS) {
+    const hit = contains(text, keywords);
+    if (hit) {
+      currency = code;
+      currencyText = hit;
+      break;
+    }
+  }
+
   const concept = bankConcept(text) ?? extractConcept(rest, [
     amount ? normalizeText(amount.text) : null,
     methodText,
+    currencyText,
     income,
     expense,
     // Typical bank SMS noise.
@@ -262,5 +287,6 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     // speech, "gasté" and "me llegó" are also past tense. A future verb
     // ("pagaré", "recibiré") or a future date means scheduled, even for today.
     yaOcurrio: date.date <= today && futureVerb === null,
+    ...(currency ? { currency } : {}),
   };
 }

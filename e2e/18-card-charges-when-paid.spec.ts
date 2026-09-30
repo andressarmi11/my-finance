@@ -32,7 +32,7 @@ async function agregar(page: Page, concept: string, amount: string, method?: str
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill(concept);
   await dialog.getByPlaceholder('$ 0').fill(amount);
-  if (method) await dialog.getByRole('button', { name: method }).click();
+  if (method) await dialog.getByRole('button', { name: method, exact: true }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 }
@@ -47,7 +47,7 @@ test('a card expense is not deducted from the month it was bought in', async ({ 
   await page.goto('');
   const antes = await teQueda(page);
 
-  await agregar(page, 'Compra con TC', '500000', 'Tarjeta de crédito');
+  await agregar(page, 'Compra con TC', '500000', 'Crédito');
 
   await page.goto('');
   expect(await teQueda(page)).toBe(antes);
@@ -69,7 +69,7 @@ test('an expense without a card is deducted right away', async ({ page }) => {
 });
 
 test('the card purchase still appears in the list for the month it was made', async ({ page }) => {
-  await agregar(page, 'Compra con TC', '500000', 'Tarjeta de crédito');
+  await agregar(page, 'Compra con TC', '500000', 'Crédito');
 
   await page.goto('movimientos');
   await expect(page.getByText('Compra con TC')).toBeVisible();

@@ -5,7 +5,8 @@ test('shows the payment date of a card purchase on the card screen', async ({ pa
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await dialog.getByPlaceholder('Ej. Restaurante').fill('Zapatos');
   await dialog.getByPlaceholder('$ 0').fill('210000');
-  await dialog.getByRole('button', { name: 'Tarjeta de crédito' }).click();
+  // Redesign §9b: the method is Débito | Crédito | Efectivo; with one card, Crédito picks it.
+  await dialog.getByRole('button', { name: 'Crédito', exact: true }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 

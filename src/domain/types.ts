@@ -19,6 +19,36 @@ export type Frequency = 'monthly' | 'biweekly' | 'weekly' | 'yearly' | 'custom';
 /** E.g.: '2026-09-Q1' (the 10th-of-the-month payday) | '2026-09-Q2' (the 25th) */
 export type PeriodKey = string;
 
+/**
+ * When to remind about a transaction. Either N days before at a fixed time,
+ * or the same day: some hours/minutes before its time, or at an exact time.
+ * Same shape for the general setting and for a single transaction's override.
+ */
+export interface ReminderRule {
+  mode: 'days' | 'sameDay';
+  /** mode 'days': how many days before (1-7). */
+  days: number;
+  /** mode 'days': at what time, 'HH:MM'. */
+  time: string;
+  /** mode 'sameDay'. `value` is a number of hours/minutes, or 'HH:MM' for 'at'. */
+  sameDay: { kind: 'hours' | 'minutes' | 'at'; value: number | string };
+}
+
+/**
+ * Where a converted amount came from. `amount` stays the integer in the main
+ * currency (Math.round(originalAmount * fxRate)), so no calculation changes;
+ * these only remember the original to show it and to edit it.
+ * All three together, or none (= main currency).
+ */
+export interface ForeignAmount {
+  /** ISO 4217, e.g. 'USD'. */
+  currency?: string;
+  /** In whole units of `currency`. */
+  originalAmount?: number;
+  /** Units of the main currency per unit of `currency`. */
+  fxRate?: number;
+}
+
 export interface Settings {
   id: 'singleton';
   /** What they want to be called. Empty = not asked yet. */
@@ -39,6 +69,11 @@ export interface Settings {
   defaultPaymentMethodId: Id | null;
   reminderDefaultDaysBefore: number;
   theme: 'system' | 'light' | 'dark';
+  /**
+   * The currencies offered as chips in the new-transaction sheet (max 3).
+   * Missing = ['COP', 'USD', 'EUR']. The rest live behind "Más".
+   */
+  quickCurrencies?: string[];
   /** ISO datetime of when onboarding finished. null = show it. */
   onboardedAt: string | null;
   /**
@@ -94,7 +129,7 @@ export interface PaymentMethod {
   updatedAt: string;
 }
 
-export interface Transaction {
+export interface Transaction extends ForeignAmount {
   id: Id;
   type: TransactionType;
   concept: string;
@@ -131,6 +166,11 @@ export interface Transaction {
   /** null = computed from the date. A value means the user moved it by hand. */
   quincenaKey: PeriodKey | null;
 
+  /** Optional time of day, 'HH:MM'. Same-day reminders count from it (or 09:00). */
+  time?: string;
+  /** This transaction's reminder: its own rule, 'none', or null/absent = the general one. */
+  reminder?: ReminderRule | 'none' | null;
+
   /** Recurrence traceability. UNIQUE(recurringRuleId, periodKey) in the DB. */
   recurringRuleId?: Id;
   periodKey?: string; // '2026-09'
@@ -139,7 +179,7 @@ export interface Transaction {
   updatedAt: string;
 }
 
-export interface RecurringRule {
+export interface RecurringRule extends ForeignAmount {
   id: Id;
   name: string;
   type: TransactionType;

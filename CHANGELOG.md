@@ -1,5 +1,61 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 4: the new-transaction sheet
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 4; §5, §9b;
+pending 1 and 2, per-transaction reminder UI).
+
+> **Deploy note:** run Supabase migrations `0013_currency_cash.sql` and
+> `0014_transaction_reminder.sql` before deploying this version.
+
+### Changed
+- New-transaction sheet (§5, §9b), same fields and validation, new order:
+  Cancelar · title · Guardar pill on top; the amount at 48px with its
+  currency symbol small and grey; the concept centred; currency chips;
+  category chips; Débito | Crédito | Efectivo (the card names show when a
+  type has several) with the amber "Corte 15 · se paga el 2 nov" line; the
+  date chip; reminder chips; instalments and the paid toggle behind "Más
+  opciones". The sheet is as tall as its content (max: screen − 54px).
+- "Contarle a la app": 72px mic, example phrases as chips, an "Entendí" card
+  with the parser's reading, and the same category, currency and method
+  chips to correct it. "Ajustar" opens the full sheet, "Guardar" saves.
+- A row entered in another currency shows its original as a note
+  ("$20 USD · tasa 4.000").
+
+### Added
+- Per-transaction currency (pending 1): COP · USD · EUR chips (from
+  `settings.quickCurrencies`) plus "Más" (MXN, ARS, CLP, PEN); the chosen one
+  stays as a chip. Outside the main currency, "≈ $ 80.000 COP · tasa de hoy
+  4.000". The rate is **fetched, not typed**: today's market rate from
+  open.er-api.com (no key, CORS), cached for the day and used offline with
+  its date; with no network and no cached table, a foreign amount can't be
+  saved. A saved transaction keeps its rate, so editing it never changes
+  what it cost.
+  `amount` is still the integer in the main currency
+  (`Math.round(originalAmount * fxRate)`), so nothing in the domain changes.
+- Types: `Transaction`/`RecurringRule` gain `currency`, `originalAmount`,
+  `fxRate`; `Transaction` gains `time` and `reminder`; `Settings` gains
+  `quickCurrencies`. Mappers (with round-trip tests) and the backup schema
+  carry them.
+- Migrations `0013_currency_cash.sql` (currency columns, quick currencies,
+  `cash` re-asserted in the method type check) and
+  `0014_transaction_reminder.sql` (reminder jsonb + time).
+- "Efectivo" (pending 2) is seeded with the default methods on a new install.
+- `domain/nlp`: "dólares / usd / euros" set the currency ("en efectivo"
+  was already the cash method).
+- Reminder chips per transaction: General · Sin aviso · 1 día antes · Mismo
+  día · 1 h antes · Mismo día · 8:00 a. m. (the schedule itself: phase 7).
+- `CurrencyChips`, `MethodPicker`, `ReminderChips`, `lib/currencies`,
+  `lib/fxRates` (CSP `connect-src` allows `https://open.er-api.com`).
+
+### Tests
+- Unit: mapper round-trips (currency, reminder, quick currencies), currency
+  helpers, NLP currency words, rate fetching (inversion, daily cache,
+  offline fallback).
+- E2E updated: 04, 05, 09, 11, 12, 14, 18, 19, 20. New: 41 (dollars in cash
+  at today's rate, no rate field, offline blocks saving, "Más" currencies,
+  quick entry with currency and method), with the rates API mocked.
+
 ## [Unreleased] — Redesign v4, phase 3: Inicio and Movimientos
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 3; §3, §4;

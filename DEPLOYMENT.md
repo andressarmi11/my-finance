@@ -108,6 +108,16 @@ In the Supabase panel → **SQL Editor** → **New query**, paste and run,
 (The third one, `0003_reminder_cron.sql`, is applied later, in step
 4.5 — it needs data you don't have yet.)
 
+Then every other file in `supabase/migrations/`, in numeric order (0004
+onward). They're re-runnable.
+
+> **Upgrading an existing project:** apply the new migrations **before**
+> deploying the app version that needs them — the app always sends their
+> columns, and Postgres rejects a row with a column it doesn't have. The
+> redesign (v4) needs `0013_currency_cash.sql` (per-transaction currency,
+> quick currencies) and `0014_transaction_reminder.sql` (per-transaction
+> reminder and time).
+
 ### 4.3 Enable email login
 
 Panel → **Authentication** → **Providers** → confirm that **Email** is

@@ -1,7 +1,13 @@
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useT } from '@/i18n/language';
-import { IconCalendar, IconX } from '@tabler/icons-react';
+import { IconCalendar } from '@tabler/icons-react';
 import { MiniCalendar, relativeDayLabel } from '@/components/ui/MiniCalendar';
+import { MoreOptions } from '@/components/ui/MoreOptions';
+import { CurrencyChips } from '@/components/ui/CurrencyChips';
+import { MethodPicker } from '@/components/ui/MethodPicker';
+import { ReminderChips } from '@/components/ui/ReminderChips';
+import { CURRENCIES, convert, formatRate, quickCurrencyList } from '@/lib/currencies';
+import { useFxRate } from '@/lib/fxRates';
 import { dateLabel, fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -38,11 +44,14 @@ function shortDateConAno(iso: string, reference: string): string {
 export interface TransactionFormValue {
   type: TransactionType;
   concept: string;
+  /** In `currency`: the original amount when it isn't the main currency. */
   amountText: string;
   date: string;
   categoryId: string | null;
   paymentMethodId: string | null;
   markPaidNow: boolean;
+  currency: string;
+  reminder: Transaction['reminder'];
 }
 
 /** Values the form can be opened with. Sent by the TabBar or a URL
@@ -55,26 +64,35 @@ export interface Prefill {
   markPaidNow?: boolean;
   categoryId?: string | null;
   paymentMethodId?: string | null;
+  /** A currency the text named ("20 dólares"); the amount is in it. */
+  currency?: string;
 }
 
 function initialValue(
   existing: Transaction | null,
   prefill: Prefill | undefined,
   defaultPaymentMethodId: string | null,
+  mainCurrency: string,
 ): TransactionFormValue {
   if (existing) {
+    const foreign = existing.currency && existing.currency !== mainCurrency && existing.originalAmount != null && existing.fxRate;
     return {
       type: existing.type,
       concept: existing.concept,
-      amountText: String(existing.amount),
+      amountText: String(foreign ? existing.originalAmount : existing.amount),
       date: existing.date,
       categoryId: existing.categoryId,
       paymentMethodId: existing.paymentMethodId,
       markPaidNow: existing.status === 'paid',
+      currency: foreign ? existing.currency! : mainCurrency,
+      reminder: existing.reminder ?? null,
     };
   }
   const date = prefill?.date ?? todayISO();
+  const currency = prefill?.currency && CURRENCIES.some((c) => c.code === prefill.currency) ? prefill.currency : mainCurrency;
   return {
+    currency,
+    reminder: null,
     type: prefill?.type ?? 'expense',
     concept: prefill?.concept ?? '',
     amountText: prefill?.amountText ?? '',
@@ -98,6 +116,7 @@ function initialValue(
  */
 export function TransactionForm({
   existing, prefill, categories, paymentMethods, defaultPaymentMethodId,
+  mainCurrency = 'COP', quickCurrencies,
   onSave, onDelete, onDuplicate, onCancel,
 }: {
   existing: Transaction | null;
@@ -105,6 +124,9 @@ export function TransactionForm({
   categories: Category[];
   paymentMethods: PaymentMethod[];
   defaultPaymentMethodId: string | null;
+  /** Settings.currency: `amount` is always stored in it. */
+  mainCurrency?: string;
+  quickCurrencies?: string[];
   onSave: (tx: Transaction, installmentPlan?: { installments: number; installmentAmount?: number }) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
@@ -112,7 +134,7 @@ export function TransactionForm({
 }) {
   const t = useT();
   const [value, setValue] = useState<TransactionFormValue>(() =>
-    initialValue(existing, prefill, defaultPaymentMethodId),
+    initialValue(existing, prefill, defaultPaymentMethodId, mainCurrency),
   );
   const [touched, setTouched] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
@@ -122,7 +144,18 @@ export function TransactionForm({
   const conceptIndex = useLiveQuery(() => db.conceptIndex.toArray(), []) ?? EMPTY;
   const recents = useMemo(() => topRecents(conceptIndex, 5), [conceptIndex]);
 
-  const amount = parseMoney(value.amountText);
+  // What was typed is in `value.currency`; what gets stored is always the
+  // integer in the main currency, so no calculation in the domain changes.
+  const originalAmount = parseMoney(value.amountText);
+  const isForeign = value.currency !== mainCurrency;
+  // The rate is fetched, never typed (lib/fxRates). Editing a transaction
+  // keeps the rate it was saved with, as long as its currency doesn't change.
+  const fx = useFxRate(
+    value.currency, mainCurrency,
+    existing?.currency === value.currency ? existing.fxRate : undefined,
+  );
+  const fxRate = fx.status === 'same' ? 1 : fx.status === 'ready' ? fx.rate : null;
+  const amount = originalAmount !== null && fxRate !== null ? convert(originalAmount, fxRate) : null;
   const selectedMethod = paymentMethods.find((m) => m.id === value.paymentMethodId);
   const isCredit = selectedMethod?.type === 'credit';
   const isIncome = value.type === 'income';
@@ -214,6 +247,10 @@ export function TransactionForm({
 
   const canSave = value.concept.trim().length > 0 && amount !== null && amount > 0 && !!value.date;
 
+  function pickCurrency(code: string) {
+    setValue((v) => (code === v.currency ? v : { ...v, currency: code }));
+  }
+
   function handleSubmit() {
     setTouched(true);
     if (!canSave || amount === null) return;
@@ -229,6 +266,11 @@ export function TransactionForm({
       date: value.date,
       categoryId: value.categoryId,
       paymentMethodId: value.paymentMethodId,
+      ...(isForeign && originalAmount !== null && fxRate !== null
+        ? { currency: value.currency, originalAmount, fxRate }
+        : {}),
+      ...(value.reminder != null ? { reminder: value.reminder } : {}),
+      ...(existing?.time ? { time: existing.time } : {}),
       status: value.markPaidNow ? 'paid' : (existing?.status === 'scheduled' ? 'scheduled' : 'pending'),
       notes: existing?.notes,
       quincenaKey: existing?.quincenaKey ?? null,
@@ -247,8 +289,15 @@ export function TransactionForm({
   }
 
   const headerLabel = existing
-    ? isIncome ? 'Editar ingreso' : 'Editar gasto'
-    : isIncome ? 'Nuevo ingreso' : 'Nuevo gasto';
+    ? t(isIncome ? 'form.editIncome' : 'form.editExpense')
+    : t(isIncome ? 'form.newIncome' : 'form.newExpense');
+
+  // The amount's own currency: symbol small and grey beside the figure.
+  const sample = formatMoney(0, value.currency);
+  const symbol = sample.replace(/[\d\s]/g, '');
+  const symbolAfter = sample.trimEnd().endsWith(symbol);
+  const figure = value.amountText ? formatMoney(Number(value.amountText), value.currency).replace(symbol, '').trim() : '';
+  const quick = quickCurrencyList(mainCurrency, quickCurrencies);
 
   const dialogRef = useDialogo(onCancel);
   return (
@@ -263,106 +312,135 @@ export function TransactionForm({
       }}
       onClick={onCancel}
     >
+      {/* Compact sheet: as tall as its content, never taller than the
+          screen minus 54px, scrolling inside. No flexible spacer. */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
-          maxHeight: '92vh', overflowY: 'auto',
+          borderRadius: '24px 24px 0 0', padding: '10px 18px calc(var(--safe-bottom) + 20px)',
+          maxHeight: 'calc(100% - 54px)', overflowY: 'auto',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 8px' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        {/* 1. Cancelar · title · Guardar */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: 6 }}>
           <button
             type="button"
             onClick={onCancel}
-            aria-label={t('action.cancel')}
             style={{
-              width: 32, height: 32, borderRadius: 16, border: 'none',
-              background: 'var(--surface-sunken)', color: 'var(--text-muted)',
-              fontSize: 18, cursor: 'pointer',
+              justifySelf: 'start', minHeight: 'var(--tap)', padding: '0 2px', border: 'none', background: 'none',
+              color: 'var(--q10-text)', fontSize: 'var(--text-md)', cursor: 'pointer',
             }}
           >
-            <IconX size={17} stroke={2.2} aria-hidden />
+            {t('action.cancel')}
           </button>
-          <span
-            style={{
-              fontSize: 'var(--text-sm)', fontWeight: 700,
-              padding: '4px 10px', borderRadius: 12,
-              background: isIncome ? 'var(--positive-soft)' : 'var(--surface-sunken)',
-              color: isIncome ? 'var(--positive-text)' : 'var(--text-muted)',
-              letterSpacing: '0.02em', textTransform: 'uppercase',
-            }}
-          >
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, color: isIncome ? 'var(--positive-text)' : 'var(--text)' }}>
             {headerLabel}
           </span>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSave}
+            style={{
+              justifySelf: 'end', minHeight: 36, padding: '0 16px', borderRadius: 999, border: 'none',
+              background: canSave ? 'var(--q10)' : 'var(--surface-sunken)',
+              color: canSave ? 'var(--on-accent)' : 'var(--text-faint)',
+              fontSize: 'var(--text-base)', fontWeight: 700, cursor: canSave ? 'pointer' : 'not-allowed',
+              transition: 'background var(--dur-fast) var(--ease-spring-out)',
+            }}
+          >
+            {t('action.save')}
+          </button>
         </div>
 
-        {/* The big number IS the field. There used to be a decorative
-            display up top and a small input below: two things showing the same thing. */}
-        <input
-          value={value.amountText ? formatMoney(Number(value.amountText)) : ''}
-          onChange={(e) => setValue((v) => ({ ...v, amountText: e.target.value.replace(/[^0-9]/g, '').slice(0, 12) }))}
-          placeholder="$ 0"
-          inputMode="numeric"
-          enterKeyHint="next"
-          autoFocus={!existing}
-          aria-label="Valor"
-          className="figures"
-          style={{
-            width: '100%', border: 'none', background: 'none', outline: 'none',
-            textAlign: 'center', margin: '12px 0 4px', padding: 0,
-            fontSize: 'var(--text-3xl)', fontWeight: 700, letterSpacing: '-0.022em', lineHeight: 1.1,
-            color: isIncome ? 'var(--positive-text)' : (amount && amount > 0 ? 'var(--text)' : 'var(--text-faint)'),
-          }}
-        />
-        <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {isIncome ? t('form.howMuchIn') : t('form.howMuchOut')}
-        </p>
+        {/* 2. The big amount IS the field, with its currency's symbol small
+            and grey beside it. */}
+        <label style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 6, margin: '10px 0 2px' }}>
+          {figure && !symbolAfter && (
+            <span aria-hidden className="figures" style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-muted)' }}>{symbol}</span>
+          )}
+          <input
+            value={figure}
+            onChange={(e) => setValue((v) => ({ ...v, amountText: e.target.value.replace(/[^0-9]/g, '').slice(0, 12) }))}
+            placeholder={`${symbol} 0`}
+            inputMode="numeric"
+            enterKeyHint="next"
+            autoFocus={!existing}
+            aria-label={t('form.amount')}
+            className="figures"
+            style={{
+              // As wide as the figure, so the symbol sits right beside it.
+              width: figure ? `${figure.length + 0.4}ch` : '3.4ch',
+              minWidth: 0, maxWidth: '100%', border: 'none', background: 'none', outline: 'none',
+              textAlign: 'center', padding: 0,
+              fontSize: 48, fontWeight: 700, letterSpacing: '-0.035em', lineHeight: 1.1,
+              color: isIncome ? 'var(--positive-text)' : (amount && amount > 0 ? 'var(--text)' : 'var(--text-faint)'),
+            }}
+          />
+          {figure && symbolAfter && (
+            <span aria-hidden className="figures" style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-muted)' }}>{symbol}</span>
+          )}
+        </label>
+
+        {/* 3. Equivalence in the main currency, at today's rate. */}
+        {isForeign ? (
+          <FxLine fx={fx} amount={amount} main={mainCurrency} />
+        ) : (
+          <p style={{ margin: '0 0 10px', textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
+            {isIncome ? t('form.howMuchIn') : t('form.howMuchOut')}
+          </p>
+        )}
         {touched && (amount === null || amount <= 0) && <p style={errorText}>{t('transactions.enterValidAmount')}</p>}
 
-        {/* Recent-concept chips — only when NOT editing and there's history */}
-        {!existing && recents.length > 0 && (
-          <>
-            <FieldGroup label="Usar reciente" id="tx-recientes" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
-              {recents.map((r) => {
-                const cat = r.categoryId ? categories.find((c) => c.id === r.categoryId) : null;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => applyRecent(r)}
-                    style={{
-                      flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                      minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 999,
-                      border: '1px solid var(--line-strong)',
-                      background: 'var(--surface)', color: 'var(--text)',
-                      fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {cat && <CategoryIcon icon={cat.icon} size={15} />}
-                    <span>{r.displayName}</span>
-                  </button>
-                );
-              })}
-            </FieldGroup>
-          </>
-        )}
-
-        <Field label={t('form.concept')} htmlFor="tx-concepto">
+        {/* 4. The concept, centred under the amount. */}
         <input
           id="tx-concepto"
           value={value.concept}
           onChange={(e) => setValue((v) => ({ ...v, concept: e.target.value }))}
-          placeholder="Ej. Restaurante"
-          style={inputStyle}
+          placeholder={t('form.conceptPlaceholder')}
+          aria-label={t('form.concept')}
+          style={{
+            width: '100%', minHeight: 'var(--tap)', padding: '0 12px', marginBottom: 12,
+            borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface-sunken)',
+            color: 'var(--text)', fontSize: 16, textAlign: 'center',
+          }}
         />
-        </Field>
         {touched && !value.concept.trim() && <p style={errorText}>{t('transactions.writeWhatItIs')}</p>}
 
-        <FieldGroup label={t('form.category')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
+        {/* Recent-concept chips — only when NOT editing and there's history */}
+        {!existing && recents.length > 0 && (
+          <FieldGroup label={t('form.useRecent')} id="tx-recientes" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
+            {recents.map((r) => {
+              const cat = r.categoryId ? categories.find((c) => c.id === r.categoryId) : null;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => applyRecent(r)}
+                  style={{
+                    flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
+                    minHeight: 34, padding: '0 12px', borderRadius: 999,
+                    border: '1px solid var(--line-strong)',
+                    background: 'transparent', color: 'var(--text)',
+                    fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {cat && <CategoryIcon icon={cat.icon} size={15} />}
+                  <span>{r.displayName}</span>
+                </button>
+              );
+            })}
+          </FieldGroup>
+        )}
+
+        {/* 5. Currency */}
+        <CurrencyChips value={value.currency} quick={quick} onChange={pickCurrency} />
+
+        {/* 6. Category chips: the active one wears its colour. */}
+        <FieldGroup label={t('form.category')} id="tx-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === value.type).map((c) => (
             <button
               key={c.id}
@@ -384,59 +462,16 @@ export function TransactionForm({
           ))}
         </FieldGroup>
 
-        <FieldGroup label={t('form.paymentMethod')} id="tx-metodo" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {availableMethods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setValue((v) => ({ ...v, paymentMethodId: m.id }))}
-              aria-pressed={value.paymentMethodId === m.id}
-              style={segmentStyle(value.paymentMethodId === m.id)}
-            >
-              {m.name}
-            </button>
-          ))}
-        </FieldGroup>
+        {/* 7. Method (Débito | Crédito | Efectivo) and the date. */}
+        <MethodPicker
+          methods={availableMethods}
+          value={value.paymentMethodId}
+          onChange={(id) => setValue((v) => ({ ...v, paymentMethodId: id }))}
+        />
         {isCredit && paymentPreview && installments === 1 && (
-          <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
-            {t('transactions.paidOnLong')} {shortDate(paymentPreview)}
+          <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
+            {fill(t('form.cardCycle'), { cutoff: selectedMethod?.cutoffDay ?? 15, payment: shortDate(paymentPreview) })}
           </p>
-        )}
-
-        {/* Installment plan. Only on CREATE: editing a single installment
-            does not re-split the purchase. */}
-        {isCredit && !existing && (
-          <>
-            <Field label={t('form.installments')} htmlFor="tx-cuotas">
-              <input
-                id="tx-cuotas" type="number" inputMode="numeric" min={1} max={48}
-                value={installments}
-                onChange={(e) => setCuotas(Math.max(1, Math.min(48, Number(e.target.value) || 1)))}
-                style={inputStyle}
-              />
-            </Field>
-
-            {installments > 1 && (
-              <>
-                <Field label={t('form.installmentAmount')} htmlFor="tx-valor-cuota">
-                  <input
-                    id="tx-valor-cuota" inputMode="numeric"
-                    value={installmentAmountText}
-                    onChange={(e) => setValorCuotaTexto(e.target.value)}
-                    placeholder={installmentPreview ? formatMoney(installmentPreview[0]!.amount) : '$ 0'}
-                    style={inputStyle}
-                  />
-                </Field>
-                <p style={{ margin: '-8px 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-                  {installmentPreview
-                    ? t('transactions.installmentRange')
-                        .replace('{first}', shortDate(installmentPreview[0]!.cyclePaymentDate))
-                        .replace('{last}', shortDateConAno(installmentPreview[installmentPreview.length - 1]!.cyclePaymentDate, installmentPreview[0]!.cyclePaymentDate))
-                    : t('transactions.installmentInterestHint')}
-                </p>
-              </>
-            )}
-          </>
         )}
 
         {/* The date as a chip ("Hoy", "Ayer", "3 oct") that opens a month
@@ -474,37 +509,76 @@ export function TransactionForm({
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={() => setValue((v) => ({ ...v, markPaidNow: !v.markPaidNow }))}
-          aria-pressed={value.markPaidNow}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            minHeight: 'var(--tap)', padding: '0 4px', margin: '10px 0 20px', background: 'none',
-            border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--text-base)',
-          }}
-        >
-          <span>{isIncome ? t('form.alreadyReceived') : isCredit ? t('form.statementAlreadyPaid') : t('form.alreadyPaid')}</span>
-          <span
-            aria-hidden
+        {/* 8. This transaction's reminder. */}
+        <ReminderChips value={value.reminder} onChange={(reminder) => setValue((v) => ({ ...v, reminder }))} />
+
+        {/* 9. Advanced: hidden, not removed. Open on its own when editing
+            something that already uses it. */}
+        <MoreOptions startOpen={Boolean(existing && value.markPaidNow !== (existing.status === 'paid'))}>
+          {/* Installment plan. Only on CREATE: editing a single installment
+              does not re-split the purchase. */}
+          {isCredit && !existing && (
+            <>
+              <Field label={t('form.installments')} htmlFor="tx-cuotas">
+                <input
+                  id="tx-cuotas" type="number" inputMode="numeric" min={1} max={48}
+                  value={installments}
+                  onChange={(e) => setCuotas(Math.max(1, Math.min(48, Number(e.target.value) || 1)))}
+                  style={inputStyle}
+                />
+              </Field>
+
+              {installments > 1 && (
+                <>
+                  <Field label={t('form.installmentAmount')} htmlFor="tx-valor-cuota">
+                    <input
+                      id="tx-valor-cuota" inputMode="numeric"
+                      value={installmentAmountText}
+                      onChange={(e) => setValorCuotaTexto(e.target.value)}
+                      placeholder={installmentPreview ? formatMoney(installmentPreview[0]!.amount) : '$ 0'}
+                      style={inputStyle}
+                    />
+                  </Field>
+                  <p style={{ margin: '-8px 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
+                    {installmentPreview
+                      ? t('transactions.installmentRange')
+                          .replace('{first}', shortDate(installmentPreview[0]!.cyclePaymentDate))
+                          .replace('{last}', shortDateConAno(installmentPreview[installmentPreview.length - 1]!.cyclePaymentDate, installmentPreview[0]!.cyclePaymentDate))
+                      : t('transactions.installmentInterestHint')}
+                  </p>
+                </>
+              )}
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setValue((v) => ({ ...v, markPaidNow: !v.markPaidNow }))}
+            aria-pressed={value.markPaidNow}
             style={{
-              width: 44, height: 26, borderRadius: 13, background: value.markPaidNow ? 'var(--positive)' : 'var(--surface-sunken)',
-              border: '1px solid var(--line)', position: 'relative', transition: 'background var(--dur-fast)',
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              minHeight: 'var(--tap)', padding: '0 4px', margin: '0 0 6px', background: 'none',
+              border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 'var(--text-base)',
             }}
           >
-            <span style={{
-              position: 'absolute', top: 2, left: value.markPaidNow ? 21 : 2, width: 20, height: 20,
-              borderRadius: 10, background: 'var(--knob)', boxShadow: '0 1px 3px rgb(0 0 0/.3)', transition: 'left var(--dur-fast) var(--ease-spring-out)',
-            }} />
-          </span>
-        </button>
-
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>
-          {t('action.save')}
-        </button>
+            <span>{isIncome ? t('form.alreadyReceived') : isCredit ? t('form.statementAlreadyPaid') : t('form.alreadyPaid')}</span>
+            <span
+              aria-hidden
+              style={{
+                width: 44, height: 26, borderRadius: 13, background: value.markPaidNow ? 'var(--positive)' : 'var(--surface-sunken)',
+                border: '1px solid var(--line)', position: 'relative', transition: 'background var(--dur-fast)',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: value.markPaidNow ? 21 : 2, width: 20, height: 20,
+                borderRadius: 10, background: 'var(--knob)', boxShadow: '0 1px 3px rgb(0 0 0/.3)', transition: 'left var(--dur-fast) var(--ease-spring-out)',
+              }} />
+            </span>
+          </button>
+        </MoreOptions>
 
         {existing && (
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
             {onDuplicate && (
               <button type="button" onClick={onDuplicate} style={secondaryButtonStyle}>{t('action.duplicate')}</button>
             )}
@@ -527,26 +601,39 @@ const inputStyle: React.CSSProperties = {
 };
 const errorText: React.CSSProperties = { margin: '-10px 0 10px', fontSize: 'var(--text-xs)', color: 'var(--danger-text)' };
 
-function segmentStyle(active: boolean): React.CSSProperties {
-  return {
-    flex: 1, minWidth: 90, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)',
-    border: '1px solid var(--line-strong)', background: active ? 'var(--text)' : 'var(--surface)',
-    color: active ? 'var(--surface)' : 'var(--text)', fontWeight: 600, cursor: 'pointer',
-    fontSize: 'var(--text-base)',
-    transition: 'all var(--dur-fast) var(--ease-spring-out)',
-  };
-}
-function saveButtonStyle(enabled: boolean): React.CSSProperties {
-  return {
-    width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-    background: enabled ? 'var(--q10)' : 'var(--surface-sunken)',
-    color: enabled ? 'var(--on-accent)' : 'var(--text-faint)',
-    fontWeight: 700, fontSize: 16, cursor: enabled ? 'pointer' : 'not-allowed',
-    transition: 'background var(--dur-fast) var(--ease-spring-out)',
-  };
-}
 const secondaryButtonStyle: React.CSSProperties = {
   flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
   background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
   fontSize: 'var(--text-base)',
 };
+
+/** "≈ $ 80.000 COP · tasa de hoy 4.016" — read-only: the rate is fetched. */
+export function FxLine({ fx, amount, main }: {
+  fx: ReturnType<typeof useFxRate>; amount: number | null; main: string;
+}) {
+  const t = useT();
+  let text: string;
+  if (fx.status === 'loading') text = t('form.fxLoading');
+  else if (fx.status === 'unavailable') text = t('form.fxUnavailable');
+  else if (fx.status === 'ready') {
+    const approx = amount !== null ? `${fill(t('form.fxApprox'), { amount: formatMoney(amount, main), main })} · ` : '';
+    const rate = formatRate(fx.rate);
+    text = approx + (!fx.fetchedOn
+      ? fill(t('form.fxSavedRate'), { rate })
+      : fx.stale
+        ? fill(t('form.fxRateOn'), { rate, date: dateLabel(fx.fetchedOn, t, 'short') })
+        : fill(t('form.fxTodayRate'), { rate }));
+  } else text = '';
+  return (
+    <p
+      role="status"
+      className="figures"
+      style={{
+        margin: '0 0 10px', textAlign: 'center', fontSize: 'var(--text-sm)',
+        color: fx.status === 'unavailable' ? 'var(--danger-text)' : 'var(--text-muted)',
+      }}
+    >
+      {text}
+    </p>
+  );
+}

@@ -249,3 +249,23 @@ describe('round-3 regressions', () => {
     expect(r.yaOcurrio).toBe(false);
   });
 });
+
+describe('currency and cash (redesign §9b)', () => {
+  const TODAY = '2026-09-30';
+  it('"dólares" and "usd" mean USD, and the word leaves the concept', () => {
+    const r = parseUtterance('gasté 20 dólares en un libro', TODAY);
+    expect(r).toMatchObject({ amount: 20, currency: 'USD', concept: 'Libro' });
+    expect(parseUtterance('pagué 15 usd de netflix', TODAY).currency).toBe('USD');
+  });
+  it('"euros" means EUR', () => {
+    expect(parseUtterance('compré un café de 3 euros', TODAY)).toMatchObject({ amount: 3, currency: 'EUR' });
+  });
+  it('no currency word, no currency field', () => {
+    expect(parseUtterance('gasté 45 mil en el almuerzo', TODAY)).not.toHaveProperty('currency');
+  });
+  it('"en efectivo" is the cash method', () => {
+    const r = parseUtterance('gasté 20 dólares en efectivo en el taxi', TODAY);
+    expect(r).toMatchObject({ method: 'cash', currency: 'USD' });
+    expect(r.concept.toLowerCase()).toContain('taxi');
+  });
+});

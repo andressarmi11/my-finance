@@ -6,6 +6,26 @@
 import { z } from 'zod';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha invalida');
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Hora invalida');
+
+// Migration 0013: where a converted amount came from. Optional, so backups
+// made before per-transaction currencies existed still import.
+const foreignAmount = {
+  currency: z.string().regex(/^[A-Z]{3}$/).optional(),
+  originalAmount: z.number().min(0).optional(),
+  fxRate: z.number().positive().optional(),
+};
+
+// Migration 0014: a transaction's own reminder, or 'none'.
+const ReminderRuleSchema = z.object({
+  mode: z.enum(['days', 'sameDay']),
+  days: z.number().int().min(0).max(7),
+  time: hhmm,
+  sameDay: z.object({
+    kind: z.enum(['hours', 'minutes', 'at']),
+    value: z.union([z.number().int().min(0), hhmm]),
+  }),
+});
 
 const SettingsBase = z.object({
   id: z.literal('singleton'),
@@ -21,6 +41,7 @@ const SettingsBase = z.object({
   defaultPaymentMethodId: z.string().nullable(),
   reminderDefaultDaysBefore: z.number().int().min(0),
   theme: z.enum(['system', 'light', 'dark']),
+  quickCurrencies: z.array(z.string().regex(/^[A-Z]{3}$/)).max(3).optional(),
 });
 
 /**
@@ -85,6 +106,9 @@ export const TransactionSchema = z.object({
   quincenaKey: z.string().nullable(),
   recurringRuleId: z.string().optional(),
   periodKey: z.string().optional(),
+  ...foreignAmount,
+  time: hhmm.optional(),
+  reminder: z.union([ReminderRuleSchema, z.literal('none')]).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -108,6 +132,7 @@ export const RecurringRuleSchema = z.object({
   startDate: isoDate,
   endDate: isoDate.optional(),
   isActive: z.boolean(),
+  ...foreignAmount,
   updatedAt: z.string().default(''),
 }).superRefine((r, ctx) => {
   // custom <=> exactly one pattern; any other frequency carries none.

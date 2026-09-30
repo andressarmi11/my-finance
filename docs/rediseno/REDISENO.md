@@ -280,7 +280,7 @@ Referencia: turno 2 del prototipo (2a).
 
 ## 10. Checklist
 
-Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · Fase 4 ⬜ · Fase 5 ⬜ · Fase 6 ⬜ · Fase 7 ⬜ · Fase 8 ⬜ · Fase 9 ⬜ · Fase 10 ⬜
+Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · Fase 5 ⬜ · Fase 6 ⬜ · Fase 7 ⬜ · Fase 8 ⬜ · Fase 9 ⬜ · Fase 10 ⬜
 
 - [x] Tokens oscuros actualizados — Fase 1
 - [x] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado — Fase 2
@@ -291,8 +291,8 @@ Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · 
 - [ ] Ajustes agrupado en subpantallas
 - [x] `LegalFooter` solo en Legal — Fase 2
 - [x] Logo 1c en `Logo.tsx` y los íconos regenerados — Fase 1
-- [ ] Moneda por movimiento + método Efectivo (tipos, migración 0013, mappers, nlp)
-- [ ] Hoja de nuevo movimiento compacta; QuickEntrySheet con moneda y método
+- [x] Moneda por movimiento + método Efectivo (tipos, migración 0013, mappers, nlp) — Fase 4
+- [x] Hoja de nuevo movimiento compacta; QuickEntrySheet con moneda y método — Fase 4
 - [ ] Análisis: sin "Ingresos vs. gastos", tarjetas plegables, columnas de presupuesto
 - [ ] Subpantallas: pagos, categorías, recurrentes, presupuestos, atajos
 - [ ] Subpantallas: perfil, idioma, tema (en vivo), moneda + monedas rápidas, recordatorios, datos, legal
@@ -306,7 +306,7 @@ Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · 
 
 ## 11. Pendiente: lo que la app todavía NO tiene
 
-Hechos: 6, 7, 8 (Fase 3).
+Hechos: 6, 7, 8 (Fase 3) · 1, 2 (Fase 4; la moneda en el formulario de recurrentes llega con su hoja nueva en la Fase 6) · 3: datos por movimiento y chips de aviso (Fase 4, migración 0014), falta el cálculo y el cron (Fase 7).
 
 Cada punto dice qué falta, dónde va y cómo hacerlo. Nada de esto requiere reescribir `src/domain/`, solo extenderlo.
 
