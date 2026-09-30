@@ -57,6 +57,17 @@ export function reconcileBudgets(localRows: Budget[], remoteRows: Budget[]): Bud
       continue;
     }
 
+    // Same stamp: it's the same edit on both sides (this device uploaded it,
+    // or pulled it). Uploading it again on every sync re-sent every budget
+    // and reported them as "uploaded". Only the id may still need adopting.
+    if (!newest(local.updatedAt, remoteRow.updatedAt)) {
+      if (local.id !== remoteRow.id) {
+        plan.saveLocal.push(remoteRow);
+        plan.deleteLocal.push(local.id);
+      }
+      continue;
+    }
+
     // The local one wins, but it travels with the cloud's id: uploading
     // it with its own would blow up against
     // unique(user_id, category_id, year, month).

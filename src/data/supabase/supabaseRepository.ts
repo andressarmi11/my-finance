@@ -87,6 +87,18 @@ export async function listTransactionsChangedSince(
  * id → updated_at of every movement in the cloud: what push needs to
  * decide what to upload, at ~70 bytes a row instead of the whole row.
  */
+/**
+ * id → updated_at of the movements the server stamped after `since`: the
+ * versions a push has to compare against that the last pull may not have
+ * seen yet. Usually empty — the pull runs right before.
+ */
+export async function listTransactionVersionsSince(since: string): Promise<Map<string, string>> {
+  const supabase = await getSupabase();
+  const rows = await selectAll<{ id: string; updated_at: string }>((from, to) =>
+    supabase.from('transactions').select('id, updated_at').gt('synced_at', since).order('synced_at').order('id').range(from, to));
+  return new Map(rows.map((r) => [r.id, r.updated_at]));
+}
+
 export async function listTransactionVersions(): Promise<Map<string, string>> {
   const supabase = await getSupabase();
   const rows = await selectAll<{ id: string; updated_at: string }>((from, to) =>

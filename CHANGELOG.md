@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased] — Cost audit: C1, C2, C3
+
+Audit: `docs/auditoria/COSTOS.md`.
+
+### Changed
+- C1, sync egress: the push reuses the lists the pull just downloaded
+  instead of asking for them again, and the remote transaction versions are
+  kept on the device: each incremental sync only asks for the ones changed
+  since the cursor, instead of id + updated_at of the whole history.
+- C3, exchange rate: with Supabase configured, the day's table is read from
+  `public.fx_rates`, which the new `fx-rates` Edge Function fills once a day
+  for everyone. A missing or old row (more than 2 days) falls back to
+  open.er-api, as before.
+
+### Fixed
+- "Sync now" always said "3 uploaded, 14 downloaded" even with nothing
+  changed. A budget with the same timestamp on both sides was re-uploaded on
+  every sync, and every reminder in the cloud was counted (and rewritten) as
+  downloaded. Now only what actually changed travels and is counted.
+
+### Database
+- `0016_rls_select_auth_uid.sql` (C2): re-runnable; rewrites any RLS policy
+  still using `auth.uid()` as `(select auth.uid())`, as 0009 did.
+- `0017_fx_rates.sql` (C3): the `fx_rates` table (public read, written only
+  by the service role) and the daily `fx-rates-daily` cron job.
+
+### Tests
+- Unit: known remote versions (merge, reuse), the shared rate table (any base
+  from the USD row, freshness, fallback to the API).
 ## [Unreleased] — Redesign v4: visual polish against the prototype
 
 The phases implemented `REDISENO.md`; this pass compares every screen with
