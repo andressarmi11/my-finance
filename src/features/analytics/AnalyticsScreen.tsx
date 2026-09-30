@@ -1,42 +1,33 @@
 import { useT } from '@/i18n/language';
-import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { IconChevronDown } from '@tabler/icons-react';
+import { Segmented } from '@/components/ui/Segmented';
+import { BigAmount } from '@/components/ui/BigAmount';
+import { fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { MonthNav } from '@/components/ui/MonthNav';
 import { describeRange, RANGE_KEY, widestRangeLabel } from './rangeLabel';
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
-import { formatCompact, formatMoney } from '@/domain/money/format';
-import { calculateDebitVsCredit, calculateFixedVsVariable, monthlySeries } from '@/domain/analytics/series';
+import { formatMoney } from '@/domain/money/format';
+import { calculateFixedVsVariable } from '@/domain/analytics/series';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
-import { filterByRange, untilToday, rangeBounds, fillGaps, toMonthlyPoints, toQuarterlyPoints, toYearlyPoints, shiftAnchor, containsToday, type PeriodPoint, type Range } from './periodAggregate';
+import { filterByRange, rangeBounds, shiftAnchor, containsToday, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
 import { todayISO } from '@/lib/todayISO';
-import { BudgetColumns } from './BudgetColumns';
+import { BudgetColumns, budgetColumns } from './BudgetColumns';
+import { spendByMethod } from './byMethod';
 import { ChartManager } from './ChartManager';
 import {
-  saveChartLayout, readChartLayout, type ChartLayout, type ChartId,
+  saveChartLayout, readChartLayout, readCollapsed, saveCollapsed, type ChartLayout, type ChartId,
 } from './chartLayout';
 import { EMPTY } from '@/lib/empty';
-
-/**
- * Chart motion. Recharts' defaults were the bulk of the "delay" when paging:
- * the pie waited 400 ms and then animated for 1500 ms after EVERY change,
- * ~2 s with the data already there. Short and immediate now — and none at
- * all under "Reduce motion", which recharts (JS-driven) never honoured; the
- * CSS rule in index.css doesn't reach it.
- */
-const CHART_ANIMATION = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  ? { isAnimationActive: false }
-  : { isAnimationActive: true, animationBegin: 0, animationDuration: 350 };
 
 export function AnalyticsScreen() {
   const t = useT();
@@ -45,6 +36,13 @@ export function AnalyticsScreen() {
   const [layout, setLayout] = useState<ChartLayout>(readChartLayout);
 
   const apply = (d: ChartLayout) => { setLayout(d); saveChartLayout(d); };
+  // Folded cards (§9c), remembered on this device next to the layout.
+  const [collapsed, setCollapsed] = useState<ChartId[]>(readCollapsed);
+  const toggleCard = (id: ChartId) => setCollapsed((prev) => {
+    const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+    saveCollapsed(next);
+    return next;
+  });
 
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
@@ -53,27 +51,6 @@ export function AnalyticsScreen() {
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const creditMethodIds = useMemo(
-    () => new Set(paymentMethods.filter((m) => m.type === 'credit').map((m) => m.id)),
-    [paymentMethods],
-  );
-
-  // "Historical" means up to today: the future is cut off and any empty
-  // months left in between are filled in, so the axis doesn't lie about how
-  // much time passed between one bar and the next.
-  const monthly = useMemo(
-    () => fillGaps(untilToday(monthlySeries(transactions), todayISO())),
-    [transactions],
-  );
-  const points: PeriodPoint[] = useMemo(() => {
-    // The historical series is monthly; on the biweekly range the same
-    // months are shown. Without this case, 'quincena' fell through to the
-    // `return` below and drew the YEARLY series next to a title reading
-    // "25 sep - 9 oct".
-    if (range === 'quincena' || range === 'mes') return toMonthlyPoints(monthly).slice(-6);
-    if (range === 'trimestre') return toQuarterlyPoints(monthly).slice(-4);
-    return toYearlyPoints(monthly);
-  }, [monthly, range]);
 
   // Filter transactions by the selected range — ALL the cards
   // (balance, pie, fijos/variables, débito/tarjeta) usan este filtro.
@@ -162,11 +139,10 @@ export function AnalyticsScreen() {
 
   // Income by category (new — until now it was only expenses)
   const incomeByCategory = useMemo(() => calculateIncomeByCategory(rangedTransactions), [rangedTransactions]);
-  const incomeTop = incomeByCategory.slice(0, 5);
   const incomeTotal = incomeByCategory.reduce((a, c) => a + c.amount, 0);
 
   const fixedVsVariable = useMemo(() => calculateFixedVsVariable(rangedTransactions), [rangedTransactions]);
-  const debitVsCredit = useMemo(() => calculateDebitVsCredit(rangedTransactions, creditMethodIds), [rangedTransactions, creditMethodIds]);
+  const byMethod = useMemo(() => spendByMethod(rangedTransactions, paymentMethods), [rangedTransactions, paymentMethods]);
 
   if (transactions.length === 0) {
     return (
@@ -177,10 +153,12 @@ export function AnalyticsScreen() {
   }
 
   const fixedVariableTotal = fixedVsVariable.fixed + fixedVsVariable.variable;
-  const debitCreditTotal = debitVsCredit.debit + debitVsCredit.credit;
+  const methodTotal = byMethod.debit + byMethod.credit + byMethod.cash;
+  const balance = incomeTotal - spendTotal;
+  const pctOf = (part: number, total: number) => (total > 0 ? Math.round((part / total) * 100) : 0);
 
-  // Pie data (every category + "Others")
-  const pieData = [
+  // Every category + "Others", for the bar and the list.
+  const categoryRows = [
     ...spendTop.map((c) => {
       const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
       return {
@@ -189,142 +167,72 @@ export function AnalyticsScreen() {
         icon: cat?.icon ?? 'other',
         color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
         amount: c.amount,
-        count: c.count,
       };
     }),
-    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: t('analytics.others'), icon: '⋯', color: 'var(--text-faint)', amount: spendOtherAmount, count: spendByCategory.slice(7).reduce((a, c) => a + c.count, 0) }] : []),
+    ...(spendOtherAmount > 0 ? [{ id: '__other__', name: t('analytics.others'), icon: 'other', color: 'var(--text-faint)', amount: spendOtherAmount }] : []),
   ];
 
-  // Each chart, indexed by id. Built here and PAINTED in whatever order
-  // the user chose, instead of being hard-wired into the JSX.
-  const sections: Record<ChartId, { title: string; content: React.ReactNode }> = {
-    'balance-by-category': { title: t('analytics.balanceByCategory'), content: (<>
-        <StackedBar
-          label={t('filter.income')}
-          total={incomeTotal}
-          segments={incomeTop.map((c, i) => {
-            const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
-            return {
-              id: c.categoryId ?? `income-${i}`,
-              name: cat?.name ?? t('analytics.noCategory'),
-              icon: cat?.icon ?? 'other',
-              color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
-              amount: c.amount,
-            };
-          })}
-          amountColor="var(--positive)"
-          prefix="+ "
-        />
-        <div style={{ height: 12 }} />
-        <StackedBar
-          label={t('filter.expenses')}
-          total={spendTotal}
-          segments={spendTop.map((c, i) => {
-            const cat = c.categoryId ? categoryById.get(c.categoryId) : null;
-            return {
-              id: c.categoryId ?? `spend-${i}`,
-              name: cat?.name ?? t('analytics.noCategory'),
-              icon: cat?.icon ?? 'other',
-              color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
-              amount: c.amount,
-            };
-          })}
-          amountColor="var(--text)"
-        />
-        <div style={{ height: 12 }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>{t('analytics.balance')}</span>
-          <span className="figures" style={{ fontWeight: 700, color: incomeTotal - spendTotal >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
-            {incomeTotal - spendTotal >= 0 ? '+ ' : ''}{formatMoney(incomeTotal - spendTotal)}
-          </span>
+  const budgetCols = budgetColumns(categories, budgets, transactions, budgetMonth);
+  const budgetLimit = budgetCols.reduce((a, c) => a + c.limit, 0);
+  const budgetSpent = budgetCols.reduce((a, c) => a + c.spent, 0);
+
+  const methods = [
+    { key: 'debit', label: t('analytics.debit'), value: byMethod.debit, color: 'var(--q10)' },
+    { key: 'credit', label: t('analytics.credit'), value: byMethod.credit, color: 'var(--q25)' },
+    { key: 'cash', label: t('analytics.cash'), value: byMethod.cash, color: 'var(--positive)' },
+  ];
+  const topMethod = methods.reduce((a, b) => (b.value > a.value ? b : a));
+
+  // Each card, indexed by id, with the summary its folded header shows.
+  // PAINTED in whatever order the user chose.
+  const sections: Record<ChartId, { title: string; summary: string; content: React.ReactNode }> = {
+    'spend-by-category': {
+      title: t('analytics.spendByCategory'),
+      summary: formatMoney(spendTotal),
+      content: spendTotal > 0 ? (<>
+        {/* One stacked bar, 3px apart, then one row per category. Tapping a
+            row opens its detail — what the donut used to do. */}
+        <div aria-hidden style={{ display: 'flex', gap: 3, height: 12, marginBottom: 14 }}>
+          {categoryRows.map((r) => (
+            <span key={r.id} style={{ width: `${(r.amount / spendTotal) * 100}%`, minWidth: 4, borderRadius: 4, background: r.color }} />
+          ))}
         </div>
-    </>) },
-    'distribution': { title: t('analytics.distribution'), content: (<>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <ResponsiveContainer width={140} height={140}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="amount"
-                nameKey="id"
-                innerRadius={40}
-                outerRadius={65}
-                paddingAngle={2}
-                {...CHART_ANIMATION}
-                onClick={(entry) => {
-                  const id = (entry as unknown as { id?: string })?.id;
-                  if (typeof id === 'string' && id !== '__other__') {
-                    setDetailCategoryId(id === 'none' ? null : id);
-                  }
-                }}
-                style={{ cursor: 'pointer' }}
-              >
-                {pieData.map((entry) => (
-                  <Cell key={entry.id} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v) => formatMoney(typeof v === 'number' ? v : Number(v ?? 0))} contentStyle={tooltipStyle} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            {pieData.map((entry) => {
-              const pct = spendTotal > 0 ? Math.round((entry.amount / spendTotal) * 100) : 0;
-              const disabled = entry.id === '__other__';
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  onClick={() => !disabled && setDetailCategoryId(entry.id === 'none' ? null : entry.id)}
-                  disabled={disabled}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '4px 6px', marginBottom: 2, border: 'none', background: 'transparent',
-                    cursor: disabled ? 'default' : 'pointer', textAlign: 'left', color: 'var(--text)',
-                    borderRadius: 6, fontSize: 'var(--text-sm)',
-                  }}
-                >
-                  <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                    <CategoryIcon icon={entry.icon} size={15} color={entry.color} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.name}</span>
+        {categoryRows.map((r) => {
+          const pct = pctOf(r.amount, spendTotal);
+          const disabled = r.id === '__other__';
+          return (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => !disabled && setDetailCategoryId(r.id === 'none' ? null : r.id)}
+              disabled={disabled}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0',
+                border: 'none', background: 'none', cursor: disabled ? 'default' : 'pointer',
+                textAlign: 'left', color: 'var(--text)',
+              }}
+            >
+              <CategoryAvatar icon={r.icon} color={r.color} size={34} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-base)' }}>
+                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                  <span className="figures" style={{ fontWeight: 600, flex: 'none' }}>{formatMoney(r.amount)}</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                  <span style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+                    <span style={{ display: 'block', width: `${pct}%`, height: '100%', borderRadius: 3, background: r.color }} />
                   </span>
-                  <span className="figures" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{pct}%</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <p style={{ margin: '10px 4px 0', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {t('analytics.tapCategory')}
-        </p>
-    </>) },
-    'income-vs-expenses': { title: t('analytics.incomeVsExpenses'), content: (<>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={points} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => formatCompact(v)} width={44} />
-            <Tooltip formatter={(v) => formatMoney(typeof v === 'number' ? v : Number(v ?? 0))} contentStyle={tooltipStyle} />
-            <Bar dataKey="income" name="Ingresos" fill="var(--positive)" radius={[4, 4, 0, 0]} {...CHART_ANIMATION} />
-            <Bar dataKey="expense" name="Gastos" fill="var(--danger)" radius={[4, 4, 0, 0]} {...CHART_ANIMATION} />
-          </BarChart>
-        </ResponsiveContainer>
-    </>) },
-    'fixed-vs-variable': { title: t('analytics.fixedVsVariable'), content: (<>
-        <SplitBar
-          a={{ label: 'Fijos', value: fixedVsVariable.fixed, color: 'var(--committed)' }}
-          b={{ label: 'Variables', value: fixedVsVariable.variable, color: 'var(--q25-text)' }}
-          total={fixedVariableTotal}
-        />
-    </>) },
-    'debit-vs-credit': { title: t('analytics.debitVsCredit'), content: (<>
-        <SplitBar
-          a={{ label: 'Débito', value: debitVsCredit.debit, color: 'var(--q10-text)' }}
-          b={{ label: 'Tarjeta', value: debitVsCredit.credit, color: 'var(--q25-text)' }}
-          total={debitCreditTotal}
-        />
-    </>) },
+                  <span className="figures" style={{ flex: 'none', width: 34, textAlign: 'right', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{pct}%</span>
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </>) : <p style={emptyNote}>{t('analytics.noData')}</p>,
+    },
     'budgets': {
       title: t('analytics.monthBudgets'),
+      summary: budgetLimit > 0 ? fill(t('analytics.used'), { pct: pctOf(budgetSpent, budgetLimit) }) : '',
       content: (
         <BudgetColumns
           categories={categories}
@@ -334,29 +242,43 @@ export function AnalyticsScreen() {
         />
       ),
     },
+    'fixed-vs-variable': {
+      title: t('analytics.fixedVsVariable'),
+      summary: fixedVariableTotal > 0 ? fill(t('analytics.fixedShare'), { pct: pctOf(fixedVsVariable.fixed, fixedVariableTotal) }) : '',
+      content: (
+        <SplitBar
+          total={fixedVariableTotal}
+          parts={[
+            { key: 'fixed', label: t('analytics.fixed'), value: fixedVsVariable.fixed, color: 'var(--committed)' },
+            { key: 'variable', label: t('analytics.variable'), value: fixedVsVariable.variable, color: 'var(--q25)' },
+          ]}
+        />
+      ),
+    },
+    'by-method': {
+      title: t('analytics.byMethod'),
+      summary: methodTotal > 0 ? fill(t('analytics.methodShare'), { pct: pctOf(topMethod.value, methodTotal), method: topMethod.label.toLowerCase() }) : '',
+      content: <SplitBar total={methodTotal} parts={methods} />,
+    },
   };
 
   return (
     <Screen title={t('analytics.title')}>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-        {(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => (
-          <button
-            key={r} type="button" onClick={() => startTransition(() => setRange(r))} aria-pressed={range === r}
-            style={{
-              flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-              background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? 'var(--on-accent)' : 'var(--text)',
-              fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', fontSize: 'var(--text-sm)',
-              transition: 'all var(--dur-fast) var(--ease-spring-out)',
-            }}
-          >
-            {t(RANGE_KEY[r])}
-          </button>
-        ))}
+      <div style={{ marginBottom: 14 }}>
+        <Segmented
+          label={t('analytics.range')}
+          value={range}
+          onChange={(r) => startTransition(() => setRange(r))}
+          options={(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => {
+            const label = t(RANGE_KEY[r]);
+            return { value: r, label: label.charAt(0).toUpperCase() + label.slice(1) };
+          })}
+        />
       </div>
 
       {/* Its own row, centred: "Octubre – Diciembre 2026" doesn't fit beside
           the title on a phone. Today sits on the side you paged towards. */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 14 }}>
         <MonthNav
           centered
           busy={busy}
@@ -383,10 +305,32 @@ export function AnalyticsScreen() {
           transition: busy ? 'opacity 150ms ease 150ms' : 'opacity 100ms ease',
         }}
       >
+        {/* Hero: the one big number of the screen is the balance. */}
+        <section style={{ textAlign: 'center', margin: '6px 0 24px' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 500, color: 'var(--text-muted)' }}>
+            {fill(t('analytics.balanceOf'), { period: rangeLabel })}
+          </h2>
+          <BigAmount
+            value={balance}
+            size={50}
+            signed
+            color={balance >= 0 ? 'var(--positive-text)' : 'var(--danger-text)'}
+          />
+          <p className="figures" style={{ margin: '10px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+            {fill(t('analytics.incomeExpensesLine'), { income: formatMoney(incomeTotal), expense: formatMoney(spendTotal) })}
+          </p>
+        </section>
+
         {layout.order
           .filter((id) => !layout.hiddenIds.includes(id))
           .map((id) => (
-            <ChartCard key={id} title={sections[id].title}>
+            <ChartCard
+              key={id}
+              title={sections[id].title}
+              summary={sections[id].summary}
+              collapsed={collapsed.includes(id)}
+              onToggle={() => toggleCard(id)}
+            >
               {sections[id].content}
             </ChartCard>
           ))}
@@ -413,50 +357,61 @@ export function AnalyticsScreen() {
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * A foldable card (§9c): the header is a button with the title, a summary
+ * on the right ("$ 6.559.000", "89% usado") and a chevron that rotates.
+ */
+function ChartCard({ title, summary, collapsed, onToggle, children }: {
+  title: string; summary: string; collapsed: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
+  const t = useT();
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '14px 14px 12px', marginBottom: 14, boxShadow: 'var(--shadow-1)' }}>
-      <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: '0 0 12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>{title}</h2>
-      {children}
-    </div>
+    <section style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', marginBottom: 12 }}>
+      <h2 style={{ margin: 0 }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          aria-label={fill(t('analytics.toggleCard'), { title })}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10, minHeight: 52, padding: '0 16px',
+            border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text)', textAlign: 'left',
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>{title}</span>
+          {summary && (
+            <span className="figures" style={{ flex: 'none', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>{summary}</span>
+          )}
+          <IconChevronDown
+            size={18}
+            stroke={2}
+            aria-hidden
+            style={{ flex: 'none', color: 'var(--text-faint)', transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform var(--dur-fast) var(--ease-spring-out)' }}
+          />
+        </button>
+      </h2>
+      {!collapsed && <div style={{ padding: '0 16px 16px' }}>{children}</div>}
+    </section>
   );
 }
 
-function StackedBar({ label, total, segments, amountColor, prefix }: {
-  label: string;
-  total: number;
-  segments: Array<{ id: string; name: string; color: string; amount: number; icon?: string }>;
-  amountColor: string;
-  prefix?: string;
-}) {
+/** A bar split in parts (8px), with the legend underneath. */
+function SplitBar({ total, parts }: { total: number; parts: Array<{ key: string; label: string; value: number; color: string }> }) {
+  if (total <= 0) return <div style={{ height: 8, borderRadius: 4, background: 'var(--surface-sunken)' }} />;
+  const shown = parts.filter((p) => p.value > 0);
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
-        <span className="figures" style={{ fontWeight: 700, color: amountColor }}>
-          {prefix ?? ''}{formatMoney(total)}
-        </span>
+      <div aria-hidden style={{ display: 'flex', gap: 3, height: 8, marginBottom: 12 }}>
+        {shown.map((p) => (
+          <span key={p.key} style={{ width: `${(p.value / total) * 100}%`, minWidth: 4, borderRadius: 4, background: p.color }} />
+        ))}
       </div>
-      {total > 0 ? (
-        <div style={{ display: 'flex', height: 20, borderRadius: 6, overflow: 'hidden', gap: 1 }}>
-          {segments.map((s) => (
-            <div
-              key={s.id}
-              title={`${s.name}: ${formatMoney(s.amount)}`}
-              style={{ width: `${(s.amount / total) * 100}%`, background: s.color, minWidth: 3 }}
-            />
-          ))}
-        </div>
-      ) : (
-        <div style={{ height: 20, borderRadius: 6, background: 'var(--surface-sunken)' }} />
-      )}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-        {segments.map((s) => (
-          <span key={s.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-            {/* The icon already carries the category's colour, so a colour
-                dot would be saying the same thing twice. */}
-            <CategoryIcon icon={s.icon} size={14} color={s.color} />
-            {s.name} · <span className="figures">{Math.round((s.amount / (total || 1)) * 100)}%</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 'var(--text-sm)' }}>
+        {parts.map((p) => (
+          <span key={p.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Dot color={p.color} />
+            <span style={{ color: 'var(--text-muted)' }}>{p.label}</span>
+            <span className="figures" style={{ fontWeight: 600 }}>{formatMoney(p.value)}</span>
           </span>
         ))}
       </div>
@@ -464,25 +419,11 @@ function StackedBar({ label, total, segments, amountColor, prefix }: {
   );
 }
 
-function SplitBar({ a, b, total }: { a: { label: string; value: number; color: string }; b: { label: string; value: number; color: string }; total: number }) {
-  const pctA = total > 0 ? (a.value / total) * 100 : 50;
-  return (
-    <div>
-      <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', marginBottom: 10 }}>
-        <div style={{ width: `${pctA}%`, background: a.color }} />
-        <div style={{ width: `${100 - pctA}%`, background: b.color }} />
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-sm)' }}>
-        <span><Dot color={a.color} /> {a.label} · <span className="figures">{formatMoney(a.value)}</span></span>
-        <span><Dot color={b.color} /> {b.label} · <span className="figures">{formatMoney(b.value)}</span></span>
-      </div>
-    </div>
-  );
+function Dot({ color }: { color: string }) {
+  return <span aria-hidden style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color }} />;
 }
 
-function Dot({ color }: { color: string }) {
-  return <span aria-hidden style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 4, background: color, marginRight: 4 }} />;
-}
+const emptyNote: React.CSSProperties = { margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' };
 
 function CategoryDetailSheet({
   category, transactions, totalSpend, onClose,
@@ -530,20 +471,20 @@ function CategoryDetailSheet({
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{category?.name ?? t('analytics.noCategory')}</h2>
             <p style={{ margin: '2px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {transactions.length} movimiento{transactions.length !== 1 ? 's' : ''}
+              {transactions.length} {transactions.length === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
             </p>
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
-          <StatBox label="Total" value={formatMoney(total)} />
-          <StatBox label="{t('analytics.percentOfSpend')}" value={`${pct}%`} />
-          <StatBox label="Promedio" value={formatMoney(avg)} />
+          <StatBox label={t('analytics.total')} value={formatMoney(total)} />
+          <StatBox label={t('analytics.percentOfSpend')} value={`${pct}%`} />
+          <StatBox label={t('analytics.average')} value={formatMoney(avg)} />
         </div>
 
         {transactions.length > 0 ? (
           <div>
-            <h3 style={{ margin: '0 0 8px', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Movimientos</h3>
+            <h3 style={{ margin: '0 0 8px', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{t('transactions.title')}</h3>
             {transactions.slice(0, 20).map((tx, idx) => (
               <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px', borderBottom: idx < Math.min(20, transactions.length) - 1 ? '1px solid var(--line)' : 'none' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -572,7 +513,7 @@ function CategoryDetailSheet({
             fontWeight: 600, fontSize: 'var(--text-base)', cursor: 'pointer',
           }}
         >
-          Cerrar
+          {t('action.close')}
         </button>
       </div>
     </div>
@@ -600,7 +541,4 @@ function calculateIncomeByCategory(transactions: Transaction[]): Array<{ categor
   return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
 }
 
-const tooltipStyle: React.CSSProperties = {
-  background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 'var(--text-sm)',
-};
 

@@ -47,7 +47,8 @@ test.describe('list filters', () => {
     // The pay period crosses the month boundary, so it is labelled with days.
     // Visible only: the navigator also lays out a hidden width sample in the
     // same shape ("00 Mmm – 00 Mmm") so its arrows never move.
-    await expect(page.getByText(/\d+ \w{3} – \d+ \w{3}/).filter({ visible: true })).toBeVisible();
+    // The hero repeats it ("Balance de 25 sep – 9 oct"), so match the label exactly.
+    await expect(page.getByText(/^\d+ \w{3} – \d+ \w{3}$/).filter({ visible: true })).toBeVisible();
   });
 });
 

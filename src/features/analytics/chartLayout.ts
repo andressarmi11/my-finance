@@ -11,27 +11,48 @@
  * no longer exists is simply ignored on read.
  */
 export type ChartId =
-  | 'balance-by-category'
+  | 'spend-by-category'
   | 'budgets'
-  | 'distribution'
-  | 'income-vs-expenses'
   | 'fixed-vs-variable'
-  | 'debit-vs-credit';
+  | 'by-method';
 
 export interface Chart {
   id: ChartId;
   title: string;
 }
 
-/** The factory order. Budgets goes right after the balance. */
+/**
+ * The factory order (redesign §6/§9c). "Balance por categoría" and the
+ * donut became one "Gastos por categoría"; "Ingresos vs. gastos" left (the
+ * hero already says both); "Débito vs. tarjeta" became "Por método de pago".
+ */
 export const DEFAULT_ORDER: ChartId[] = [
-  'balance-by-category',
+  'spend-by-category',
   'budgets',
-  'distribution',
-  'income-vs-expenses',
   'fixed-vs-variable',
-  'debit-vs-credit',
+  'by-method',
 ];
+
+/**
+ * Ids from before the redesign, and what they turned into. null = gone.
+ * Read once so nobody's arrangement is lost; the next save stores new ids.
+ */
+const RENAMED: Record<string, ChartId | null> = {
+  'balance-by-category': 'spend-by-category',
+  'distribution': 'spend-by-category',
+  'debit-vs-credit': 'by-method',
+  'income-vs-expenses': null,
+};
+
+function upgrade(ids: readonly string[]): ChartId[] {
+  const known = new Set<string>(DEFAULT_ORDER);
+  const out: ChartId[] = [];
+  for (const raw of ids) {
+    const id = raw in RENAMED ? RENAMED[raw] : raw;
+    if (id && known.has(id) && !out.includes(id as ChartId)) out.push(id as ChartId);
+  }
+  return out;
+}
 
 const STORAGE_KEY = 'step-up:analytics-layout';
 /** The key this used to be saved under. Read once, so nobody's arrangement
@@ -59,12 +80,18 @@ export function readChartLayout(): ChartLayout {
   } catch { /* storage blocked or corrupt JSON: fall back to the factory one */ }
   if (!stored) return EMPTY_LAYOUT;
 
-  const known = new Set<string>(DEFAULT_ORDER);
-  const order = (stored.order ?? []).filter((id): id is ChartId => known.has(id));
+  const order = upgrade(stored.order ?? []);
   for (const id of DEFAULT_ORDER) {
     if (!order.includes(id)) order.push(id);
   }
-  const hiddenIds = (stored.hiddenIds ?? []).filter((id): id is ChartId => known.has(id));
+  // A merged card stays hidden only if everything it replaced was hidden:
+  // hiding the donut alone must not take the category list away.
+  const hiddenRaw = stored.hiddenIds ?? [];
+  const hiddenIds = upgrade(hiddenRaw).filter((id) => {
+    const sources = Object.entries(RENAMED).filter(([, to]) => to === id).map(([from]) => from);
+    const fromOld = hiddenRaw.filter((h) => sources.includes(h));
+    return fromOld.length === 0 || fromOld.length === sources.length;
+  });
   return { order, hiddenIds };
 }
 
@@ -84,4 +111,21 @@ export function move(order: ChartId[], id: ChartId, delta: -1 | 1): ChartId[] {
 
 export function toggleHidden(hiddenIds: ChartId[], id: ChartId): ChartId[] {
   return hiddenIds.includes(id) ? hiddenIds.filter((o) => o !== id) : [...hiddenIds, id];
+}
+
+/** Folded cards (§9c), next to the layout: same device-only reasoning. */
+const COLLAPSED_KEY = 'analytics.collapsed';
+
+export function readCollapsed(): ChartId[] {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? upgrade(parsed.filter((x): x is string => typeof x === 'string')) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCollapsed(ids: ChartId[]): void {
+  try { localStorage.setItem(COLLAPSED_KEY, JSON.stringify(ids)); } catch { /* no-op */ }
 }

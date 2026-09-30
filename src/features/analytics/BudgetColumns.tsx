@@ -1,22 +1,54 @@
+import { useNavigate } from 'react-router-dom';
 import { useT } from '@/i18n/language';
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
-import { formatCompact, formatMoney } from '@/domain/money/format';
+import { formatMoney } from '@/domain/money/format';
 import { categoryColor } from '@/domain/seed/categoryColor';
-import { calculateBudgetStatus } from '@/domain/budget/status';
 import type { Budget, Category, Transaction } from '@/domain/types';
+import { fill } from '@/lib/dateLabels';
+import { shortAmount } from './shortAmount';
+
+/** Column heights (redesign §9c): the dashed limit grows with the budget. */
+const MIN_H = 96;
+const EXTRA_H = 104;
+/** How far the fill may overflow the limit, so a blown budget still fits. */
+const MAX_PCT = 114;
+
+export interface BudgetColumn {
+  category: Category;
+  spent: number;
+  limit: number;
+  pct: number;
+}
+
+/** Only categories WITH a budget, biggest limit first. */
+export function budgetColumns(
+  categories: Category[], budgets: Budget[], transactions: Transaction[], monthPrefix: string,
+): BudgetColumn[] {
+  const byCategory = new Map(categories.map((c) => [c.id, c]));
+  const spentByCategory = new Map<string, number>();
+  for (const tx of transactions) {
+    if (tx.type !== 'expense' || tx.status === 'cancelled') continue;
+    if (!tx.categoryId || !tx.date.startsWith(monthPrefix)) continue;
+    spentByCategory.set(tx.categoryId, (spentByCategory.get(tx.categoryId) ?? 0) + tx.amount);
+  }
+  return budgets
+    .filter((b) => b.amount > 0 && byCategory.has(b.categoryId))
+    .map((b) => {
+      const spent = spentByCategory.get(b.categoryId) ?? 0;
+      return { category: byCategory.get(b.categoryId)!, spent, limit: b.amount, pct: Math.round((spent / b.amount) * 100) };
+    })
+    .sort((a, b) => b.limit - a.limit);
+}
 
 /**
- * Budgets as vertical columns: the grey column IS the budget and what fills
- * up from the bottom IS what's been spent. One tank per category.
+ * Budgets as columns (redesign §9c). The DASHED border is the limit, its
+ * height proportional to the limit; the FILL rises with what's been spent,
+ * in the category's colour. Over the limit, the fill sticks out of the
+ * dashed box and everything turns --danger.
  *
- * Vertical, and not the horizontal bar from the Budgets screen, on purpose:
- * here the question isn't "how much do I have left in Food" but "which one
- * is filling up on me". Lined up in a row, relative height compares at a
- * glance, which is exactly what a stack of horizontal bars doesn't allow.
- *
- * Only categories WITH a budget show up. Drawing empty columns for the ones
- * without would fill the chart with noise; setting them is still Settings'
- * job.
+ * Vertical on purpose: the question here is "which one is filling up",
+ * and heights side by side compare at a glance. Tapping a column goes to
+ * the Budgets screen, where they're set.
  */
 export function BudgetColumns({ categories, budgets, transactions, monthPrefix }: {
   categories: Category[];
@@ -26,104 +58,93 @@ export function BudgetColumns({ categories, budgets, transactions, monthPrefix }
   monthPrefix: string;
 }) {
   const t = useT();
-  const byCategory = new Map(categories.map((c) => [c.id, c]));
-
-  const spentByCategory = new Map<string, number>();
-  for (const tx of transactions) {
-    if (tx.type !== 'expense' || tx.status === 'cancelled') continue;
-    if (!tx.categoryId || !tx.date.startsWith(monthPrefix)) continue;
-    spentByCategory.set(tx.categoryId, (spentByCategory.get(tx.categoryId) ?? 0) + tx.amount);
-  }
-
-  const columns = budgets
-    .filter((b) => b.amount > 0 && byCategory.has(b.categoryId))
-    .map((b) => {
-      const category = byCategory.get(b.categoryId)!;
-      const spent = spentByCategory.get(b.categoryId) ?? 0;
-      const status = calculateBudgetStatus(spent, b.amount).state;
-      return {
-        category,
-        spent,
-        budgeted: b.amount,
-        ratio: spent / b.amount,
-        status,
-      };
-    })
-    // Fullest first: that's what you need to look at.
-    .sort((a, b) => b.ratio - a.ratio);
+  const navigate = useNavigate();
+  const columns = budgetColumns(categories, budgets, transactions, monthPrefix);
 
   if (columns.length === 0) {
     return (
-      <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-        {t('analytics.noBudgets')}
-      </p>
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
+          border: '1.5px dashed var(--line-strong)', borderRadius: 16,
+        }}
+      >
+        <p style={{ flex: 1, margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+          {t('analytics.noBudgetsShort')}
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/ajustes/presupuestos')}
+          style={{
+            flex: 'none', minHeight: 36, padding: '0 16px', borderRadius: 999, cursor: 'pointer',
+            border: 'none', background: 'var(--q10)', color: 'var(--on-accent)', fontWeight: 700,
+            fontSize: 'var(--text-sm)',
+          }}
+        >
+          {t('analytics.define')}
+        </button>
+      </div>
     );
   }
 
+  const maxLimit = Math.max(...columns.map((c) => c.limit));
+
   return (
-    <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, overflowX: 'auto', padding: '18px 2px 4px' }}>
       {columns.map((c) => {
-        const full = Math.min(1, c.ratio);
-        const exceeded = c.ratio > 1;
-        const color = exceeded ? 'var(--danger)' : c.status === 'warning' ? 'var(--q25)' : 'var(--positive)';
-        const pct = Math.round(c.ratio * 100);
+        const over = c.pct > 100;
+        const color = over ? 'var(--danger)' : categoryColor(c.category);
+        const height = MIN_H + (c.limit / maxLimit) * EXTRA_H;
+        const fillPct = Math.min(c.pct, MAX_PCT);
+        const label = fill(t('analytics.budgetColumnLabel'), {
+          name: c.category.name, spent: formatMoney(c.spent), limit: formatMoney(c.limit), pct: c.pct,
+        });
         return (
-          <div
+          <button
             key={c.category.id}
-            title={t('budgets.spentOfBudget')
-              .replace('{name}', c.category.name)
-              .replace('{spent}', formatMoney(c.spent))
-              .replace('{budget}', formatMoney(c.budgeted))}
-            style={{ flex: 'none', width: 56, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
+            type="button"
+            onClick={() => navigate('/ajustes/presupuestos')}
+            aria-label={label}
+            title={label}
+            style={{
+              flex: 'none', width: 84, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              padding: 0, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text)',
+            }}
           >
             <span
-              className="figures"
               style={{
-                fontSize: 'var(--text-xs)', fontWeight: 700,
-                color: exceeded ? 'var(--danger-text)' : 'var(--text-muted)',
-              }}
-            >
-              {pct}%
-            </span>
-
-            <div
-              role="progressbar"
-              aria-valuenow={pct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${c.category.name}, ${pct}% del presupuesto`}
-              style={{
-                position: 'relative', width: '100%', height: 96,
-                borderRadius: 10, background: 'var(--surface-sunken)',
-                overflow: 'hidden',
+                position: 'relative', width: '100%', height,
+                borderRadius: 16, border: `1.5px dashed ${over ? 'var(--danger)' : 'var(--line-strong)'}`,
               }}
             >
               <span
+                aria-hidden
                 style={{
-                  position: 'absolute', left: 0, right: 0, bottom: 0,
-                  height: `${full * 100}%`,
-                  // Hatched once it's over. A full column looks the same at
-                  // 100% as at 125%, and that's exactly the difference that
-                  // matters. Same language as the horizontal bar on the
-                  // Budgets screen: stripes = overflow.
-                  background: exceeded
-                    ? `repeating-linear-gradient(135deg, ${color} 0 5px, color-mix(in srgb, ${color} 55%, transparent) 5px 10px)`
-                    : color,
-                  transition: 'height var(--dur-med, 240ms) var(--ease-spring-out, ease-out)',
+                  position: 'absolute', left: 3, right: 3, bottom: 3,
+                  height: fillPct > 0 ? `calc(${fillPct}% - 6px)` : 0,
+                  minHeight: fillPct > 0 ? 6 : 0,
+                  borderRadius: 12,
+                  background: `color-mix(in srgb, ${color} 34%, var(--surface))`,
+                  transition: 'height .5s var(--ease-spring-out)',
                 }}
               />
-            </div>
-
-            <span style={{ color: categoryColor(c.category), lineHeight: 0 }}>
-              <CategoryIcon icon={c.category.icon} size={17} />
+              <span
+                style={{
+                  position: 'absolute', left: 0, right: 0, bottom: 10,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                }}
+              >
+                <span aria-hidden style={{ color, lineHeight: 0 }}><CategoryIcon icon={c.category.icon} size={18} /></span>
+                <span className="figures" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{shortAmount(c.spent)}</span>
+                <span className="figures" style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                  {c.pct}%
+                </span>
+              </span>
             </span>
-            <span
-              className="figures"
-              style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}
-            >
-              {formatCompact(c.budgeted)}
+            <span style={{ width: '100%', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {c.category.name} · <span className="figures">{shortAmount(c.limit)}</span>
             </span>
-          </div>
+          </button>
         );
       })}
     </div>
