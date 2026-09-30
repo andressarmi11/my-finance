@@ -78,6 +78,17 @@ export function LegalDocScreen() {
     <Screen title={doc.title}>
       <BackLink onClick={() => navigate('/legal')} text={t('legal.title')} />
 
+      <LegalDocBody slug={slug} />
+    </Screen>
+  );
+}
+
+/** A document's text: its entry, the blocks and the date. */
+function LegalDocBody({ slug }: { slug: LegalSlug }) {
+  const { language, t } = useLanguage();
+  const doc = documentsFor(language)[slug];
+  return (
+    <>
       <p style={{ margin: '0 0 20px', color: 'var(--text-muted)', fontSize: 'var(--text-md)' }}>
         {doc.entrada}
       </p>
@@ -121,6 +132,54 @@ export function LegalDocScreen() {
       <p style={{ marginTop: 4, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
         {t('legal.updated')}: {UPDATED}
       </p>
+    </>
+  );
+}
+
+/**
+ * Ajustes → Legal on desktop (§9g 2c): the five documents on the left and
+ * the chosen one on the right, inside the settings panel.
+ */
+export function LegalPanelScreen() {
+  const navigate = useNavigate();
+  const { slug } = useParams<{ slug: string }>();
+  const { language, t } = useLanguage();
+  const docs = documentsFor(language);
+  const current = slug && (SLUGS as string[]).includes(slug) ? (slug as LegalSlug) : null;
+
+  return (
+    <Screen title={t('legal.title')} subtitle={t('legal.subtitle')}>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', padding: 6 }}>
+          {SLUGS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="row-hover"
+              aria-current={current === s ? 'page' : undefined}
+              onClick={() => navigate(`/ajustes/legal/${s}`)}
+              style={{
+                width: '100%', display: 'block', padding: '10px 12px', border: 'none', borderRadius: 12,
+                background: current === s ? 'var(--surface-sunken)' : 'none',
+                cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
+              }}
+            >
+              <span style={{ display: 'block', fontWeight: 600, fontSize: 'var(--text-base)' }}>{t(TITLE_KEY[s])}</span>
+              <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {docs[s].entrada}
+              </span>
+            </button>
+          ))}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          {current ? (<>
+            <h2 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>{docs[current].title}</h2>
+            <LegalDocBody slug={current} />
+          </>) : (
+            <p style={{ margin: '10px 0', color: 'var(--text-muted)' }}>{t('desk.legalPick')}</p>
+          )}
+        </div>
+      </div>
     </Screen>
   );
 }

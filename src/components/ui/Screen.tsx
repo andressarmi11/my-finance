@@ -1,22 +1,33 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+
+/**
+ * True inside the right-hand panel of Ajustes on desktop (§9g 2c): the
+ * sub-screens render there instead of being pushed, so they drop the
+ * "‹ Ajustes" link (the list is right beside them) and the 560px column.
+ */
+export const SettingsPanelContext = createContext(false);
 
 /** Standard container: one width, one padding, across the whole app.
  *  Header with a large title (32px). `right` slot for contextual actions
  *  (filter buttons, edit, etc). `back` puts a "‹ label" link above the title,
  *  for screens that hang from another one (Movimientos from Inicio, the
  *  Ajustes sub-screens from Ajustes). */
-export function Screen({ title, subtitle, right, back, backAction, children }: {
+export function Screen({ title, subtitle, right, back, backAction, wide, children }: {
   title: string;
   subtitle?: string;
   right?: ReactNode;
   back?: { label: string; to: string };
   /** An action on the same row as `back`, at the right ("Seleccionar"). */
   backAction?: ReactNode;
+  /** On desktop (≥1100px) use the full content width instead of 560px. */
+  wide?: boolean;
   children?: ReactNode;
 }) {
+  const inPanel = useContext(SettingsPanelContext);
+  if (inPanel && back?.to === '/ajustes') back = undefined;
   return (
-    <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 var(--gap-l)' }}>
+    <div className={inPanel ? 'screen screen-panel' : wide ? 'screen screen-wide' : 'screen'}>
       {(back || backAction) && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 2 }}>
       {back ? (

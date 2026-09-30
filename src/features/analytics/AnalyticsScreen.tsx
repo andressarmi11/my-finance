@@ -263,8 +263,10 @@ export function AnalyticsScreen() {
   };
 
   return (
-    <Screen title={t('analytics.title')}>
-      <div style={{ marginBottom: 14 }}>
+    <Screen title={t('analytics.title')} wide>
+      {/* On desktop the controls keep a phone's width, centred; the cards
+          below spread into a grid (§9g). */}
+      <div style={{ marginBottom: 14, maxWidth: 560, marginInline: 'auto' }}>
         <Segmented
           label={t('analytics.range')}
           value={range}
@@ -278,7 +280,7 @@ export function AnalyticsScreen() {
 
       {/* Its own row, centred: "Octubre – Diciembre 2026" doesn't fit beside
           the title on a phone. Today sits on the side you paged towards. */}
-      <div style={{ marginBottom: 14 }}>
+      <div style={{ marginBottom: 14, maxWidth: 560, marginInline: 'auto' }}>
         <MonthNav
           centered
           busy={busy}
@@ -321,6 +323,7 @@ export function AnalyticsScreen() {
           </p>
         </section>
 
+        <div className="analytics-grid">
         {layout.order
           .filter((id) => !layout.hiddenIds.includes(id))
           .map((id) => (
@@ -334,6 +337,7 @@ export function AnalyticsScreen() {
               {sections[id].content}
             </ChartCard>
           ))}
+        </div>
       </div>
 
       <ChartManager

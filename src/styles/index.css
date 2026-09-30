@@ -117,9 +117,87 @@ button { font: inherit; color: inherit; }
   }
 }
 
-/* El FAB de "Agregar movimiento" se esconde cuando hay un modal abierto —
+/* El FAB de "Agregar movimiento" (clase .fab-add, no el aria-label, que
+   cambia con el idioma) se esconde cuando hay un modal abierto —
    si no, tocarlo por accidente cierra el modal (ej. estás llenando un
    recurrente y perdés todo). Requiere :has() → iOS 15.4+ / Safari 15.4+. */
-body:has([role="dialog"]) button[aria-label="Agregar movimiento"] {
-  display: none;
+body:has([role="dialog"]) .fab-add {
+  /* !important: the button sets display inline (it's a grid to centre the
+     icon), and an inline style beats any selector. Without it the + kept
+     showing over open sheets since the redesign's phase 2. */
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Fase 9 — Escritorio y tablet (§9g). One component tree; the layout   */
+/* switches here and in useBreakpoint(). Below 760px nothing changes.   */
+/* ------------------------------------------------------------------ */
+
+/* Screen: one width and gutter everywhere. `screen-wide` lets a screen use
+   the desktop width (Análisis, Ajustes). */
+.screen { max-width: 560px; margin: 0 auto; padding: 0 var(--gap-l); }
+/* Ajustes on desktop: a sub-screen inside the right-hand panel. */
+.screen.screen-panel { max-width: 760px; margin: 0; padding: 0; }
+.screen.screen-panel h1 { font-size: 26px !important; }
+/* Moneda in the panel: the currencies in two columns. */
+.screen-panel .currency-main { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.screen-panel .currency-main > div { border-top: none !important; }
+
+/* Rows that open something: a quiet hover on pointer devices. Nothing
+   depends on it — it only says "this is clickable". */
+@media (hover: hover) {
+  .row-hover { cursor: pointer; transition: background-color var(--dur-fast) var(--ease-spring-out); }
+  .row-hover:hover { background: var(--hover) !important; }
+}
+
+@keyframes dialogIn {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+@media (min-width: 760px) {
+  /* Every bottom sheet becomes a centred 480px dialog with 24px corners.
+     The sheets share one structure — a fixed backdrop [role=dialog] whose
+     first child is the panel, whose first child is the drag handle — so
+     this is done once here instead of in each of them. A dialog already
+     laid out for wide screens opts out with .dialog-wide. */
+  [role="dialog"]:not(.dialog-wide) {
+    align-items: center !important;
+    justify-content: center;
+    padding: 24px;
+  }
+  [role="dialog"]:not(.dialog-wide) > div:first-child {
+    max-width: 480px !important;
+    border-radius: 24px !important;
+    border: 1px solid var(--line-strong);
+    padding-bottom: 20px !important;
+    max-height: calc(100dvh - 48px) !important;
+    overflow-y: auto;
+    box-shadow: var(--shadow-3);
+    animation: dialogIn var(--dur-med) var(--ease-spring-out) !important;
+  }
+  /* The drag handle means "pull me down": a centred dialog has none. */
+  [role="dialog"]:not(.dialog-wide) > div:first-child > div:first-child:empty {
+    display: none;
+  }
+
+  /* 760–1099: the tab bar is a 72px rail on the left. */
+  .app-main { padding-left: 72px; }
+}
+
+@media (min-width: 1100px) {
+  /* Sidebar + content: the grid places the sidebar, no rail padding. */
+  .app-shell { display: grid !important; grid-template-columns: 248px minmax(0, 1fr); }
+  .app-main { padding-left: 0; }
+  .screen.screen-wide { max-width: 1320px; padding: 0 36px; }
+
+  /* Análisis: the cards in a grid of as many 420px+ columns as fit. */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    gap: 16px;
+    align-items: start;
+  }
+  .analytics-grid > section { margin-bottom: 0 !important; }
+  .analytics-grid { margin-bottom: 16px; }
 }

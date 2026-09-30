@@ -1,4 +1,5 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TabBar } from '@/components/ui/TabBar';
 import { InstallBanner } from '@/components/ui/InstallBanner';
 import { InboxBanner } from '@/features/inbox/InboxBanner';
@@ -9,6 +10,9 @@ import { OnboardingGate } from '@/features/onboarding/OnboardingGate';
 import { useCloudSync } from '@/data/sync/useCloudSync';
 import { useMoneyFormat } from './useMoneyFormat';
 import { useTheme } from './useTheme';
+import { useBreakpoint } from './useBreakpoint';
+import { Sidebar } from './Sidebar';
+import { isSearchShortcut, requestSearchFocus } from './searchFocus';
 
 /**
  * Order of the layers, and why that order:
@@ -30,6 +34,25 @@ export function AppLayout() {
 function AppShell() {
   const { status, error, firstSyncDone, sync } = useCloudSync();
   useMoneyFormat();
+  // One tree for every size (§9g): the phone gets the floating tab bar,
+  // a tablet the same bar as a side rail, a desktop the sidebar.
+  const breakpoint = useBreakpoint();
+  const desktop = breakpoint === 'desktop';
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  // ⌘K / Ctrl+K: the Movimientos search, which on desktop lives in Inicio.
+  useEffect(() => {
+    if (!desktop) return;
+    function onKey(e: KeyboardEvent) {
+      if (!isSearchShortcut(e)) return;
+      e.preventDefault();
+      if (pathname !== '/') navigate('/');
+      requestSearchFocus();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [desktop, pathname, navigate]);
 
   return (
     <OnboardingGate waiting={!firstSyncDone}>
@@ -37,17 +60,21 @@ function AppShell() {
           viewport and ignores that the Safari bar appears and disappears, so
           short screens ended up without scroll and with the bottom bar floating
           above the toolbar. dvh follows the real viewport. */}
-      <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+      <div className="app-shell" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+        {desktop && <Sidebar status={status} />}
         <main
+          className="app-main"
           style={{
             flex: 1,
+            minWidth: 0,
             // No global brand bar any more (redesign §8): Inicio has its own
             // header and the other screens their large title. So the notch
             // is padded here.
-            paddingTop: 'calc(var(--safe-top) + var(--gap-l))',
-            // 12 gap + 62 floating tab bar + breathing room: nothing ends up
-            // under the pill or the +.
-            paddingBottom: 'calc(var(--safe-bottom) + 110px)',
+            paddingTop: desktop ? 'calc(var(--safe-top) + 28px)' : 'calc(var(--safe-top) + var(--gap-l))',
+            // Phone: 12 gap + 62 floating tab bar + breathing room, so
+            // nothing ends up under the pill or the +. Wider screens have
+            // no bar at the bottom.
+            paddingBottom: breakpoint === 'phone' ? 'calc(var(--safe-bottom) + 110px)' : 'calc(var(--safe-bottom) + 36px)',
           }}
         >
           <InstallBanner />
@@ -56,7 +83,7 @@ function AppShell() {
               LegalLayout, not under every screen. */}
           <Outlet />
         </main>
-        <TabBar />
+        {!desktop && <TabBar />}
         <PullToRefresh />
         <SyncIndicator status={status} error={error} onReintentar={() => void sync(true)} />
       </div>

@@ -1,11 +1,11 @@
 import { Suspense, lazy } from 'react';
-import { Navigate, createBrowserRouter } from 'react-router-dom';
+import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
 import { LegalLayout } from './LegalLayout';
 import { ErrorBoundary } from './ErrorBoundary';
 import { DashboardScreen } from '@/features/dashboard/DashboardScreen';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
-import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { LegalRedirect, PreferencesScreen, SettingsIndex, SettingsLayout } from '@/features/settings/SettingsLayout';
 import { ProfileScreen } from '@/features/settings/ProfileScreen';
 import { ChangePasswordScreen } from '@/features/settings/ChangePasswordScreen';
 import { CurrencyScreen } from '@/features/settings/CurrencyScreen';
@@ -18,13 +18,27 @@ import { PaymentMethodsScreen } from '@/features/payment-methods/PaymentMethodsS
 import { RecurringRulesScreen } from '@/features/recurring/RecurringRulesScreen';
 import { CreditCardScreen } from '@/features/credit-card/CreditCardScreen';
 import { BudgetsScreen } from '@/features/budgets/BudgetsScreen';
-import { LegalDocScreen, LegalIndexScreen } from '@/features/legal/LegalScreen';
+import { LegalDocScreen, LegalIndexScreen, LegalPanelScreen } from '@/features/legal/LegalScreen';
+import { useBreakpoint } from './useBreakpoint';
 
 // Recharts is heavy (~500kb) and only this screen needs it: it's split off
 // into its own chunk so it doesn't bloat the app's initial load.
 const AnalyticsScreen = lazy(() =>
   import('@/features/analytics/AnalyticsScreen').then((m) => ({ default: m.AnalyticsScreen })),
 );
+
+/**
+ * On desktop Movimientos is already on screen, embedded in Inicio (§9g), so
+ * /movimientos lands there — keeping the query, so ?nuevo=1, ?tipo=ingreso,
+ * ?texto= and ?vista=calendario (iOS Shortcuts, the + menu, old links) still
+ * do what they did.
+ */
+function MovimientosRoute() {
+  const desktop = useBreakpoint() === 'desktop';
+  const { search } = useLocation();
+  if (desktop) return <Navigate to={{ pathname: '/', search }} replace />;
+  return <TransactionsScreen />;
+}
 
 function LazyFallback() {
   return <div style={{ padding: 'var(--gap-l)', color: 'var(--text-faint)' }}>Cargando…</div>;
@@ -37,26 +51,37 @@ export const router = createBrowserRouter(
       element: <ErrorBoundary><AppLayout /></ErrorBoundary>,
       children: [
         { index: true, element: <DashboardScreen /> },
-        { path: 'movimientos', element: <TransactionsScreen /> },
+        { path: 'movimientos', element: <MovimientosRoute /> },
         // The calendar is a view of Movimientos now. The old path stays so
         // bookmarks and notifications that point to it keep working.
         { path: 'calendario', element: <Navigate to="/movimientos?vista=calendario" replace /> },
         { path: 'analisis', element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary> },
-        { path: 'ajustes', element: <SettingsScreen /> },
-        // Settings sub-screens (redesign §7): each a thin wrapper around the
-        // section that used to be expanded on the long Settings page.
-        { path: 'ajustes/cuenta', element: <ProfileScreen /> },
-        { path: 'ajustes/cuenta/contrasena', element: <ChangePasswordScreen /> },
-        { path: 'ajustes/moneda', element: <CurrencyScreen /> },
-        { path: 'ajustes/pagos', element: <PayDaysScreen /> },
-        { path: 'ajustes/recordatorios', element: <RemindersScreen /> },
-        { path: 'ajustes/atajos', element: <ShortcutsScreen /> },
-        { path: 'ajustes/datos', element: <DataScreen /> },
-        { path: 'ajustes/categorias', element: <CategoriesScreen /> },
-        { path: 'ajustes/metodos', element: <PaymentMethodsScreen /> },
-        { path: 'ajustes/recurrentes', element: <RecurringRulesScreen /> },
+        {
+          // Settings sub-screens (redesign §7): each a thin wrapper around the
+          // section that used to be expanded on the long Settings page. On a
+          // phone each one is pushed; on desktop SettingsLayout shows them in
+          // the right-hand panel beside the list (§9g 2c).
+          path: 'ajustes',
+          element: <SettingsLayout />,
+          children: [
+            { index: true, element: <SettingsIndex /> },
+            { path: 'cuenta', element: <ProfileScreen /> },
+            { path: 'cuenta/contrasena', element: <ChangePasswordScreen /> },
+            { path: 'preferencias', element: <PreferencesScreen /> },
+            { path: 'moneda', element: <CurrencyScreen /> },
+            { path: 'pagos', element: <PayDaysScreen /> },
+            { path: 'recordatorios', element: <RemindersScreen /> },
+            { path: 'atajos', element: <ShortcutsScreen /> },
+            { path: 'datos', element: <DataScreen /> },
+            { path: 'categorias', element: <CategoriesScreen /> },
+            { path: 'metodos', element: <PaymentMethodsScreen /> },
+            { path: 'recurrentes', element: <RecurringRulesScreen /> },
+            { path: 'presupuestos', element: <BudgetsScreen /> },
+            { path: 'legal', element: <LegalRedirect><LegalPanelScreen /></LegalRedirect> },
+            { path: 'legal/:slug', element: <LegalRedirect><LegalPanelScreen /></LegalRedirect> },
+          ],
+        },
         { path: 'tarjeta', element: <CreditCardScreen /> },
-        { path: 'ajustes/presupuestos', element: <BudgetsScreen /> },
       ],
     },
     // Legal lives OUTSIDE AppLayout, i.e. outside AuthGate and

@@ -32,6 +32,19 @@ const THEMES: Array<{ value: Theme; label: TextKey; note: TextKey; bg: string; i
  */
 export function ThemeSheet({ settings, onClose }: { settings: Settings; onClose: () => void }) {
   const t = useT();
+  return (
+    <BottomSheet label={t('settings.theme')} onClose={onClose}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('settings.theme')}</h2>
+      <p style={{ margin: '0 0 16px', fontSize: 'var(--text-base)', color: 'var(--text-muted)' }}>{t('set.themeInstant')}</p>
+      <ThemeOptions settings={settings} />
+      <DoneButton onClick={onClose} />
+    </BottomSheet>
+  );
+}
+
+/** The three thumbnails and the note: the sheet on the phone, a card on desktop. */
+export function ThemeOptions({ settings }: { settings: Settings }) {
+  const t = useT();
   const current = THEMES.find((x) => x.value === settings.theme) ?? THEMES[0]!;
 
   function choose(theme: Theme) {
@@ -39,9 +52,7 @@ export function ThemeSheet({ settings, onClose }: { settings: Settings; onClose:
   }
 
   return (
-    <BottomSheet label={t('settings.theme')} onClose={onClose}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('settings.theme')}</h2>
-      <p style={{ margin: '0 0 16px', fontSize: 'var(--text-base)', color: 'var(--text-muted)' }}>{t('set.themeInstant')}</p>
+    <>
       <div role="group" aria-label={t('settings.theme')} style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
         {THEMES.map((th) => {
           const active = th.value === settings.theme;
@@ -84,8 +95,7 @@ export function ThemeSheet({ settings, onClose }: { settings: Settings; onClose:
         </span>
         <span style={{ fontSize: 'var(--text-base)', color: 'var(--text-muted)', lineHeight: 1.45 }}>{t(current.note)}</span>
       </div>
-      <DoneButton onClick={onClose} />
-    </BottomSheet>
+    </>
   );
 }
 

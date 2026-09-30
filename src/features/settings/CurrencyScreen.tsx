@@ -37,7 +37,7 @@ export function CurrencyScreen() {
 
   return (
     <Screen title={t('settings.currency')} subtitle={t('set.currencyIntro')} back={back}>
-      <SettingsGroup title={t('set.mainCurrency')}>
+      <SettingsGroup title={t('set.mainCurrency')} cardClassName="currency-main">
         {CURRENCIES.map((c) => {
           const active = settings.currency === c.code;
           return (
