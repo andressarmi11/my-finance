@@ -53,6 +53,8 @@
   /* ────────────── Líneas ────────────── */
   --line: #E4E8EE;
   --line-strong: #D5DAE2;
+  --handle: #C6CCD6;       /* the sheets' drag handle (prototype dim2) */
+  --text-dim: #9AA2B1;     /* row chevrons (prototype dim) */
 
   /* ────────────── Acentos de quincena ──────────────
      Los dos colores con los que la app separa la quincena del 10 de la
@@ -244,6 +246,8 @@
     /* Líneas */
     --line: #232936;
     --line-strong: #2B323E;
+    --handle: #3A4250;
+    --text-dim: #4A5263;
 
     /* Acentos (versiones más brillantes de iOS Dark) */
     --q10: #6B8AFF;                /* 6.04:1 sobre el fondo oscuro */
@@ -284,7 +288,7 @@
     --cat-ahorro: #EB8CCD;
 
     --on-accent: var(--paper);
-    --brand-tile: #0B0D12;
+    --brand-tile: #2F4FE0;
 
     /* Materiales en dark */
     --material-thin: color-mix(in srgb, #1C1C1E 72%, transparent);
@@ -321,6 +325,8 @@
 
   --line: #232936;
   --line-strong: #2B323E;
+  --handle: #3A4250;
+  --text-dim: #4A5263;
 
   --q10: #6B8AFF;
   --q10-soft: #1D2540;
@@ -354,7 +360,7 @@
   --cat-ahorro: #EB8CCD;
 
   --on-accent: var(--paper);
-  --brand-tile: #0B0D12;
+  --brand-tile: #2F4FE0;
 
   --material-thin: color-mix(in srgb, #1C1C1E 72%, transparent);
   --material-regular: color-mix(in srgb, #1C1C1E 90%, transparent);

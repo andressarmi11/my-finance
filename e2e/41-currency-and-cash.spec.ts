@@ -23,7 +23,7 @@ test('an expense in dollars, paid in cash, is stored converted at today\'s rate'
   await rates(page);
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Libro de viaje');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Libro de viaje');
 
   const currencies = dialog.getByRole('group', { name: 'Moneda' });
   await expect(currencies.getByRole('button', { name: /COP/ })).toHaveAttribute('aria-pressed', 'true');
@@ -47,7 +47,7 @@ test('offline with no rate yet, a foreign amount cannot be saved', async ({ page
   await page.route('https://open.er-api.com/**', (route) => route.abort());
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Algo');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Algo');
   await dialog.getByRole('group', { name: 'Moneda' }).getByRole('button', { name: /USD/ }).click();
   await dialog.getByLabel('Valor').fill('20');
   await expect(dialog.getByText(/no pude traer la tasa de hoy/)).toBeVisible();
@@ -70,10 +70,10 @@ test('telling the app "20 dólares en efectivo" understands both', async ({ page
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
   await sheet.getByLabel('Qué pasó').fill('gasté 20 dólares en efectivo en un taxi');
 
-  await expect(sheet.getByText('Entendí')).toBeVisible();
+  await expect(sheet.getByRole('region', { name: 'Entendí' })).toBeVisible();
   await expect(sheet.getByRole('group', { name: 'Moneda' }).getByRole('button', { name: /USD/ }))
     .toHaveAttribute('aria-pressed', 'true');
   await expect(sheet.getByRole('button', { name: 'Efectivo', exact: true })).toHaveAttribute('aria-pressed', 'true');

@@ -90,10 +90,10 @@ export function BudgetColumns({ categories, budgets, transactions, monthPrefix }
   const maxLimit = Math.max(...columns.map((c) => c.limit));
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, overflowX: 'auto', padding: '18px 2px 4px' }}>
+    <div className="noscroll" style={{ display: 'flex', alignItems: 'flex-end', gap: 10, overflowX: 'auto', scrollbarWidth: 'none', paddingTop: 22 }}>
       {columns.map((c) => {
         const over = c.pct > 100;
-        const color = over ? 'var(--danger)' : categoryColor(c.category);
+        const color = categoryColor(c.category);
         const height = MIN_H + (c.limit / maxLimit) * EXTRA_H;
         const fillPct = Math.min(c.pct, MAX_PCT);
         const label = fill(t('analytics.budgetColumnLabel'), {
@@ -107,14 +107,14 @@ export function BudgetColumns({ categories, budgets, transactions, monthPrefix }
             aria-label={label}
             title={label}
             style={{
-              flex: 'none', width: 84, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+              flex: 'none', width: 84, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
               padding: 0, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text)',
             }}
           >
             <span
               style={{
                 position: 'relative', width: '100%', height,
-                borderRadius: 16, border: `1.5px dashed ${over ? 'var(--danger)' : 'var(--line-strong)'}`,
+                borderRadius: 20, border: `1.5px dashed ${over ? 'var(--danger)' : 'var(--handle)'}`,
               }}
             >
               <span
@@ -123,26 +123,32 @@ export function BudgetColumns({ categories, budgets, transactions, monthPrefix }
                   position: 'absolute', left: 3, right: 3, bottom: 3,
                   height: fillPct > 0 ? `calc(${fillPct}% - 6px)` : 0,
                   minHeight: fillPct > 0 ? 6 : 0,
-                  borderRadius: 12,
-                  background: `color-mix(in srgb, ${color} 34%, var(--surface))`,
+                  borderRadius: 16,
+                  background: over
+                    ? 'color-mix(in srgb, var(--danger) 40%, var(--surface))'
+                    : `color-mix(in srgb, ${color} 34%, var(--surface))`,
                   transition: 'height .5s var(--ease-spring-out)',
                 }}
               />
               <span
                 style={{
                   position: 'absolute', left: 0, right: 0, bottom: 10,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
                 }}
               >
                 <span aria-hidden style={{ color, lineHeight: 0 }}><CategoryIcon icon={c.category.icon} size={18} /></span>
-                <span className="figures" style={{ fontSize: 'var(--text-sm)', fontWeight: 700 }}>{shortAmount(c.spent)}</span>
-                <span className="figures" style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                <span className="figures" style={{ fontSize: 15, fontWeight: 700 }}>{shortAmount(c.spent)}</span>
+                <span className="figures" style={{ fontSize: 11, fontWeight: 700, color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
                   {c.pct}%
                 </span>
               </span>
             </span>
-            <span style={{ width: '100%', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {c.category.name} · <span className="figures">{shortAmount(c.limit)}</span>
+            {/* The name, and the limit under it (prototype 1a). */}
+            <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 84, gap: 1 }}>
+              <span style={{ maxWidth: 84, fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {c.category.name}
+              </span>
+              <span className="figures" style={{ fontSize: 11, color: 'var(--text-faint)' }}>{shortAmount(c.limit)}</span>
             </span>
           </button>
         );

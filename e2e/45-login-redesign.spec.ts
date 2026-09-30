@@ -154,10 +154,12 @@ test.describe('desktop', () => {
     await page.goto('');
 
     const panel = page.getByRole('complementary');
-    await expect(panel.getByText('Step up')).toBeVisible();
+    await expect(panel.getByText('Step up', { exact: true })).toBeVisible();
     await expect(panel.getByRole('heading', { level: 2 })).toContainText('Tu plata,');
     await expect(panel.getByText('Datos de ejemplo')).toBeVisible();
     await expect(panel.getByText('Funciona sin conexión')).toBeVisible();
+    // The legal documents at the foot of the panel (prototype 2d).
+    await expect(panel.getByRole('link', { name: 'Aviso legal' })).toHaveAttribute('href', /\/legal\/aviso$/);
     await expect(panel.getByText('Solo tú los ves')).toBeVisible();
     await expect(panel.getByText('Sin anuncios ni rastreo.')).toBeVisible();
 
@@ -196,7 +198,7 @@ test.describe('desktop', () => {
     await expect(page.getByTestId('typewriter')).toHaveText('paycheck by paycheck.');
     await expect(page.getByText('Sample data')).toBeVisible();
     await expect(page.getByText('Left for July')).toBeVisible();
-    await expect(page.getByText('Your data lives on your phone and is backed up to your account. No ads, no tracking.')).toBeVisible();
+    await expect(page.getByText('No ads, no tracking.').first()).toBeVisible();
     await context.close();
   });
 });

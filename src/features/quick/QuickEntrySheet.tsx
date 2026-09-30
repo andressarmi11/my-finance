@@ -1,4 +1,7 @@
-import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
+import { relativeDayLabel } from '@/components/ui/MiniCalendar';
+import { fill } from '@/lib/dateLabels';
+import { UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { IconMicrophone, IconPlayerStopFilled } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -6,7 +9,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
-import { describeParsed } from '@/domain/nlp/describe';
 import { interpretText } from '@/domain/nlp/interpret';
 import { formatMoney } from '@/domain/money/format';
 import type { Transaction } from '@/domain/types';
@@ -24,9 +26,9 @@ import { FxLine } from '@/features/transactions/TransactionForm';
 
 const EXAMPLES = [
   'gasté 45 mil en el almuerzo',
-  'pagué 120 mil de mercado con la tarjeta',
-  'me llegaron 2 millones de nómina',
-  'gasté 20 mil en uber ayer',
+  'pagué 20 dólares de netflix con tarjeta',
+  'uber 18 mil en efectivo',
+  'me entraron 300 mil',
 ];
 
 /**
@@ -84,16 +86,22 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
   // Whatever the user picks here wins over what was proposed.
   const categoryId = categoriaElegida !== undefined ? categoriaElegida : read.categoryId;
 
-  const desc = describeParsed(parsed, {
-    today,
-    categoryId,
-    cats,
-    paymentMethodId,
-    methodRows,
-    learned: read.fromLearning && categoryId === read.categoryId,
-  });
 
   const canSubmit = amount != null && amount > 0 && parsed.concept.length > 0;
+
+  // The card's pieces, in the interface's language (describeParsed stays
+  // as it is for its other callers; only its facts are reused here).
+  const chosenCat = cats.find((c) => c.id === categoryId);
+  const chosenMethodRow = methodRows.find((m) => m.id === paymentMethodId);
+  const missing = parsed.amount == null ? t('quick.missingAmount') : !parsed.concept ? t('quick.missingConcept') : null;
+  const note = chosenCat
+    ? fill(read.fromLearning && categoryId === read.categoryId ? t('quick.putInLearned') : t('quick.putIn'), { category: chosenCat.name })
+    : parsed.concept ? t('quick.noCategory') : null;
+  const dayWord = (iso: string) => {
+    const label = relativeDayLabel(iso, today, t);
+    // "hoy", "ayer" mid-sentence; a date ("3 Oct") keeps its capital.
+    return /^\d/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
+  };
 
   function resetCorrections() {
     setCategoriaElegida(undefined);
@@ -185,25 +193,22 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+          borderRadius: '28px 28px 0 0', padding: '10px 16px calc(var(--safe-bottom) + 26px)',
           maxHeight: '92vh', overflowY: 'auto',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 8px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 8px' }} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginBottom: 6 }}>
-          <button type="button" onClick={onClose} style={{ ...textButton, justifySelf: 'start' }}>{t('action.close')}</button>
-          <h2 style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>{t('quick.title')}</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
+          <button type="button" onClick={onClose} style={{ ...textButton, justifySelf: 'start' }}>{t('action.cancel')}</button>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('quick.tellTheApp')}</h2>
           <span />
         </div>
-        <p style={{ margin: '0 0 14px', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          {t('quick.subtitle')}
-        </p>
 
-        {/* The mic is the main action: big and centred. */}
+        {/* The mic is the main action: big and centred, with what to do under it. */}
         {hasDictation() && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '18px 0 12px' }}>
             <button
               type="button"
               onClick={dictate}
@@ -213,17 +218,19 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
                 width: 72, height: 72, borderRadius: 36, border: 'none', display: 'grid', placeItems: 'center',
                 background: escuchando ? 'var(--danger)' : 'var(--q10)',
                 color: 'var(--on-accent)', cursor: 'pointer',
-                boxShadow: `0 10px 30px color-mix(in srgb, ${escuchando ? 'var(--danger)' : 'var(--q10)'} 35%, transparent)`,
-                animation: escuchando ? 'fadeIn 0.6s ease-in-out infinite alternate' : undefined,
+                boxShadow: escuchando
+                  ? '0 0 0 10px color-mix(in srgb, var(--danger) 18%, transparent)'
+                  : '0 8px 24px color-mix(in srgb, var(--q10) 30%, transparent)',
+                transition: 'all 0.25s',
               }}
             >
               {escuchando
-                ? <IconPlayerStopFilled size={30} aria-hidden />
-                : <IconMicrophone size={32} stroke={1.9} aria-hidden />}
+                ? <IconPlayerStopFilled size={28} aria-hidden />
+                : <IconMicrophone size={30} stroke={2} aria-hidden />}
             </button>
-            {escuchando && (
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--q10-text)', fontWeight: 600 }}>{t('quick.listening')}</span>
-            )}
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              {escuchando ? t('quick.listening') : t('quick.tapToSpeak')}
+            </span>
           </div>
         )}
 
@@ -232,68 +239,86 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
           value={text}
           onChange={(e) => { setTexto(e.target.value); resetCorrections(); }}
           onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) void save(); }}
-          placeholder={EXAMPLES[0]}
+          placeholder={t('quick.placeholder')}
           aria-label={t('quick.whatHappened')}
           autoFocus
           style={{
-            width: '100%', minHeight: 'var(--tap)', padding: '0 14px', marginBottom: 12,
-            borderRadius: 14, border: '1px solid var(--line-strong)',
-            background: 'var(--surface-sunken)', color: 'var(--text)', fontSize: 16,
+            width: '100%', height: 46, padding: '0 14px', marginTop: hasDictation() ? 0 : 14,
+            borderRadius: 14, border: '1px solid var(--line-strong)', outline: 'none',
+            background: 'var(--paper)', color: 'var(--text)', fontSize: 16,
           }}
         />
 
-        {!understood && (
-          <div role="group" aria-label={t('quick.forExample')} style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, marginBottom: 14 }}>
-            {EXAMPLES.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setTexto(e)}
-                style={{
-                  flex: 'none', minHeight: 34, padding: '0 12px', borderRadius: 999, whiteSpace: 'nowrap',
-                  border: '1px solid var(--line-strong)', background: 'transparent',
-                  color: 'var(--text-muted)', fontSize: 'var(--text-sm)', cursor: 'pointer',
-                }}
-              >
-                “{e}”
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Examples until there's something typed: then the card takes their place. */}
+        {!understood && <div
+          role="group"
+          aria-label={t('quick.forExample')}
+          className="noscroll"
+          style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', margin: '8px -16px 0', padding: '0 16px' }}
+        >
+          {EXAMPLES.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => { setTexto(e); resetCorrections(); }}
+              style={{
+                flex: 'none', height: 30, padding: '0 12px', borderRadius: 15, whiteSpace: 'nowrap',
+                border: 'none', background: 'var(--surface-sunken)',
+                color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer',
+              }}
+            >
+              {e}
+            </button>
+          ))}
+        </div>}
 
-        {/* "Entendí": the parser's reading, before anything is saved. */}
+        {/* What the app understood, before anything is saved: the row it
+            will become (prototype 1a). */}
         {understood && (
-          <div
-            style={{
-              background: 'var(--paper)', border: '1px solid var(--line)', borderRadius: 16,
-              padding: '12px 14px', marginBottom: 12,
-            }}
+          <section
+            aria-label={t('quick.understood')}
+            style={{ marginTop: 14, background: 'var(--paper)', borderRadius: 18, padding: '12px 14px' }}
           >
-            <p style={{ margin: '0 0 4px', fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--q10-text)' }}>{t('quick.understood')}</p>
-            <p style={{ margin: 0, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</p>
-            {isForeign && (
-              <>
-                {parsed.amount != null && (
-                  <p className="figures" style={{ margin: '6px 0 2px', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
-                    {formatMoneyIn(parsed.amount, currency)} {currency}
-                  </p>
-                )}
-                <FxLine fx={fx} amount={amount} main={mainCurrency} />
-              </>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <CategoryAvatar
+                icon={chosenCat?.icon ?? (parsed.type === 'income' ? 'salary' : 'other')}
+                color={chosenCat ? categoryColor(chosenCat) : UNCATEGORIZED_COLOR}
+                size={38}
+              />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 16, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {parsed.concept || chosenCat?.name || (parsed.type === 'income' ? t('quick.income') : t('quick.expense'))}
+                </span>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {[chosenCat?.name ?? (parsed.type === 'income' ? t('quick.income') : t('quick.expense')), dayWord(parsed.date), chosenMethodRow?.name]
+                    .filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              {parsed.amount != null && (
+                <span className="figures" style={{ flex: 'none', fontWeight: 700, fontSize: 16, color: parsed.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
+                  {parsed.type === 'income' ? '+ ' : ''}{formatMoneyIn(parsed.amount, currency)}
+                </span>
+              )}
+            </div>
+            {isForeign && <div style={{ marginTop: 6 }}><FxLine fx={fx} amount={amount} main={mainCurrency} align="left" compact /></div>}
+            {(missing || note) && (
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: missing ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                {missing ?? note}
+              </p>
             )}
-            {desc.missing && (
-              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{desc.missing}</p>
-            )}
-            {desc.note && !desc.missing && (
-              <p style={{ margin: '6px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{desc.note}</p>
-            )}
-          </div>
+          </section>
         )}
 
         {/* The same chips as the full sheet, to correct it in place. */}
         {understood && parsed.concept && (
           <>
-            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12 }}>
+            <div style={{ height: 14 }} />
+            <CurrencyChips
+              value={currency}
+              quick={quickCurrencyList(mainCurrency, settings.quickCurrencies)}
+              onChange={setChosenCurrency}
+            />
+            <div className="noscroll" style={{ display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', margin: '0 -16px 12px', padding: '0 16px' }}>
               {visibleCategories.map((c) => (
                 <button
                   key={c.id}
@@ -302,30 +327,26 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
                   aria-pressed={categoryId === c.id}
                   style={{
                     flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
-                    minHeight: 'var(--tap)', padding: '0 12px', borderRadius: 999,
-                    border: `1.5px solid ${categoryId === c.id ? categoryColor(c) : 'var(--line)'}`,
-                    background: categoryId === c.id ? `color-mix(in srgb, ${categoryColor(c)} 16%, var(--surface))` : 'var(--surface)',
-                    color: categoryId === c.id ? categoryColor(c) : 'var(--text)',
-                    fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                    height: 36, padding: '0 12px 0 8px', borderRadius: 18,
+                    border: `1px solid ${categoryId === c.id ? categoryColor(c) : 'var(--line)'}`,
+                    background: categoryId === c.id ? `color-mix(in srgb, ${categoryColor(c)} 18%, var(--surface))` : 'var(--paper)',
+                    color: 'var(--text)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
-                  <CategoryIcon icon={c.icon} size={15} />{c.name}
+                  <span style={{ display: 'flex', color: categoryColor(c) }}><CategoryIcon icon={c.icon} size={16} /></span>{c.name}
                 </button>
               ))}
             </div>
-            <CurrencyChips
-              value={currency}
-              quick={quickCurrencyList(mainCurrency, settings.quickCurrencies)}
-              onChange={setChosenCurrency}
-            />
-            <MethodPicker methods={visibleMethods} value={paymentMethodId} onChange={setChosenMethod} />
+            <MethodPicker inset methods={visibleMethods} value={paymentMethodId} onChange={setChosenMethod} />
           </>
         )}
 
         {error && <p role="alert" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{error}</p>}
         {stored && <p role="status" style={{ margin: '0 0 12px', fontSize: 'var(--text-sm)', color: 'var(--positive-text)', fontWeight: 600 }}>{stored}</p>}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        {understood && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14 }}>
           <button
             type="button"
             onClick={() => onAdjust(text)}
@@ -339,15 +360,16 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
             onClick={save}
             disabled={!canSubmit}
             style={{
-              flex: 1, minHeight: 48, borderRadius: 14, border: 'none',
+              height: 48, borderRadius: 14, border: 'none',
               background: canSubmit ? 'var(--q10)' : 'var(--surface-sunken)',
               color: canSubmit ? 'var(--on-accent)' : 'var(--text-faint)',
-              fontWeight: 700, fontSize: 16, cursor: canSubmit ? 'pointer' : 'not-allowed',
+              fontWeight: 700, fontSize: 15, cursor: canSubmit ? 'pointer' : 'not-allowed',
             }}
           >
             {t('action.save')}
           </button>
         </div>
+        )}
       </div>
     </div>
   );
@@ -355,11 +377,11 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
 
 const textButton: React.CSSProperties = {
   minHeight: 'var(--tap)', padding: '0 2px', border: 'none', background: 'none',
-  color: 'var(--q10-text)', fontSize: 'var(--text-md)', cursor: 'pointer',
+  color: 'var(--q10-text)', fontSize: 16, cursor: 'pointer',
 };
 
 const secondary: React.CSSProperties = {
-  flex: 1, minHeight: 48, borderRadius: 14, border: '1px solid var(--line-strong)',
+  height: 48, borderRadius: 14, border: '1px solid var(--line-strong)',
   background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer',
-  fontSize: 'var(--text-base)',
+  fontSize: 15,
 };

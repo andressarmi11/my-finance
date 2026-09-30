@@ -9,7 +9,7 @@ import { formatMoney } from '@/domain/money/format';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor } from '@/domain/seed/categoryColor';
 import type { Category } from '@/domain/types';
-import { DashedButton, SettingsGroup, rowStyle, useSettingsBack } from '@/features/settings/ui';
+import { DashedButton, RowChevron, SettingsGroup, rowStyle, useSettingsBack } from '@/features/settings/ui';
 import { CategoryForm } from './CategoryForm';
 import { EMPTY } from '@/lib/empty';
 
@@ -59,10 +59,16 @@ export function CategoriesScreen() {
                 }}>
                   <CategoryIcon icon={c.icon} size={19} />
                 </span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                <span className="figures" style={{ fontSize: 'var(--text-base)', color: total ? 'var(--text-muted)' : 'var(--text-faint)' }}>
-                  {formatMoney(total)}
-                </span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                {/* Income categories have no spend to add up (prototype: "Ingreso"). */}
+                {c.kind === 'income' ? (
+                  <span style={{ fontSize: 14, color: 'var(--text-faint)' }}>{t('set.kindIncome')}</span>
+                ) : (
+                  <span style={{ fontSize: 14, color: total ? 'var(--text)' : 'var(--text-faint)' }}>
+                    {formatMoney(total)}
+                  </span>
+                )}
+                <RowChevron />
               </button>
             );
           })}

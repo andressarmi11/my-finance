@@ -106,8 +106,8 @@ function count(page: Page, store: string) {
 async function addExpense(page: Page, concept: string) {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill(concept);
-  await dialog.getByPlaceholder('$ 0').fill('25000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+  await dialog.getByLabel('Valor', { exact: true }).fill('25000');
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 }

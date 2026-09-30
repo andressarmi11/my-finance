@@ -70,7 +70,7 @@ const TODAY_IN_EVERY_LANGUAGE = ['Hoy', 'Today'];
  * the same as no affordance.
  */
 export function MonthNav({
-  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false, compact = false,
+  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false, compact: compactProp = false, large = false, bare = false,
 }: {
   label: string;
   /**
@@ -116,8 +116,13 @@ export function MonthNav({
    * for headers where the navigator sits beside a title or the logo.
    */
   compact?: boolean;
+  /** Desktop header (§9g 2a): the same pill, 40px tall. Implies `compact`. */
+  large?: boolean;
+  /** The pill's arrows and label with no pill: beside a screen title (prototype 1a, Movimientos). Implies `compact`. */
+  bare?: boolean;
 }) {
   const t = useT();
+  const compact = compactProp || large || bare;
   const loadingText = t('home.loading');
 
   const todayButton = (
@@ -182,13 +187,13 @@ export function MonthNav({
     <div
       style={{
         display: 'flex', alignItems: 'center', gap: 2,
-        ...(compact ? {
-          height: 34, padding: '0 2px', borderRadius: 17,
+        ...(bare ? { marginBottom: 4 } : compact ? {
+          height: large ? 40 : 34, padding: large ? '0 6px' : '0 4px', borderRadius: large ? 20 : 18,
           background: 'var(--surface)', border: '1px solid var(--line)',
         } : {}),
       }}
     >
-      <Arrow dir="prev" unit={unit} disabled={busy} onClick={onPrev} compact={compact} />
+      <Arrow dir="prev" unit={unit} disabled={busy} onClick={onPrev} compact={compact} large={large} />
 
       {/* Every span shares one grid cell: the hidden ones set the width from
           the longest possible label (and from "Loading…", so swapping to it
@@ -198,18 +203,22 @@ export function MonthNav({
       <span
         style={{
           display: 'inline-grid',
-          minHeight: compact ? 32 : 'var(--tap)',
+          minHeight: compact ? 28 : 'var(--tap)',
           alignItems: 'center',
           justifyItems: 'center',
           padding: '0 4px',
-          color: 'var(--text-muted)',
-          fontSize: 'var(--text-sm)',
+          // The pill (§3): the month in full text colour between two grey
+          // arrows, 13px on the phone and 14px in the desktop header.
+          minWidth: compact && !bare ? (large ? 90 : 74) : undefined,
+          color: compact ? 'var(--text)' : 'var(--text-muted)',
+          fontSize: compact ? (large ? 14 : 13) : 'var(--text-sm)',
           fontWeight: 600,
           whiteSpace: 'nowrap',
         }}
       >
         <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden' }}>{widthSample}</span>
-        <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden', paddingLeft: 20 }}>{loadingText}</span>
+        {/* The pill is tight (§3): there the spinner alone says "loading". */}
+        {!compact && <span aria-hidden style={{ gridArea: '1 / 1', visibility: 'hidden', paddingLeft: 20 }}>{loadingText}</span>}
         {/* Announced after each arrow tap: otherwise a screen reader user
             presses "next" and hears nothing about where they landed. The
             label and "Loading…" cross-fade with a short delay, so a period
@@ -228,13 +237,53 @@ export function MonthNav({
           }}
         >
           <IconLoader2 size={14} stroke={2.2} style={{ animation: busy ? 'spin 0.8s linear infinite' : undefined }} />
-          {loadingText}
+          {!compact && loadingText}
         </span>
       </span>
 
-      <Arrow dir="next" unit={unit} disabled={busy} onClick={onNext} compact={compact} />
+      <Arrow dir="next" unit={unit} disabled={busy} onClick={onNext} compact={compact} large={large} />
     </div>
   );
+
+  if (bare) {
+    // Beside a screen title there's no room for the word: Today is the
+    // arrow alone, on the inside, and only once you have paged away. The
+    // group is right-aligned, so the arrows stay under the thumb.
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {onToday && (
+          <button
+            type="button"
+            onClick={() => { if (!busy) { haptic('light'); onToday(); } }}
+            aria-label={unit === 'period' ? t('nav.backToCurrentPeriod') : t('nav.backToCurrentMonth')}
+            aria-disabled={busy || undefined}
+            style={{
+              width: 28, height: 28, borderRadius: 14, flex: 'none', display: 'grid', placeItems: 'center',
+              border: '1px solid var(--q10)', background: 'var(--q10-soft)', color: 'var(--q10-text)',
+              cursor: busy ? 'default' : 'pointer', padding: 0,
+            }}
+          >
+            {todayIsAhead
+              ? <IconArrowForwardUp size={15} stroke={2.2} aria-hidden />
+              : <IconArrowBackUp size={15} stroke={2.2} aria-hidden />}
+          </button>
+        )}
+        {arrowsAndLabel}
+      </div>
+    );
+  }
+
+  if (compact) {
+    // The pill keeps its place at the header's edge. Today sits on its
+    // inside, always laid out (hidden while you're on the current month),
+    // so its arrival never moves the pill.
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {todayButton}
+        {arrowsAndLabel}
+      </div>
+    );
+  }
 
   if (!centered) {
     return (
@@ -263,8 +312,8 @@ export function MonthNav({
   );
 }
 
-function Arrow({ dir, unit, disabled = false, onClick, compact = false }: {
-  dir: 'prev' | 'next'; unit: 'month' | 'period'; disabled?: boolean; onClick: () => void; compact?: boolean;
+function Arrow({ dir, unit, disabled = false, onClick, compact = false, large = false }: {
+  dir: 'prev' | 'next'; unit: 'month' | 'period'; disabled?: boolean; onClick: () => void; compact?: boolean; large?: boolean;
 }) {
   const t = useT();
   const label = unit === 'period'
@@ -280,8 +329,9 @@ function Arrow({ dir, unit, disabled = false, onClick, compact = false }: {
       // the actual blocking.
       aria-disabled={disabled || undefined}
       style={{
-        width: compact ? 32 : 'var(--tap)', height: compact ? 32 : 'var(--tap)', display: 'grid', placeItems: 'center',
-        border: 'none', background: 'none', color: 'var(--q10-text)', fontSize: 20,
+        width: compact ? (large ? 30 : 28) : 'var(--tap)', height: compact ? (large ? 30 : 28) : 'var(--tap)', display: 'grid', placeItems: 'center',
+        border: 'none', background: 'none',
+        color: compact ? 'var(--text-muted)' : 'var(--q10-text)', fontSize: compact ? (large ? 18 : 17) : 20,
         cursor: disabled ? 'default' : 'pointer', borderRadius: 'var(--radius-s)',
         opacity: disabled ? 0.35 : 1,
         transition: disabled ? `opacity 120ms ease ${BUSY_DELAY_MS}ms` : 'none',

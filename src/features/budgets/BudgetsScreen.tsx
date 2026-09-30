@@ -77,24 +77,28 @@ export function BudgetsScreen() {
   const totalSpent = budgeted.reduce((sum, c) => sum + (spendByCategory.get(c.id) ?? 0), 0);
 
   return (
-    <Screen title={t('budgets.title')} subtitle={t('set.budgetsIntro')} back={back}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+    <Screen
+      title={t('budgets.title')}
+      subtitle={t('set.budgetsIntro')}
+      back={back}
+      right={(
         <MonthNav
-          label={`${monthName(month)} ${year}`}
-          widthSample={widestMonthLabel()}
+          bare
+          label={`${monthName(month).slice(0, 3)} ${year}`}
+          widthSample={widestMonthLabel(true)}
           todayIsAhead={year * 12 + month < nowYear * 12 + nowMonth}
           onPrev={() => setView((v) => shiftMonthISO(v.year, v.month, -1))}
           onNext={() => setView((v) => shiftMonthISO(v.year, v.month, 1))}
           onToday={inCurrentMonth ? undefined : () => setView({ year: nowYear, month: nowMonth })}
         />
-      </div>
-
+      )}
+    >
       {budgeted.length > 0 && (
-        <div style={{ ...card, padding: 16, marginBottom: 12 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{monthName(month)}</span>
-            <span className="figures" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {fill(t('set.budgetUsed'), { pct: totalLimit ? Math.round((totalSpent / totalLimit) * 100) : 0 })}
+        <div style={{ ...card, padding: 18, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>{`${monthName(month).slice(0, 3)} ${year}`}</span>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              {fill(t('budgets.soFar'), { spent: shortAmount(totalSpent), limit: shortAmount(totalLimit) })}
             </span>
           </div>
           <BudgetColumns categories={categories} budgets={budgets} transactions={transactions} monthPrefix={monthPrefix} />
@@ -116,8 +120,8 @@ export function BudgetsScreen() {
                 <CategoryIcon icon={c.icon} size={19} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: 15, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                <span className="figures" style={{ display: 'block', fontSize: 'var(--text-xs)', color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                <span style={{ display: 'block', fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span style={{ display: 'block', fontSize: 12, color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
                   {budget
                     ? fill(t('budgets.spentOf'), { spent: formatMoney(spent), budget: formatMoney(budget.amount) }) + (over ? ` · ${t('set.youWentOver')}` : '')
                     : spent > 0 ? fill(t('budgets.spentAmount'), { amount: formatMoney(spent) }) : t('set.noLimit')}
@@ -188,11 +192,11 @@ function RemoveBudgetSheet({ category, month, onConfirm, onCancel }: { category:
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+          borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 16px' }} />
         <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
           {fill(t('budgets.removeQuestion'), { name: category.name, month, monthLower: month.toLowerCase() })}
         </h2>

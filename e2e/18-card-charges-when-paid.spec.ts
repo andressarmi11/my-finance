@@ -36,8 +36,8 @@ async function teQueda(page: Page): Promise<number> {
 async function agregar(page: Page, concept: string, amount: string, method?: string, type?: 'ingreso') {
   await page.goto(`movimientos?nuevo=1${type ? `&tipo=${type}` : ''}`);
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill(concept);
-  await dialog.getByPlaceholder('$ 0').fill(amount);
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+  await dialog.getByLabel('Valor', { exact: true }).fill(amount);
   if (method) await dialog.getByRole('button', { name: method, exact: true }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

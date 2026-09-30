@@ -8,11 +8,13 @@ import { CURRENCIES, flagOf } from '@/lib/currencies';
  * a fourth chip. The row is centred when it fits and scrolls from the left
  * when it doesn't (`justify-content: safe center`).
  */
-export function CurrencyChips({ value, quick, onChange }: {
+export function CurrencyChips({ value, quick, onChange, align = 'center' }: {
   value: string;
   /** Already includes the main currency (see quickCurrencyList). */
   quick: string[];
   onChange: (code: string) => void;
+  /** 'start' in the desktop form: left-aligned and wrapping, under its label. */
+  align?: 'center' | 'start';
 }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -34,8 +36,9 @@ export function CurrencyChips({ value, quick, onChange }: {
       role="group"
       aria-label={t('form.currency')}
       style={{
-        display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, marginBottom: 12,
-        justifyContent: 'safe center',
+        display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none', marginBottom: 12,
+        justifyContent: align === 'start' ? 'flex-start' : 'safe center',
+        flexWrap: align === 'start' ? 'wrap' : 'nowrap',
       }}
     >
       {shown.map((code) => {
@@ -47,15 +50,15 @@ export function CurrencyChips({ value, quick, onChange }: {
             aria-pressed={active}
             onClick={() => { onChange(code); setExpanded(false); }}
             style={{
-              flex: 'none', display: 'flex', alignItems: 'center', gap: 5,
-              minHeight: 34, padding: '0 12px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${active ? 'var(--text)' : 'var(--line-strong)'}`,
-              background: active ? 'var(--text)' : 'transparent',
-              color: active ? 'var(--paper)' : 'var(--text)',
-              fontSize: 'var(--text-sm)', fontWeight: 600, whiteSpace: 'nowrap',
+              flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
+              height: 36, padding: '0 12px 0 8px', borderRadius: 18, cursor: 'pointer',
+              border: `1px solid ${active ? 'var(--q10)' : 'var(--line)'}`,
+              background: active ? 'var(--q10-soft)' : 'var(--paper)',
+              color: active ? 'var(--text)' : 'var(--text-muted)',
+              fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
             }}
           >
-            <span aria-hidden>{flagOf(code)}</span>{code}
+            <span aria-hidden style={{ fontSize: 17, lineHeight: 1 }}>{flagOf(code)}</span>{code}
           </button>
         );
       })}
@@ -65,9 +68,9 @@ export function CurrencyChips({ value, quick, onChange }: {
           aria-expanded={false}
           onClick={() => setExpanded(true)}
           style={{
-            flex: 'none', minHeight: 34, padding: '0 12px', borderRadius: 999, cursor: 'pointer',
-            border: '1px dashed var(--line-strong)', background: 'transparent', color: 'var(--text-muted)',
-            fontSize: 'var(--text-sm)', fontWeight: 600,
+            flex: 'none', height: 36, padding: '0 12px', borderRadius: 18, cursor: 'pointer',
+            border: '1px dashed var(--line-strong)', background: 'none', color: 'var(--text-muted)',
+            fontSize: 13, fontWeight: 600,
           }}
         >
           {t('form.moreCurrencies')}

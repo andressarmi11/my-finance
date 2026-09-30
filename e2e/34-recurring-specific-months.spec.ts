@@ -5,15 +5,15 @@ test('specific months: chips fit a 320px phone, show a preview and save', async 
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Impuesto E2E');
-  await dialog.getByPlaceholder('$ 0').fill('500000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Impuesto E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('500000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
 
   // Default form is unchanged: nothing advanced until asked for.
   await expect(dialog.getByRole('button', { name: 'Meses específicos' })).toBeHidden();
   await dialog.getByRole('button', { name: 'Más opciones' }).click();
   await dialog.getByRole('button', { name: 'Meses específicos' }).click();
-  await expect(dialog.getByText('Lo define «Cómo se repite»')).toBeVisible();
+  await expect(dialog.getByText('Lo define "Cómo se repite"')).toBeVisible();
 
   const jun = dialog.getByRole('button', { name: 'Junio', exact: true });
   const dic = dialog.getByRole('button', { name: 'Diciembre', exact: true });
@@ -41,8 +41,8 @@ test('every N weeks/months stepper and delete asks for confirmation', async ({ p
   await page.goto('ajustes/recurrentes');
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Seguro E2E');
-  await dialog.getByPlaceholder('$ 0').fill('90000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Seguro E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('90000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Más opciones' }).click();
   await dialog.getByRole('button', { name: 'Cada cierto tiempo' }).click();

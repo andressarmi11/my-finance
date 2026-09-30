@@ -19,7 +19,7 @@ test('a Shortcut opens the form already filled in', async ({ page }) => {
   await expect(dialog.getByText('Nuevo ingreso')).toBeVisible();
   // The symbol sits beside the figure now, grey, outside the field.
   await expect(dialog.getByLabel('Valor')).toHaveValue('3.000.000');
-  await expect(dialog.getByPlaceholder('Ej. Restaurante')).toHaveValue('Sueldo');
+  await expect(dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo')).toHaveValue('Sueldo');
   // The status toggle lives under "Más opciones" (redesign §5).
   await dialog.getByRole('button', { name: 'Más opciones' }).click();
   await expect(dialog.getByRole('button', { name: 'Ya lo recibiste' })).toHaveAttribute('aria-pressed', 'true');

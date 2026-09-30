@@ -59,6 +59,9 @@ async function sweep(page: Page, width: number): Promise<string[]> {
   await page.goto('');
   await page.getByRole('button', { name: 'Load sample data' }).click();
   await expect(page.getByRole('button', { name: 'Load sample data' })).toBeHidden();
+  // The button hides before the seed commits; the goto() below would abort
+  // it on a loaded machine. Wait for a sample row.
+  await expect(page.getByText('Mercado').first()).toBeVisible();
 
   const found: string[] = [];
   const check = async (where: string) => {
@@ -85,8 +88,7 @@ async function sweep(page: Page, width: number): Promise<string[]> {
   await page.keyboard.press('Escape');
 
   await page.goto('');
-  await page.getByRole('button', { name: /^Still to pay/ }).first().click();
-  await page.getByRole('button', { name: 'What do these statuses mean?' }).click().catch(() => {});
+  await page.getByRole('button', { name: /^To pay/ }).first().click();
   await check('still to pay');
   await page.keyboard.press('Escape');
 

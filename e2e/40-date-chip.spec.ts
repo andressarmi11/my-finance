@@ -14,8 +14,8 @@ test.use({ viewport: { width: 390, height: 844 } });
 test('picking tomorrow leaves the expense pending; yesterday marks it paid', async ({ page }) => {
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Cena del viernes');
-  await dialog.getByPlaceholder('$ 0').fill('60000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Cena del viernes');
+  await dialog.getByLabel('Valor', { exact: true }).fill('60000');
 
   const chip = dialog.getByRole('button', { name: /^Elegir fecha/ });
   await expect(chip).toHaveText(/Hoy/);

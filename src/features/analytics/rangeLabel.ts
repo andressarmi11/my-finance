@@ -4,7 +4,7 @@
  * In the active language, months capitalised.
  */
 import { monthName, widestMonthLabel } from '@/components/ui/MonthNav';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { shortRange } from '@/lib/formatShortDate';
 import { rangeBounds, type Range } from './periodAggregate';
 
 /** The range buttons said the internal key ("mes", "trimestre") even in English. */
@@ -12,10 +12,6 @@ export const RANGE_KEY = {
   quincena: 'range.biweekly', mes: 'range.month', trimestre: 'range.quarter', año: 'range.year',
 } as const;
 
-/** "sep" → "Sep": month names start with a capital in every label. */
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 
 /** Three-letter month, in the active language: "Jul", "Sep". */
 function shortMonth(m: number): string {
@@ -45,15 +41,36 @@ export function widestRangeLabel(range: Range): string {
  * used to be Spanish-only ("septiembre 2026", "2026 completo") even with
  * the app in English.
  */
+/**
+ * The navigator's own label, beside the title (prototype 1a: "Sep 2026").
+ * Short on purpose: the long one ("Septiembre 2026") would push the arrows
+ * under the title on a phone.
+ */
+export function shortRangeLabel(range: Range, today: string, payDays: number[]): string {
+  if (range !== 'mes') return describeRange(range, today, payDays);
+  const [y, m] = rangeBounds(range, today, payDays).from.split('-').map(Number) as [number, number];
+  return `${shortMonth(m)} ${y}`;
+}
+
+/** The widest short label, to reserve the navigator's width. */
+export function widestShortRangeLabel(range: Range): string {
+  return range === 'mes' ? widestMonthLabel(true) : widestRangeLabel(range);
+}
+
+/** What the hero calls the period: "Balance de Septiembre" — for a month, no year. */
+export function heroRangeLabel(range: Range, today: string, payDays: number[]): string {
+  if (range !== 'mes') return describeRange(range, today, payDays);
+  const m = Number(rangeBounds(range, today, payDays).from.split('-')[1]);
+  return monthName(m);
+}
+
 export function describeRange(range: Range, today: string, payDays: number[]): string {
   const { from, to } = rangeBounds(range, today, payDays);
   const [y, m] = from.split('-').map(Number) as [number, number];
   // A pay period is stated in days, not months: its whole point is that it
   // crosses the month boundary, and saying just "September" would hide that.
   if (range === 'quincena') {
-    const d = formatShortDate(from);
-    const h = formatShortDate(to);
-    return `${d.day} ${capitalize(d.month)} – ${h.day} ${capitalize(h.month)}`;
+    return shortRange(from, to);
   }
   if (range === 'mes') return `${monthName(m)} ${y}`;
   if (range === 'año') return String(y);

@@ -131,11 +131,11 @@ test('reminders: days before or the same day, with a live preview', async ({ pag
 
 test('your data: three exports with what each is for, and the restore', async ({ page }) => {
   await page.goto('ajustes/datos');
-  await expect(page.getByRole('button', { name: /Exportar JSON Copia completa/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Exportar CSV Una fila por movimiento/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^JSON Copia completa/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^CSV Una fila por movimiento/ })).toBeVisible();
   await expect(page.getByRole('button', { name: /Importar backup/ })).toBeVisible();
   const download = page.waitForEvent('download');
-  await page.getByRole('button', { name: /Exportar JSON/ }).click();
+  await page.getByRole('button', { name: /^JSON/ }).click();
   expect((await download).suggestedFilename()).toMatch(/\.json$/);
 });
 
@@ -158,7 +158,7 @@ test('new category sheet: preview, kind, colour and icon', async ({ page }) => {
 test('new payment method: card steppers, the amber cycle line and "use as default"', async ({ page }) => {
   await page.goto('ajustes/metodos');
   await page.getByRole('button', { name: '+ Nuevo método de pago' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Nuevo método de pago' });
+  const sheet = page.getByRole('dialog', { name: 'Nuevo método' });
   await sheet.getByLabel('Nombre').fill('Visa E2E');
   await sheet.getByRole('button', { name: 'Crédito', exact: true }).click();
   await sheet.getByRole('spinbutton', { name: 'Día de corte' }).fill('10');
@@ -172,7 +172,7 @@ test('new payment method: card steppers, the amber cycle line and "use as defaul
 
   const row = page.getByRole('button', { name: /Visa E2E/ });
   await expect(row.getByText('Por defecto')).toBeVisible();
-  await expect(row.getByText(/Crédito · corte 10, paga 3/)).toBeVisible();
+  await expect(row.getByText(/Crédito · corte 10, paga el 3/)).toBeVisible();
   await expect(page.getByText('Por defecto')).toHaveCount(1);
 });
 
@@ -182,17 +182,17 @@ test('recurring: monthly summary, groups by type, and a rule in dollars', async 
 
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
   let dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByRole('button', { name: 'Ingreso recurrente' }).click();
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Sueldo E2E');
-  await dialog.getByPlaceholder('$ 0').fill('1000000');
+  await dialog.getByRole('button', { name: 'Ingreso', exact: true }).click();
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Sueldo E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('1000000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
   dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Netflix E2E');
-  await dialog.getByPlaceholder('$ 0').fill('10');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Netflix E2E');
+  await dialog.getByLabel('Valor', { exact: true }).fill('10');
   await dialog.getByRole('group', { name: 'Moneda' }).getByRole('button', { name: /USD/ }).click();
   await expect(dialog.getByText('≈ $ 40.000 COP · tasa de hoy 4.000')).toBeVisible();
   await dialog.getByRole('button', { name: 'Débito' }).click();
@@ -210,6 +210,6 @@ test('recurring: monthly summary, groups by type, and a rule in dollars', async 
   // Editing it keeps the dollars and the rate it was saved with.
   await netflix.click();
   const edit = page.getByRole('dialog', { name: 'Editar' });
-  await expect(edit.getByPlaceholder('$ 0')).toHaveValue('10');
+  await expect(edit.getByLabel('Valor', { exact: true })).toHaveValue('10');
   await expect(edit.getByRole('group', { name: 'Moneda' }).getByRole('button', { name: /USD/ })).toHaveAttribute('aria-pressed', 'true');
 });

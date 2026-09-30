@@ -74,6 +74,7 @@ export function PaymentMethodForm({
 
       <div style={{ marginTop: 16 }}>
         <Segmented
+          inset
           label={t('set.methodType')}
           value={type}
           onChange={setType}

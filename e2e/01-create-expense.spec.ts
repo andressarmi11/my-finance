@@ -12,8 +12,8 @@ test('creates an expense', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await expect(dialog).toBeVisible();
 
-  await dialog.getByPlaceholder('Ej. Restaurante').fill('Mercado de prueba');
-  await dialog.getByPlaceholder('$ 0').fill('85000');
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Mercado de prueba');
+  await dialog.getByLabel('Valor', { exact: true }).fill('85000');
   await dialog.getByRole('button', { name: /Alimentación/ }).click();
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();

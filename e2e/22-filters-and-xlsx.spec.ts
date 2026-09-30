@@ -11,8 +11,8 @@ test.use({ reducedMotion: 'reduce' });
 async function agregar(page: import('@playwright/test').Page, concept: string, amount: string, type?: 'ingreso') {
   await page.goto(`movimientos?nuevo=1${type ? `&tipo=${type}` : ''}`);
   const d = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await d.getByPlaceholder('Ej. Restaurante').fill(concept);
-  await d.getByPlaceholder('$ 0').fill(amount);
+  await d.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+  await d.getByLabel('Valor', { exact: true }).fill(amount);
   await d.getByRole('button', { name: 'Débito' }).click();
   await d.getByRole('button', { name: 'Guardar' }).click();
   await expect(d).toBeHidden();
@@ -64,7 +64,7 @@ test('the Excel button triggers the download with the right name', async ({ page
   // Exports live in Ajustes → Tus datos (redesign §9e).
   await page.goto('ajustes/datos');
   const descarga = page.waitForEvent('download');
-  await page.getByRole('button', { name: /Exportar Excel/ }).click();
+  await page.getByRole('button', { name: /^Excel \(\.xlsx\)/ }).click();
   const file = await descarga;
 
   expect(file.suggestedFilename()).toMatch(/^step-up-\d{4}-\d{2}-\d{2}\.xlsx$/);

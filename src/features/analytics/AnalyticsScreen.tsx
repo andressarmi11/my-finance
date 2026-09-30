@@ -6,7 +6,8 @@ import { BigAmount } from '@/components/ui/BigAmount';
 import { fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { MonthNav } from '@/components/ui/MonthNav';
-import { describeRange, RANGE_KEY, widestRangeLabel } from './rangeLabel';
+import { shortAmount } from './shortAmount';
+import { heroRangeLabel, RANGE_KEY, shortRangeLabel, widestShortRangeLabel } from './rangeLabel';
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -77,7 +78,6 @@ export function AnalyticsScreen() {
   );
   // Not memoised: it reads the active language's month names, and a memo
   // keyed on the dates alone kept the old language after switching.
-  const rangeLabel = describeRange(range, anchor, settings.payDays);
 
   // A future range needs its recurring payments to exist to be a forecast.
   // One pass over the whole range (materialize reads the table once), not
@@ -192,12 +192,12 @@ export function AnalyticsScreen() {
       content: spendTotal > 0 ? (<>
         {/* One stacked bar, 3px apart, then one row per category. Tapping a
             row opens its detail — what the donut used to do. */}
-        <div aria-hidden style={{ display: 'flex', gap: 3, height: 12, marginBottom: 14 }}>
+        <div aria-hidden style={{ display: 'flex', gap: 3, height: 10, margin: '0 0 6px' }}>
           {categoryRows.map((r) => (
-            <span key={r.id} style={{ width: `${(r.amount / spendTotal) * 100}%`, minWidth: 4, borderRadius: 4, background: r.color }} />
+            <span key={r.id} style={{ width: `${(r.amount / spendTotal) * 100}%`, minWidth: 4, borderRadius: 5, background: r.color }} />
           ))}
         </div>
-        {categoryRows.map((r) => {
+        {categoryRows.map((r, i) => {
           const pct = pctOf(r.amount, spendTotal);
           const disabled = r.id === '__other__';
           return (
@@ -207,22 +207,23 @@ export function AnalyticsScreen() {
               onClick={() => !disabled && setDetailCategoryId(r.id === 'none' ? null : r.id)}
               disabled={disabled}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0',
-                border: 'none', background: 'none', cursor: disabled ? 'default' : 'pointer',
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0',
+                border: 'none', borderTop: i === 0 ? 'none' : '1px solid var(--line)',
+                background: 'none', cursor: disabled ? 'default' : 'pointer',
                 textAlign: 'left', color: 'var(--text)',
               }}
             >
               <CategoryAvatar icon={r.icon} color={r.color} size={34} />
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-base)' }}>
-                  <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                  <span className="figures" style={{ fontWeight: 600, flex: 'none' }}>{formatMoney(r.amount)}</span>
+                <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 15 }}>
+                  <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                  <span className="figures" style={{ fontWeight: 700, flex: 'none' }}>{formatMoney(r.amount)}</span>
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
-                  <span style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--surface-sunken)', overflow: 'hidden' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                  <span style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--line)', overflow: 'hidden' }}>
                     <span style={{ display: 'block', width: `${pct}%`, height: '100%', borderRadius: 3, background: r.color }} />
                   </span>
-                  <span className="figures" style={{ flex: 'none', width: 34, textAlign: 'right', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{pct}%</span>
+                  <span className="figures" style={{ flex: 'none', width: 30, textAlign: 'right', fontSize: 12, color: 'var(--text-muted)' }}>{pct}%</span>
                 </span>
               </span>
             </button>
@@ -233,14 +234,19 @@ export function AnalyticsScreen() {
     'budgets': {
       title: t('analytics.monthBudgets'),
       summary: budgetLimit > 0 ? fill(t('analytics.used'), { pct: pctOf(budgetSpent, budgetLimit) }) : '',
-      content: (
+      content: (<>
+        {budgetLimit > 0 && (
+          <p style={{ margin: '-8px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+            {fill(t('budgets.soFar'), { spent: shortAmount(budgetSpent), limit: shortAmount(budgetLimit) })}
+          </p>
+        )}
         <BudgetColumns
           categories={categories}
           budgets={budgets}
           transactions={transactions}
           monthPrefix={budgetMonth}
         />
-      ),
+      </>),
     },
     'fixed-vs-variable': {
       title: t('analytics.fixedVsVariable'),
@@ -263,11 +269,30 @@ export function AnalyticsScreen() {
   };
 
   return (
-    <Screen title={t('analytics.title')} wide>
+    <Screen
+      title={t('analytics.title')}
+      wide
+      right={(
+        // Beside the title, as in the prototype. Today, once you have paged
+        // away, shows up to the navigator's left.
+        <MonthNav
+          bare
+          busy={busy}
+          label={shortRangeLabel(range, anchor, settings.payDays)}
+          widthSample={widestShortRangeLabel(range)}
+          unit="period"
+          todayIsAhead={!isCurrent && anchor < today}
+          onPrev={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, -1, settings.payDays)))}
+          onNext={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, 1, settings.payDays)))}
+          onToday={isCurrent ? undefined : () => startTransition(() => setAnchor(today))}
+        />
+      )}
+    >
       {/* On desktop the controls keep a phone's width, centred; the cards
           below spread into a grid (§9g). */}
-      <div style={{ marginBottom: 14, maxWidth: 560, marginInline: 'auto' }}>
+      <div style={{ maxWidth: 560, marginInline: 'auto' }}>
         <Segmented
+          labelSize={13}
           label={t('analytics.range')}
           value={range}
           onChange={(r) => startTransition(() => setRange(r))}
@@ -278,21 +303,6 @@ export function AnalyticsScreen() {
         />
       </div>
 
-      {/* Its own row, centred: "Octubre – Diciembre 2026" doesn't fit beside
-          the title on a phone. Today sits on the side you paged towards. */}
-      <div style={{ marginBottom: 14, maxWidth: 560, marginInline: 'auto' }}>
-        <MonthNav
-          centered
-          busy={busy}
-          label={rangeLabel}
-          widthSample={widestRangeLabel(range)}
-          unit="period"
-          todayIsAhead={!isCurrent && anchor < today}
-          onPrev={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, -1, settings.payDays)))}
-          onNext={() => startTransition(() => setAnchor((a) => shiftAnchor(range, a, 1, settings.payDays)))}
-          onToday={isCurrent ? undefined : () => startTransition(() => setAnchor(today))}
-        />
-      </div>
 
       {/* Dimmed and inert while the period loads: the numbers on screen
           belong to the period you're leaving. */}
@@ -308,18 +318,24 @@ export function AnalyticsScreen() {
         }}
       >
         {/* Hero: the one big number of the screen is the balance. */}
-        <section style={{ textAlign: 'center', margin: '6px 0 24px' }}>
-          <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 500, color: 'var(--text-muted)' }}>
-            {fill(t('analytics.balanceOf'), { period: rangeLabel })}
+        <section style={{ textAlign: 'center', padding: '30px 0 26px' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 400, color: 'var(--text-muted)' }}>
+            {fill(t('analytics.balanceOf'), { period: heroRangeLabel(range, anchor, settings.payDays) })}
           </h2>
+          {/* The sign and the symbol carry the colour; the figure stays in
+              text colour (prototype 1a). */}
           <BigAmount
             value={balance}
             size={50}
             signed
-            color={balance >= 0 ? 'var(--positive-text)' : 'var(--danger-text)'}
+            accent={balance >= 0 ? 'var(--positive-text)' : 'var(--danger-text)'}
           />
-          <p className="figures" style={{ margin: '10px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-            {fill(t('analytics.incomeExpensesLine'), { income: formatMoney(incomeTotal), expense: formatMoney(spendTotal) })}
+          <p
+            className="figures"
+            style={{ margin: '12px 0 0', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '4px 12px', fontSize: 13, color: 'var(--text-muted)' }}
+          >
+            <span style={{ whiteSpace: 'nowrap' }}>{t('filter.income')} <b style={{ color: 'var(--positive-text)' }}>{formatMoney(incomeTotal)}</b></span>
+            <span style={{ whiteSpace: 'nowrap' }}>{t('filter.expenses')} <b style={{ color: 'var(--text)' }}>{formatMoney(spendTotal)}</b></span>
           </p>
         </section>
 
@@ -370,7 +386,7 @@ function ChartCard({ title, summary, collapsed, onToggle, children }: {
 }) {
   const t = useT();
   return (
-    <section style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', marginBottom: 12 }}>
+    <section style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', marginBottom: 12, overflow: 'hidden' }}>
       <h2 style={{ margin: 0 }}>
         <button
           type="button"
@@ -378,19 +394,19 @@ function ChartCard({ title, summary, collapsed, onToggle, children }: {
           aria-expanded={!collapsed}
           aria-label={fill(t('analytics.toggleCard'), { title })}
           style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 10, minHeight: 52, padding: '0 16px',
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: 16,
             border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text)', textAlign: 'left',
           }}
         >
-          <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 700 }}>{title}</span>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 16, fontWeight: 700 }}>{title}</span>
           {summary && (
-            <span className="figures" style={{ flex: 'none', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-muted)' }}>{summary}</span>
+            <span className="figures" style={{ flex: 'none', fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>{summary}</span>
           )}
           <IconChevronDown
             size={18}
             stroke={2}
             aria-hidden
-            style={{ flex: 'none', color: 'var(--text-faint)', transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform var(--dur-fast) var(--ease-spring-out)' }}
+            style={{ flex: 'none', color: 'var(--text-faint)', transform: collapsed ? 'none' : 'rotate(180deg)', transition: 'transform var(--dur-fast) var(--ease-spring-out)' }}
           />
         </button>
       </h2>
@@ -405,27 +421,21 @@ function SplitBar({ total, parts }: { total: number; parts: Array<{ key: string;
   const shown = parts.filter((p) => p.value > 0);
   return (
     <div>
-      <div aria-hidden style={{ display: 'flex', gap: 3, height: 8, marginBottom: 12 }}>
+      <div aria-hidden style={{ display: 'flex', gap: 3, height: 8, marginBottom: 8 }}>
         {shown.map((p) => (
           <span key={p.key} style={{ width: `${(p.value / total) * 100}%`, minWidth: 4, borderRadius: 4, background: p.color }} />
         ))}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 'var(--text-sm)' }}>
+      {/* Prototype 1a: "Fijos · $ 5.716.900", spread across the width. */}
+      <div className="figures" style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
         {parts.map((p) => (
-          <span key={p.key} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Dot color={p.color} />
-            <span style={{ color: 'var(--text-muted)' }}>{p.label}</span>
-            <span className="figures" style={{ fontWeight: 600 }}>{formatMoney(p.value)}</span>
-          </span>
+          <span key={p.key}>{p.label} · {formatMoney(p.value)}</span>
         ))}
       </div>
     </div>
   );
 }
 
-function Dot({ color }: { color: string }) {
-  return <span aria-hidden style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: color }} />;
-}
 
 const emptyNote: React.CSSProperties = { margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-faint)' };
 
@@ -460,12 +470,12 @@ function CategoryDetailSheet({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+          borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
           maxHeight: '80vh', overflowY: 'auto',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 14px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
           <CategoryAvatar
             icon={category?.icon ?? 'other'}

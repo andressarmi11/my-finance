@@ -21,7 +21,7 @@ async function withDemoData(page: Page) {
   }))).toBeGreaterThan(0);
 }
 
-test('the analytics navigator stays centred, Today sits on the side you paged towards, and loading never sticks', async ({ page }) => {
+test('the analytics navigator sits beside the title, its arrows never move, Today shows up beside them, and loading never sticks', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await withDemoData(page);
   await page.getByRole('link', { name: 'Análisis' }).click();
@@ -35,27 +35,26 @@ test('the analytics navigator stays centred, Today sits on the side you paged to
   await settled();
   await expect(prev).toBeEnabled();
 
-  const centre = async () => {
-    const p = (await prev.boundingBox())!;
-    const n = (await next.boundingBox())!;
-    return (p.x + n.x + n.width) / 2;
-  };
-  const start = await centre();
-  expect(Math.abs(start - 390 / 2)).toBeLessThan(1);
+  // Redesign (prototype 1a): on the title's row, at its right edge.
+  const title = (await page.getByRole('heading', { level: 1, name: 'Análisis' }).boundingBox())!;
+  const edge = async () => { const n = (await next.boundingBox())!; return n.x + n.width; };
+  const start = await edge();
+  expect(start).toBeGreaterThan(390 - 40);
+  expect(Math.abs((await next.boundingBox())!.y - title.y)).toBeLessThan(title.height);
+  await expect(today).toHaveCount(0);
 
   await prev.click();
   await settled();
   await expect(today).toBeVisible();
-  expect((await today.boundingBox())!.x).toBeLessThan((await prev.boundingBox())!.x); // back → left
-  expect(await centre()).toBeCloseTo(start, 0); // the arrows didn't move
+  expect((await today.boundingBox())!.x).toBeLessThan((await prev.boundingBox())!.x); // on the inside
+  expect(await edge()).toBeCloseTo(start, 0); // the arrows didn't move
 
   await today.click();
   await settled();
   await next.click();
   await settled();
-  const n = (await next.boundingBox())!;
-  expect((await today.boundingBox())!.x).toBeGreaterThan(n.x + n.width); // forward → right
-  expect(await centre()).toBeCloseTo(start, 0);
+  await expect(today).toBeVisible();
+  expect(await edge()).toBeCloseTo(start, 0);
 
   // A year ahead generates a year of recurring payments: still finishes.
   await page.getByRole('button', { name: /^año$/i }).click();
@@ -69,8 +68,8 @@ test('the day list in the calendar has separators between rows, none after the l
   for (const [concept, amount] of [['Primero de hoy', '12000'], ['Segundo de hoy', '8000']] as const) {
     await page.goto('movimientos?nuevo=1');
     const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-    await dialog.getByPlaceholder('Ej. Restaurante').fill(concept);
-    await dialog.getByPlaceholder('$ 0').fill(amount);
+    await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+    await dialog.getByLabel('Valor', { exact: true }).fill(amount);
     await dialog.getByRole('button', { name: 'Guardar' }).click();
     await expect(dialog).toBeHidden();
   }

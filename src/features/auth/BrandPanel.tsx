@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { IconCheck } from '@tabler/icons-react';
 import { Logo } from '@/components/ui/Logo';
@@ -68,9 +69,25 @@ export function BrandPanel() {
         ))}
       </ul>
       <div style={{ flex: 1, minHeight: 32 }} />
+      {/* The documents, readable before having an account. */}
+      <p style={{ margin: 0, fontSize: 12, color: 'var(--text-faint)' }}>
+        © 2026 Step up
+        {LEGAL_LINKS.map(([slug, key]) => (
+          <span key={slug}>
+            {' · '}
+            <Link to={`/legal/${slug}`} style={{ color: 'inherit', textDecoration: 'none' }}>{t(key)}</Link>
+          </span>
+        ))}
+      </p>
     </aside>
   );
 }
+
+const LEGAL_LINKS: ReadonlyArray<[string, TextKey]> = [
+  ['aviso', 'legal.notice'],
+  ['privacidad', 'legal.privacy'],
+  ['terminos', 'legal.terms'],
+];
 
 const POINTS: ReadonlyArray<[TextKey, TextKey]> = [
   ['login.offlineTitle', 'login.offlineBody'],
@@ -168,8 +185,9 @@ function DemoCard() {
           {t('login.sampleData')}
         </span>
       </div>
-      <div className="figures" style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-        <span style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-muted)' }}>$</span>
+      {/* "$ 2.140.500" in one size and colour, as in the prototype. */}
+      <div className="figures" style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 4 }}>
+        <span style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1.1 }}>$</span>
         <AnimatedNumber
           value={demo.left}
           duration={700}

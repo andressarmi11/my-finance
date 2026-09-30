@@ -13,9 +13,8 @@ test('a deleted recurring transaction does not come back on reload', async ({ pa
   await page.getByRole('button', { name: '+ Nuevo recurrente' }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
-  await dialog.getByPlaceholder('Ej. Arriendo').fill('Gimnasio Zombi');
-  await dialog.getByPlaceholder('$ 0').fill('100000');
-  await dialog.getByRole('button', { name: 'Mensual' }).click();
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gimnasio Zombi');
+  await dialog.getByLabel('Valor', { exact: true }).fill('100000');
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

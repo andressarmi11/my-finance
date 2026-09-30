@@ -11,7 +11,7 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { groupByCard, type CreditCycleGroup } from '@/domain/credit-card/groupByCycle';
 import type { AvailableCredit } from '@/domain/credit-card/availableCredit';
 import type { PaymentMethod, Transaction } from '@/domain/types';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { shortDay } from '@/lib/formatShortDate';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { haptic } from '@/lib/haptic';
 import { EMPTY } from '@/lib/empty';
@@ -118,12 +118,11 @@ function CardSection({ card, available, cycles, today, categoryById, onMarkPaid 
         cycles.map((cycle) => {
           const isNext = cycle.paymentDate >= today;
           const overdue = cycle.paymentDate < today && cycle.transactions.some((t) => t.status !== 'paid');
-          const { day, month } = formatShortDate(cycle.paymentDate);
           return (
             <div key={cycle.paymentDate} style={{ background: overdue ? 'var(--danger-soft)' : isNext ? 'var(--q25-soft)' : 'var(--surface-sunken)', borderRadius: 'var(--radius-m)', padding: '12px 14px 4px', marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: overdue ? 'var(--danger-text)' : isNext ? 'var(--q25)' : 'var(--text-muted)' }}>
-                  {overdue ? t('cards.overdueOn') : t('cards.dueOn')} {day} {month}
+                  {overdue ? t('cards.overdueOn') : t('cards.dueOn')} {shortDay(cycle.paymentDate)}
                 </span>
                 <span className="figures" style={{ fontWeight: 700, fontSize: 17 }}>{formatMoney(cycle.total)}</span>
               </div>
@@ -155,12 +154,11 @@ function CardSection({ card, available, cycles, today, categoryById, onMarkPaid 
 }
 
 function PurchaseRow({ tx, icon }: { tx: Transaction; icon?: string }) {
-  const { day, month } = formatShortDate(tx.date);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)', opacity: tx.status === 'paid' ? 0.55 : 1 }}>
       <CategoryIcon icon={icon} size={18} color="var(--text-faint)" />
       <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>{tx.concept}</span>
-      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{day} {month}</span>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{shortDay(tx.date)}</span>
       <span className="figures" style={{ fontWeight: 600, fontSize: 14 }}>{formatMoney(tx.amount)}</span>
     </div>
   );

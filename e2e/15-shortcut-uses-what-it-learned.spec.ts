@@ -22,7 +22,7 @@ test('the Shortcut link respects the category you corrected', async ({ page }) =
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
   await sheet.getByLabel('Qué pasó').fill(FRASE);
   await expect(sheet.getByText('Lo puse en Alimentación.')).toBeVisible();
 

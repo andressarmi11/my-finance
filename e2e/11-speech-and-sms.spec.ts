@@ -11,19 +11,22 @@ test('telling the app in Spanish saves the transaction', async ({ page }) => {
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
 
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
   await expect(sheet).toBeVisible();
 
   await sheet.getByLabel('Qué pasó').fill('gasté 45 mil en el almuerzo');
 
   // It echoes back in Spanish what it understood, before saving anything.
-  await expect(sheet.getByText('Gasto de $ 45.000, en Almuerzo, hoy,', { exact: false })).toBeVisible();
+  const understood = sheet.getByRole('region', { name: 'Entendí' });
+  await expect(understood).toContainText('Almuerzo');
+  await expect(understood).toContainText('$ 45.000');
+  await expect(understood).toContainText('hoy');
   await expect(sheet.getByText('Lo puse en Alimentación.')).toBeVisible();
 
   await sheet.getByRole('button', { name: 'Guardar', exact: true }).click();
   await expect(sheet.getByText('Anotado: $ 45.000 en Almuerzo.')).toBeVisible();
 
-  await sheet.getByRole('button', { name: 'Cerrar' }).click();
+  await sheet.getByRole('button', { name: 'Cancelar' }).click();
   await page.goto('movimientos');
   await expect(page.getByText('Almuerzo').first()).toBeVisible();
   await expect(page.getByText('$ 45.000').first()).toBeVisible();
@@ -34,7 +37,7 @@ test('asks for the missing part instead of making it up', async ({ page }) => {
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
 
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
   await sheet.getByLabel('Qué pasó').fill('gasté en el almuerzo');
   await expect(sheet.getByText('¿Cuánto fue?')).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Guardar', exact: true })).toBeDisabled();
@@ -44,7 +47,7 @@ test('it learns: a corrected category repeats next time', async ({ page }) => {
   await page.goto('');
   await page.getByRole('button', { name: 'Agregar movimiento' }).click();
   await page.getByRole('button', { name: /Contarle a la app/ }).click();
-  const sheet = page.getByRole('dialog', { name: 'Contale a la app' });
+  const sheet = page.getByRole('dialog', { name: 'Contarle a la app' });
 
   // "peluquería" isn't in the keyword table: it doesn't know.
   await sheet.getByLabel('Qué pasó').fill('gasté 30 mil en peluqueria');
@@ -71,7 +74,7 @@ test('a bank SMS comes in through a URL and ends up interpreted', async ({ page 
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel('Valor')).toHaveValue('145.000');
-  await expect(dialog.getByPlaceholder('Ej. Restaurante')).toHaveValue(/exito/i);
+  await expect(dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo')).toHaveValue(/exito/i);
   await expect(dialog.getByText('Nuevo gasto')).toBeVisible();
 });
 

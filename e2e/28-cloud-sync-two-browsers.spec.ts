@@ -221,8 +221,8 @@ async function leaveAndReturn(page: Page, backend: Backend) {
 async function addMovement(page: Page, concept: string, amount: string, income = false) {
   await page.goto(income ? 'movimientos?nuevo=1&tipo=ingreso' : 'movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
-  await dialog.getByPlaceholder('Ej. Restaurante').fill(concept);
-  await dialog.getByPlaceholder('$ 0').fill(amount);
+  await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill(concept);
+  await dialog.getByLabel('Valor', { exact: true }).fill(amount);
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
 }

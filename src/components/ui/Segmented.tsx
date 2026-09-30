@@ -6,13 +6,20 @@
  * Buttons with aria-pressed, not a radiogroup: each option acts at once
  * (there's no separate "confirm"), which is what a toggle button announces.
  */
-export function Segmented<T extends string>({ options, value, onChange, label, size = 'm' }: {
+export function Segmented<T extends string>({ options, value, onChange, label, size = 'm', inset = false, labelSize, tall = false }: {
   options: ReadonlyArray<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
   /** Accessible name of the group. */
   label: string;
   size?: 's' | 'm';
+  /** Inside a sheet (prototype 1a, Débito | Crédito | Efectivo): a --paper
+   *  track with no border, 13px labels, the idle ones in --text-faint. */
+  inset?: boolean;
+  /** The labels' size when it differs from the default (Análisis's period: 13px). */
+  labelSize?: number;
+  /** 36px options (Cómo te pagan, Recordatorios) instead of 34. */
+  tall?: boolean;
 }) {
   return (
     <div
@@ -21,11 +28,10 @@ export function Segmented<T extends string>({ options, value, onChange, label, s
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${options.length}, 1fr)`,
-        gap: 2,
         padding: 3,
         borderRadius: 12,
-        background: 'var(--surface)',
-        border: '1px solid var(--line)',
+        background: inset ? 'var(--paper)' : 'var(--surface)',
+        border: inset ? 'none' : '1px solid var(--line)',
       }}
     >
       {options.map((o) => {
@@ -37,14 +43,14 @@ export function Segmented<T extends string>({ options, value, onChange, label, s
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             style={{
-              minHeight: size === 's' ? 30 : 36,
+              minHeight: size === 's' ? 30 : tall ? 36 : 34,
               padding: '0 10px',
               borderRadius: 9,
               border: 'none',
               background: active ? 'var(--line-strong)' : 'transparent',
-              color: active ? 'var(--text)' : 'var(--text-muted)',
-              fontSize: 'var(--text-base)',
-              fontWeight: active ? 600 : 500,
+              color: active ? 'var(--text)' : inset ? 'var(--text-faint)' : 'var(--text-muted)',
+              fontSize: labelSize ?? (inset ? 13 : 14),
+              fontWeight: 600,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               transition: 'background var(--dur-fast) var(--ease-spring-out), color var(--dur-fast) var(--ease-spring-out)',

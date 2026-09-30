@@ -3,7 +3,7 @@ import { monthFromLabel, payPeriodLabel } from '@/i18n/periodLabels';
 import { fill } from '@/lib/dateLabels';
 import { Logo } from '@/components/ui/Logo';
 import { BigAmount } from '@/components/ui/BigAmount';
-import { IconCheck, IconChevronRight, IconCreditCardOff } from '@tabler/icons-react';
+import { IconCheck, IconCreditCardOff } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -23,7 +23,7 @@ import { unpaidBalances } from '@/domain/credit-card/availableCredit';
 import { calculatePeriod, periodsOfMonth } from '@/domain/period/period';
 import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { shortDay } from '@/lib/formatShortDate';
 import { todayISO, nowISO } from '@/lib/todayISO';
 import { selectUpcoming, relevantDate } from './upcoming';
 import { ToPaySheet } from './ToPaySheet';
@@ -150,7 +150,8 @@ export function DashboardScreen() {
   const lineColorVar = linePeriodIdx % 2 === 1 ? '--q25-text' : '--q10-text';
 
   // "septiembre" inside a Spanish sentence, "September" in English.
-  const monthInSentence = language === 'es' ? monthName(month).toLowerCase() : monthName(month);
+  // Capitalised in both languages, as the prototype writes it (§3).
+  const monthInSentence = monthName(month);
   const heroLine = settings.displayName
     ? fill(t('home.heroLine'), { name: settings.displayName, month: monthInSentence })
     : fill(t('home.heroLineNoName'), { month: monthInSentence });
@@ -176,6 +177,7 @@ export function DashboardScreen() {
   const nav = (
     <MonthNav
       compact
+      large={desktop}
       label={`${monthName(month).slice(0, 3)} ${year}`}
       widthSample={widestMonthLabel(true)}
       todayIsAhead={year * 12 + month < todayYear * 12 + todayMonth}
@@ -189,10 +191,10 @@ export function DashboardScreen() {
   // right. It replaces the global brand bar; the other screens are
   // oriented by their large title.
   const header = (
-    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 24 }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-        <Logo size={24} />
-        <span className="figures" style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap' }}>
+    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, height: 44 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Logo size={22} />
+        <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap' }}>
           Step up
         </span>
       </span>
@@ -244,7 +246,7 @@ export function DashboardScreen() {
         </span>
         <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
           {overdue.length === 1
-            ? `${overdue[0]!.card.name} · ${t('home.overdueOn')} ${formatShortDate(overdue[0]!.paymentDate).day} ${formatShortDate(overdue[0]!.paymentDate).month}`
+            ? `${overdue[0]!.card.name} · ${t('home.overdueOn')} ${shortDay(overdue[0]!.paymentDate)}`
             : t('home.markThem')}
         </span>
       </span>
@@ -255,7 +257,7 @@ export function DashboardScreen() {
   );
 
   const periodLine = linePeriod && (
-    <p style={{ margin: '12px 0 0', display: 'flex', alignItems: 'center', justifyContent: desktop ? 'flex-start' : 'center', gap: 7, fontSize: 'var(--text-base)' }}>
+    <p style={{ margin: desktop ? '12px 0 0' : '14px 0 0', display: 'flex', alignItems: 'center', justifyContent: desktop ? 'flex-start' : 'center', gap: 7, fontSize: 14 }}>
       <span aria-hidden style={{ width: 7, height: 7, borderRadius: 4, background: `var(${lineColorVar})` }} />
       <span style={{ color: `var(${lineColorVar})`, fontWeight: 600 }}>
         {periodLabel(settings.payDays, linePeriodIdx, month)}
@@ -273,17 +275,18 @@ export function DashboardScreen() {
       style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
         borderRadius: desktop ? 16 : 'var(--radius-card)', overflow: 'hidden',
-        background: 'var(--line)', border: '1px solid var(--line)',
-        marginBottom: desktop ? 0 : 28, marginTop: desktop ? 20 : 0,
+        background: 'var(--line)', border: desktop ? 'none' : '1px solid var(--line)',
+        marginTop: desktop ? 20 : 0,
       }}
     >
-      <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
-      <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
-      <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
+      <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" inset={desktop} />
+      <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive" inset={desktop} />
+      <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" inset={desktop} />
       <FlowCell
         label={t('home.leftToPay')}
         value={flow.toPay}
-        tone="danger-soft"
+        tone="danger"
+        inset={desktop}
         onClick={toPay.count > 0 ? () => setPorPagarOpen(true) : undefined}
       />
     </div>
@@ -298,7 +301,6 @@ export function DashboardScreen() {
     <div style={desktop ? {} : { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
       {upcoming.map((tx, idx) => {
         const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
-        const { day, month: monthLabel } = formatShortDate(relevantDate(tx));
         const isIncome = tx.type === 'income';
         const isPaid = tx.status === 'paid';
         const isLate = isCurrentMonth && relevantDate(tx) < today;
@@ -306,7 +308,7 @@ export function DashboardScreen() {
           <div
             key={tx.id}
             style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: desktop ? '10px 0' : '10px 12px',
+              display: 'flex', alignItems: 'center', gap: 12, padding: desktop ? '10px 0' : '12px 14px',
               borderBottom: idx < upcoming.length - 1 ? '1px solid var(--line)' : 'none',
             }}
           >
@@ -316,7 +318,7 @@ export function DashboardScreen() {
               aria-pressed={isPaid}
               aria-label={isIncome ? t('home.markAsReceived') : t('home.markAsPaid')}
               style={{
-                width: 28, height: 28, minWidth: 28, borderRadius: 14, flex: 'none',
+                width: desktop ? 24 : 26, height: desktop ? 24 : 26, minWidth: desktop ? 24 : 26, borderRadius: 13, flex: 'none',
                 border: `1.5px solid ${isPaid ? 'var(--positive)' : 'var(--line-strong)'}`,
                 background: isPaid ? 'var(--positive)' : 'transparent',
                 color: isPaid ? 'var(--on-accent)' : 'transparent',
@@ -324,34 +326,34 @@ export function DashboardScreen() {
                 transition: 'all var(--dur-fast) var(--ease-spring-out)',
               }}
             >
-              <IconCheck size={15} stroke={2.5} aria-hidden />
+              <IconCheck size={desktop ? 13 : 14} stroke={3} aria-hidden />
             </button>
             <button
               type="button"
               onClick={() => navigate('/movimientos')}
               style={{
                 flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
-                padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
+                padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, color: 'var(--text)',
               }}
             >
               <CategoryAvatar
                 icon={cat?.icon ?? (isIncome ? 'salary' : 'other')}
                 color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
-                size={36}
+                size={desktop ? 36 : 38}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {tx.concept}
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
-                  {isLate ? `${t('home.overdue')} ` : ''}{day} {monthLabel}
+                  {isLate ? `${t('home.overdue')} ` : ''}{shortDay(relevantDate(tx))}
                 </div>
               </div>
             </button>
             <span
               className="figures"
               style={{
-                fontWeight: 600, fontSize: 'var(--text-md)',
+                fontWeight: 700, fontSize: 16,
                 color: isPaid ? 'var(--text-faint)' : isIncome ? 'var(--positive-text)' : 'var(--text)',
                 textDecoration: isPaid ? 'line-through' : 'none',
               }}
@@ -380,7 +382,7 @@ export function DashboardScreen() {
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
               {dateLine.charAt(0).toUpperCase() + dateLine.slice(1)}
             </div>
-            <h1 style={{ margin: '2px 0 0', fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em' }}>
+            <h1 style={{ margin: '2px 0 0', fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.2 }}>
               {name ? `${t('home.hello')}, ${name}` : t('home.title')}
             </h1>
           </div>
@@ -444,7 +446,7 @@ export function DashboardScreen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
             {overdueBanner}
             <section style={{ ...card, padding: 24 }}>
-              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 400, color: 'var(--text-muted)' }}>
                 {fill(t('home.heroLineNoName'), { month: monthInSentence })}
               </h2>
               <div style={{ marginTop: 8 }}>
@@ -494,28 +496,30 @@ export function DashboardScreen() {
 
       {/* Hero: how the month ends up if everything goes as planned. No
           coloured card — the one big number is the whole point. */}
-      <section style={{ textAlign: 'center', margin: '8px 0 28px' }}>
-        <h1 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 500, color: 'var(--text-muted)' }}>
+      <section style={{ textAlign: 'center', padding: '34px 0 30px' }}>
+        <h1 style={{ margin: 0, fontSize: 15, fontWeight: 400, color: 'var(--text-muted)' }}>
           {heroLine}
         </h1>
-        <BigAmount
-          value={monthBalance.leftover}
-          size={56}
-          color={monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)'}
-        />
+        <div style={{ marginTop: 8 }}>
+          <BigAmount
+            value={monthBalance.leftover}
+            size={56}
+            color={monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)'}
+          />
+        </div>
         {periodLine}
       </section>
 
       {flowGrid}
 
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 10px' }}>
-        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '30px 0 10px' }}>
+        <h2 style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', margin: 0 }}>
           {t('home.leftThisMonth')}
         </h2>
         <button
           type="button"
           onClick={() => navigate('/movimientos')}
-          style={{ background: 'none', border: 'none', padding: '8px 0', color: 'var(--q10-text)', fontSize: 'var(--text-base)', fontWeight: 600, cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', padding: '8px 0', color: 'var(--q10-text)', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}
         >
           {t('home.seeAllShort')}
         </button>
@@ -526,7 +530,8 @@ export function DashboardScreen() {
       <button
         type="button"
         onClick={() => navigate('/movimientos')}
-        style={{ marginTop: 16, width: '100%', minHeight: 50, borderRadius: 16, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-base)' }}
+        className="row-hover"
+        style={{ marginTop: 12, width: '100%', minHeight: 50, borderRadius: 16, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}
       >
         {t('home.seeAll')}
       </button>
@@ -543,30 +548,37 @@ function HomeFrame({ children }: { children: React.ReactNode }) {
   return <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 var(--gap-l)' }}>{children}</div>;
 }
 
-function FlowCell({ label, value, tone, onClick }: {
-  label: string; value: number; tone: 'positive' | 'positive-soft' | 'plain' | 'danger-soft'; onClick?: () => void;
+function FlowCell({ label, value, tone, onClick, inset = false }: {
+  label: string; value: number; tone: 'positive' | 'plain' | 'danger'; onClick?: () => void;
+  /** Desktop (§9g 2a): the cells sit inside the hero card, on --hover. */
+  inset?: boolean;
 }) {
-  const color =
-    tone === 'positive' ? 'var(--positive-text)'
-    : tone === 'positive-soft' ? 'color-mix(in srgb, var(--positive-text) 70%, var(--text-muted))'
-    : tone === 'danger-soft' ? 'color-mix(in srgb, var(--danger-text) 70%, var(--text-muted))'
+  // A zero is not news: it goes grey whatever the cell (prototype 1a).
+  const color = value === 0 ? 'var(--text-faint)'
+    : tone === 'positive' ? 'var(--positive-text)'
+    : tone === 'danger' ? 'var(--danger-text)'
     : 'var(--text)';
   const body = (
     <>
-      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-      <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color }}>{formatMoney(value)}</div>
+      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{label}</span>
+      <span className="figures" style={{ display: 'block', fontSize: inset ? 16 : 17, fontWeight: 700, color, marginTop: inset ? 0 : 2, letterSpacing: 'normal' }}>
+        {formatMoney(value)}
+      </span>
     </>
   );
-  const cell: React.CSSProperties = { background: 'var(--surface)', padding: '14px 16px', textAlign: 'left' };
+  const cell: React.CSSProperties = {
+    background: inset ? 'var(--hover)' : 'var(--surface)', padding: inset ? '12px 14px' : '14px 16px', textAlign: 'left',
+  };
   if (!onClick) return <div style={cell}>{body}</div>;
   return (
     <button
       type="button"
       onClick={onClick}
+      className="row-hover"
       style={{ ...cell, border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}
     >
       <span style={{ flex: 1, minWidth: 0 }}>{body}</span>
-      <IconChevronRight size={18} stroke={2} aria-hidden style={{ color: 'var(--text-faint)', flex: 'none' }} />
+      <span aria-hidden style={{ color: 'var(--text-faint)', fontSize: 20, flex: 'none' }}>›</span>
     </button>
   );
 }

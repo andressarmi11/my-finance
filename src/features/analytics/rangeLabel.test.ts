@@ -25,7 +25,7 @@ describe('period labels follow the language and capitalise months', () => {
     expect(describeRange('mes', '2026-08-14', PAY)).toBe('August 2026');
     expect(describeRange('trimestre', '2026-11-02', PAY)).toBe('Oct – Dec 2026');
     expect(describeRange('año', '2026-03-01', PAY)).toBe('2026');
-    expect(describeRange('quincena', '2026-09-26', PAY)).toBe('25 Sep – 9 Oct');
+    expect(describeRange('quincena', '2026-09-26', PAY)).toBe('Sep 25 – Oct 9');
   });
 
   it('every label starts with a capital or a digit', () => {

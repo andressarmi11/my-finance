@@ -103,7 +103,8 @@ test('a period group folds, shows its summary, and stays folded after a reload',
   const header = page.getByRole('button', { name: /^Plegar o desplegar Quincena del/ }).first();
   await header.click();
   await expect(header).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByText(/mov\. · Restante/).first()).toBeVisible();
+  // Folded, the header shows the count (and the remainder) instead of the rows.
+  await expect(page.getByText(/^\d+ mov\./).first()).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole('button', { name: /^Plegar o desplegar Quincena del/ }).first())

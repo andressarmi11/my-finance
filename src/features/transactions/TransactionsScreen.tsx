@@ -7,7 +7,7 @@ import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { Segmented } from '@/components/ui/Segmented';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconSearch } from '@tabler/icons-react';
 import { fill } from '@/lib/dateLabels';
 import { CalendarView } from '@/features/calendar/CalendarView';
 import { db } from '@/data/db';
@@ -54,6 +54,8 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
   const setQuery = embedded ? embedded.onQueryChange : setOwnQuery;
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
+  // "Tarjeta" (prototype 1a): only what went on a credit card.
+  const [cardOnly, setCardOnly] = useState(false);
   // null = we're not selecting. An empty Set = selection mode, with nothing
   // chosen yet. modify
   const [selection, setSelection] = useState<Set<string> | null>(null);
@@ -177,8 +179,11 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
       // hand left out transactions as soon as the periods weren't exactly two.
       : withResolvedPeriods(transactions, settings.payDays)
           .filter((t) => periodsOfMonth(cursor.y, cursor.m, settings.payDays).includes(t.recordPeriodKey));
-    return applyFilters(inWindow, typeFilter, statusFilter);
-  }, [transactions, query, searching, cursor, settings.payDays, typeFilter, statusFilter]);
+    const filtered = applyFilters(inWindow, typeFilter, statusFilter);
+    return cardOnly
+      ? filtered.filter((t) => t.paymentMethodId != null && methodById.get(t.paymentMethodId)?.type === 'credit')
+      : filtered;
+  }, [transactions, query, searching, cursor, settings.payDays, typeFilter, statusFilter, cardOnly, methodById]);
 
   const groups = useMemo(
     () => groupByPeriod(visibleRows, settings.payDays, transactions),
@@ -324,7 +329,8 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
 
   const nav = (
     <MonthNav
-      compact
+      compact={Boolean(embedded)}
+      bare={!embedded}
       label={`${monthName(cursor.m).slice(0, 3)} ${cursor.y}`}
       widthSample={widestMonthLabel(true)}
       todayIsAhead={cursor.y * 12 + cursor.m < todayYear * 12 + todayMonth}
@@ -355,11 +361,11 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
             onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-              borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+              borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
               animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
             }}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+            <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 16px' }} />
             <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
               {t('transactions.deleteQuestion')
                 .replace('{n}', String(selectedIds.length))
@@ -432,12 +438,13 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
   if (embedded) {
     const filterChips = transactions.length > 0 && (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        <Chip activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos'}
-          onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); }}>{t('filter.all')}</Chip>
-        <Chip activeRecognizer={typeFilter === 'expense'} onClick={() => setTypeFilter(typeFilter === 'expense' ? 'todos' : 'expense')}>{t('filter.expenses')}</Chip>
-        <Chip activeRecognizer={typeFilter === 'income'} onClick={() => setTypeFilter(typeFilter === 'income' ? 'todos' : 'income')}>{t('filter.income')}</Chip>
-        <Chip activeRecognizer={statusFilter === 'pendientes'} onClick={() => setStatusFilter(statusFilter === 'pendientes' ? 'todos' : 'pendientes')}>{t('filter.pending')}</Chip>
-        <Chip activeRecognizer={statusFilter === 'pagados'} onClick={() => setStatusFilter(statusFilter === 'pagados' ? 'todos' : 'pagados')}>{t('filter.paid')}</Chip>
+        <Chip small activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos' && !cardOnly}
+          onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); setCardOnly(false); }}>{t('filter.all')}</Chip>
+        <Chip small activeRecognizer={typeFilter === 'expense'} onClick={() => setTypeFilter(typeFilter === 'expense' ? 'todos' : 'expense')}>{t('filter.expenses')}</Chip>
+        <Chip small activeRecognizer={typeFilter === 'income'} onClick={() => setTypeFilter(typeFilter === 'income' ? 'todos' : 'income')}>{t('filter.income')}</Chip>
+        <Chip small activeRecognizer={statusFilter === 'pendientes'} onClick={() => setStatusFilter(statusFilter === 'pendientes' ? 'todos' : 'pendientes')}>{t('filter.pending')}</Chip>
+        <Chip small activeRecognizer={statusFilter === 'pagados'} onClick={() => setStatusFilter(statusFilter === 'pagados' ? 'todos' : 'pagados')}>{t('filter.paid')}</Chip>
+        <Chip small activeRecognizer={cardOnly} onClick={() => setCardOnly(!cardOnly)}>{t('filter.card')}</Chip>
       </div>
     );
     return (
@@ -465,6 +472,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
           <div style={{ width: 220, flex: 'none' }}>
             <Segmented
               size="s"
+              labelSize={13}
               label={t('transactions.view')}
               value={calendarView ? 'calendario' : 'lista'}
               onChange={setView}
@@ -625,7 +633,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
       right={inSelection || searching ? undefined : nav}
     >
       {!inSelection && (
-        <div style={{ marginBottom: 'var(--gap-m)' }}>
+        <div>
           <Segmented
             label={t('transactions.view')}
             value={calendarView ? 'calendario' : 'lista'}
@@ -638,29 +646,38 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
         </div>
       )}
 
-      {calendarView ? <CalendarView year={cursor.y} month={cursor.m} /> : (<>
+      {calendarView ? <div style={{ marginTop: 18 }}><CalendarView year={cursor.y} month={cursor.m} /></div> : (<>
       {transactions.length > 0 && (
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('transactions.search')}
-          type="search"
+        <label
           style={{
-            width: '100%', minHeight: 'var(--tap)', padding: '0 14px', marginBottom: 'var(--gap-m)',
-            borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-            background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
+            display: 'flex', alignItems: 'center', gap: 8, height: 42, padding: '0 14px', marginTop: 14,
+            borderRadius: 12, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--text-faint)',
           }}
-        />
+        >
+          <IconSearch size={17} stroke={2} aria-hidden style={{ flex: 'none' }} />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('transactions.search')}
+            aria-label={t('transactions.search')}
+            type="search"
+            style={{
+              flex: 1, minWidth: 0, height: '100%', border: 'none', outline: 'none',
+              background: 'none', color: 'var(--text)', fontSize: 16, padding: 0,
+            }}
+          />
+        </label>
       )}
 
       {transactions.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--gap-m)', overflowX: 'auto', paddingBottom: 2 }}>
-          <Chip activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos'}
-            onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); }}>{t('filter.all')}</Chip>
+        <div className="noscroll" style={{ display: 'flex', gap: 8, margin: '12px calc(-1 * var(--gap-l)) 0', padding: '0 var(--gap-l)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          <Chip activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos' && !cardOnly}
+            onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); setCardOnly(false); }}>{t('filter.all')}</Chip>
           <Chip activeRecognizer={typeFilter === 'expense'} onClick={() => setTypeFilter(typeFilter === 'expense' ? 'todos' : 'expense')}>{t('filter.expenses')}</Chip>
           <Chip activeRecognizer={typeFilter === 'income'} onClick={() => setTypeFilter(typeFilter === 'income' ? 'todos' : 'income')}>{t('filter.income')}</Chip>
           <Chip activeRecognizer={statusFilter === 'pendientes'} onClick={() => setStatusFilter(statusFilter === 'pendientes' ? 'todos' : 'pendientes')}>{t('filter.pending')}</Chip>
           <Chip activeRecognizer={statusFilter === 'pagados'} onClick={() => setStatusFilter(statusFilter === 'pagados' ? 'todos' : 'pagados')}>{t('filter.paid')}</Chip>
+          <Chip activeRecognizer={cardOnly} onClick={() => setCardOnly(!cardOnly)}>{t('filter.card')}</Chip>
         </div>
       )}
 
@@ -671,20 +688,16 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
           against the edge. */}
       {!searching && transactions.length > 0 && (
         <div
-          style={{
-            padding: '10px 14px', marginBottom: 'var(--gap-m)',
-            background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)',
-          }}
+          className="figures"
+          style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, margin: '18px 2px 8px', fontSize: 13 }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {monthTotal.count} {monthTotal.count === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-md)', fontWeight: 700, marginTop: 2 }}>
-            <span className="figures" style={{ color: 'var(--positive-text)' }}>+ {formatMoney(monthTotal.income)}</span>
-            <span className="figures" style={{ color: 'var(--danger-text)' }}>− {formatMoney(monthTotal.expense)}</span>
-          </div>
+          <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+            {monthTotal.count} {monthTotal.count === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
+          </span>
+          <span style={{ display: 'flex', gap: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--positive-text)' }}>+ {formatMoney(monthTotal.income)}</span>
+            <span style={{ color: 'var(--danger-text)' }}>− {formatMoney(monthTotal.expense)}</span>
+          </span>
         </div>
       )}
 
@@ -705,7 +718,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
         groups.map((group) => {
           const isCollapsed = collapsed[group.key] === true;
           return (
-          <section key={group.key} style={{ marginBottom: 'var(--gap-l)' }}>
+          <section key={group.key} style={{ marginTop: 14 }}>
             {/* The header sits OUTSIDE the card, so the card only holds
                 rows and "Restante". It's a button: tapping it folds the
                 group, and the fold survives a reload (by period key). */}
@@ -715,42 +728,42 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
               aria-expanded={!isCollapsed}
               aria-label={fill(t('transactions.collapseGroup'), { group: group.label })}
               style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                minHeight: 'var(--tap)', padding: '0 4px', marginBottom: 4,
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                minHeight: 'var(--tap)', padding: '0 6px 10px',
                 background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
                 color: 'var(--text)',
               }}
             >
-              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />
-              <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: `var(${group.colorVar}-text)` }}>{group.label}</span>
-              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', flex: 1, minWidth: 0 }}>{group.rangeLabel}</span>
+              {/* Prototype 1a: open, a dot and the name over its range;
+                  folded, the dot goes and the remainder shows on the right. */}
+              {!isCollapsed && <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />}
+              <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <span style={{ fontWeight: 700, fontSize: 15, color: `var(${group.colorVar}-text)`, whiteSpace: 'nowrap' }}>{group.label}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{group.rangeLabel}</span>
+              </span>
+              {isCollapsed && (
+                <span className="figures" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, flex: 'none' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: group.balance.remainder >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
+                    {formatMoney(group.balance.remainder)}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+                    {fill(t('transactions.nTx'), { n: group.transactions.length })}
+                  </span>
+                </span>
+              )}
               <IconChevronDown
-                size={18}
+                size={16}
                 stroke={2}
                 aria-hidden
                 style={{
                   flex: 'none', color: 'var(--text-faint)',
-                  transform: isCollapsed ? 'rotate(-90deg)' : 'none',
+                  transform: isCollapsed ? 'none' : 'rotate(180deg)',
                   transition: 'transform var(--dur-fast) var(--ease-spring-out)',
                 }}
               />
             </button>
 
-            {isCollapsed ? (
-              <div
-                className="figures"
-                style={{
-                  background: 'var(--surface)', border: '1px solid var(--line)',
-                  borderRadius: 'var(--radius-card)', padding: '12px 16px',
-                  fontSize: 'var(--text-sm)', color: 'var(--text-muted)',
-                }}
-              >
-                {fill(t('transactions.collapsedSummary'), {
-                  n: group.transactions.length,
-                  amount: formatMoney(group.balance.remainder),
-                })}
-              </div>
-            ) : (
+            {isCollapsed ? null : (
             <div
               style={{
                 // Neutral surface, not a tinted block: the pay period's
@@ -760,8 +773,9 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                 background: 'var(--surface)',
                 border: '1px solid var(--line)',
                 borderRadius: 'var(--radius-card)',
-                padding: '4px 14px 4px',
+                overflow: 'hidden',
               }}
+              className="divided"
             >
 
               {group.transactions.map((tx) => (
@@ -777,8 +791,8 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                 />
               ))}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 8px' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('transactions.remaining')}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px', fontSize: 14 }}>
+                <span style={{ color: 'var(--text-muted)' }}>{t('transactions.remaining')}</span>
                 <span className="figures" style={{ fontWeight: 700, color: group.balance.remainder >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
                   {formatMoney(group.balance.remainder)}
                 </span>
@@ -845,7 +859,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
 
 const buttonText: React.CSSProperties = {
   border: 'none', background: 'none', color: 'var(--q10-text)',
-  fontSize: 'var(--text-sm)', fontWeight: 600, cursor: 'pointer',
+  fontSize: 15, fontWeight: 600, cursor: 'pointer',
   minHeight: 'var(--tap)', padding: '0 4px',
 };
 
@@ -866,8 +880,10 @@ function actionStyle(activeRecognizer: boolean, borde: string, text: string): Re
 }
 
 /** Filter chip. Toggles: tapping it again turns it off. */
-function Chip({ activeRecognizer, onClick, children }: {
+function Chip({ activeRecognizer, onClick, children, small = false }: {
   activeRecognizer: boolean; onClick: () => void; children: React.ReactNode;
+  /** Desktop table (prototype 2a): 32px, 13px. */
+  small?: boolean;
 }) {
   return (
     <button
@@ -875,11 +891,11 @@ function Chip({ activeRecognizer, onClick, children }: {
       onClick={onClick}
       aria-pressed={activeRecognizer}
       style={{
-        flex: 'none', minHeight: 34, padding: '0 14px', borderRadius: 999,
+        flex: 'none', minHeight: small ? 32 : 34, padding: small ? '0 13px' : '0 14px', borderRadius: 999,
         border: `1px solid ${activeRecognizer ? 'var(--text)' : 'var(--line-strong)'}`,
         background: activeRecognizer ? 'var(--text)' : 'transparent',
-        color: activeRecognizer ? 'var(--paper)' : 'var(--text)',
-        fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
+        color: activeRecognizer ? 'var(--paper)' : 'var(--text-muted)',
+        fontWeight: 600, fontSize: small ? 13 : 14, cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
     >

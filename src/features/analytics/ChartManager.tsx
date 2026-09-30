@@ -1,7 +1,7 @@
 import { useT } from '@/i18n/language';
 import { useState } from 'react';
 import {
-  IconArrowDown, IconArrowUp, IconEye, IconEyeOff, IconLayoutGrid, IconX,
+  IconArrowDown, IconArrowUp, IconEye, IconEyeOff, IconX,
 } from '@tabler/icons-react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import {
@@ -35,17 +35,17 @@ export function ChartManager({ layout, titles, onChange }: {
         type="button"
         onClick={() => setAbierto(true)}
         style={{
-          width: '100%', minHeight: 50, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', gap: 8, margin: '4px 0 14px',
+          width: '100%', height: 48, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: 4, margin: '0 0 14px',
           borderRadius: 16, border: '1px solid var(--line-strong)',
-          background: 'transparent', color: 'var(--text)',
-          fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
+          background: 'transparent', color: 'var(--text-muted)',
+          fontWeight: 600, fontSize: 14, cursor: 'pointer',
         }}
+        className="row-hover"
       >
-        <IconLayoutGrid size={17} stroke={1.75} aria-hidden />
         {t('analytics.organize')}
         {hiddenCount > 0 && (
-          <span style={{ color: 'var(--text-faint)' }}>· {hiddenCount} {hiddenCount === 1 ? t('analytics.hidden') : t('analytics.hiddenPl')}</span>
+          <span> · {hiddenCount} {hiddenCount === 1 ? t('analytics.hidden') : t('analytics.hiddenPl')}</span>
         )}
       </button>
     );
@@ -66,29 +66,30 @@ export function ChartManager({ layout, titles, onChange }: {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+          borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
           maxHeight: '85vh', overflowY: 'auto',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 12px' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontWeight: 700, fontSize: 19 }}>{t('analytics.organize')}</span>
           <button
             type="button"
             onClick={() => setAbierto(false)}
             aria-label={t('action.close')}
             style={{
-              width: 32, height: 32, borderRadius: 16, border: 'none', display: 'grid',
+              width: 30, height: 30, borderRadius: 15, border: 'none', display: 'grid',
               placeItems: 'center', background: 'var(--surface-sunken)',
               color: 'var(--text-muted)', cursor: 'pointer', flex: 'none',
             }}
           >
-            <IconX size={17} stroke={2.2} aria-hidden />
+            <IconX size={15} stroke={2} aria-hidden />
           </button>
-          <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{t('analytics.organize')}</span>
         </div>
+        <p style={{ margin: '2px 0 14px', fontSize: 13, color: 'var(--text-muted)' }}>{t('analytics.organizeNote')}</p>
 
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
+        <ul className="divided" style={{ listStyle: 'none', margin: 0, padding: 0, background: 'var(--paper)', borderRadius: 16, overflow: 'hidden' }}>
           {layout.order.map((id, i) => {
             const hidden = layout.hiddenIds.includes(id);
             return (
@@ -96,10 +97,10 @@ export function ChartManager({ layout, titles, onChange }: {
                 key={id}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, padding: '8px 8px 8px 14px',
-                  borderRadius: 14, background: 'var(--paper)', opacity: hidden ? 0.45 : 1,
+                  opacity: hidden ? 0.45 : 1,
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 'var(--text-base)' }}>
+                <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 14 }}>
                   {titles[id]}
                 </span>
 
@@ -138,10 +139,10 @@ export function ChartManager({ layout, titles, onChange }: {
             onChange(base);
           }}
           style={{
-            width: '100%', minHeight: 'var(--tap)', marginTop: 14,
-            borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-            background: 'var(--surface)', color: 'var(--text-muted)',
-            fontWeight: 600, cursor: 'pointer',
+            width: '100%', height: 46, marginTop: 14,
+            borderRadius: 14, border: '1px solid var(--line-strong)',
+            background: 'none', color: 'var(--text-muted)',
+            fontWeight: 600, fontSize: 14, cursor: 'pointer',
           }}
         >
           {t('analytics.originalOrder')}

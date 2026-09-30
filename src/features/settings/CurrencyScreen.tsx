@@ -2,8 +2,11 @@ import { IconCheck } from '@tabler/icons-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
-import { CURRENCIES, currencySample } from '@/domain/money/currencies';
-import { DEFAULT_QUICK_CURRENCIES, flagOf } from '@/lib/currencies';
+import { CURRENCIES as OPTIONS, currencySample } from '@/domain/money/currencies';
+import { CURRENCIES as ORDER, DEFAULT_QUICK_CURRENCIES, flagOf } from '@/lib/currencies';
+
+// The prototype's order: the three everyone uses first (COP, USD, EUR).
+const CURRENCIES = ORDER.map((o) => OPTIONS.find((c) => c.code === o.code)).filter((c) => c !== undefined);
 import { useLanguage } from '@/i18n/language';
 import { fill } from '@/lib/dateLabels';
 import { SettingsGroup, noteStyle, rowStyle, useSettingsBack } from './ui';
@@ -50,10 +53,10 @@ export function CurrencyScreen() {
             >
               <span aria-hidden style={{ fontSize: 22, lineHeight: 1, flex: 'none' }}>{flagOf(c.code)}</span>
               <span style={{ flex: 1, padding: '8px 0' }}>
-                <span style={{ display: 'block', fontSize: 'var(--text-md)', fontWeight: active ? 600 : 400 }}>
+                <span style={{ display: 'block', fontSize: 16 }}>
                   {names?.of(c.code) ?? c.label}
                 </span>
-                <span className="figures" style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>
                   {c.code} · {currencySample(c)}
                 </span>
               </span>
@@ -83,9 +86,9 @@ export function CurrencyScreen() {
               style={{
                 height: 38, padding: '0 14px 0 10px', borderRadius: 19, display: 'flex', alignItems: 'center', gap: 6,
                 border: `1px solid ${on ? 'var(--q10)' : 'var(--line-strong)'}`,
-                background: on ? 'var(--q10-soft)' : 'transparent',
-                color: on ? 'var(--q10-text)' : 'var(--text)',
-                fontWeight: 700, fontSize: 'var(--text-sm)', cursor: full ? 'not-allowed' : 'pointer',
+                background: on ? 'var(--q10-soft)' : 'var(--paper)',
+                color: 'var(--text)',
+                fontWeight: 700, fontSize: 13, cursor: full ? 'not-allowed' : 'pointer',
                 opacity: full ? 0.45 : 1,
               }}
             >

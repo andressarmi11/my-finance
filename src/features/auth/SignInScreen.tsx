@@ -159,6 +159,7 @@ function SignInForm() {
               way to tell them apart. Hence "Ya tengo cuenta" ≠ "Entrar"
               and "Crear cuenta" ≠ "Crear mi cuenta". */}
           <Segmented
+            inset
             label={t('login.modeGroup')}
             value={mode}
             onChange={(m) => switchTo(m)}
@@ -208,14 +209,26 @@ function SignInForm() {
         {mode === 'crear' && (
           <>
             <PasswordStrength value={key} />
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
-              <input
-                id={termsId}
-                type="checkbox" required checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)}
-                style={{ width: 20, height: 20, margin: '1px 0 0', flex: 'none', accentColor: 'var(--q10)', cursor: 'pointer' }}
-              />
-              <label htmlFor={termsId} style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+              {/* A real checkbox, drawn as the prototype's 24px rounded square. */}
+              <span style={{ position: 'relative', width: 24, height: 24, flex: 'none' }}>
+                <input
+                  id={termsId}
+                  type="checkbox" required checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', margin: 0, opacity: 0, cursor: 'pointer' }}
+                />
+                <span aria-hidden style={{
+                  width: 24, height: 24, borderRadius: 7, display: 'grid', placeItems: 'center', pointerEvents: 'none',
+                  border: `1.5px solid ${accepted ? 'var(--q10)' : 'var(--line-strong)'}`,
+                  background: accepted ? 'var(--q10)' : 'var(--surface)', color: 'var(--on-accent)',
+                }}>
+                  {accepted && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5l10 -10" /></svg>
+                  )}
+                </span>
+              </span>
+              <label htmlFor={termsId} style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5, cursor: 'pointer' }}>
                 {t('login.acceptPrefix')}{' '}
                 {/* A new tab: leaving would throw away what's typed. */}
                 <Link to="/legal/terminos" target="_blank" rel="noopener" style={legalLink}>{t('login.terms')}</Link>
@@ -264,16 +277,19 @@ function SignInForm() {
         <button
           type="submit"
           disabled={disabled}
+          // The prototype writes "Crear cuenta" here too; the accessible name
+          // stays "Crear mi cuenta" so it can't be confused with the tab.
+          aria-label={mode === 'crear' && !busy ? t('login.submitSignUp') : undefined}
           style={{
             marginTop: 14, width: '100%', minHeight: 54, borderRadius: 16, border: 'none',
             background: disabled ? 'var(--surface-sunken)' : 'var(--q10)',
-            color: disabled ? 'var(--text-faint)' : 'var(--on-accent)',
+            color: disabled ? 'var(--text-dim)' : 'var(--on-accent)',
             fontWeight: 700, fontSize: 16, cursor: disabled ? 'default' : 'pointer',
             transition: 'background var(--dur-fast) var(--ease-spring-out), color var(--dur-fast) var(--ease-spring-out)',
           }}
         >
           {busy ? t('auth.oneMoment')
-            : mode === 'crear' ? t('login.submitSignUp')
+            : mode === 'crear' ? t('auth.createAccount')
             : mode === 'olvide' ? t('auth.sendLink')
             : t('auth.signIn')}
         </button>
@@ -288,10 +304,17 @@ function SignInForm() {
         </button>
       )}
 
+      {/* On a phone, two lines at the bottom (prototype 1a); on a desktop
+          the brand panel says it, and carries the legal links. */}
+      {!desktop && <>
       <div style={{ flex: 1, minHeight: 24 }} />
       <p style={{ margin: 0, fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.5 }}>
         {t('login.footer')}
       </p>
+      <p style={{ margin: '18px 0 0', fontSize: 12, color: 'var(--text-faint)', textAlign: 'center', lineHeight: 1.5 }}>
+        {t('login.noTrackingTitle')}
+      </p>
+      </>}
     </>
   );
 }

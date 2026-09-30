@@ -1,13 +1,23 @@
-import { useState } from 'react';
-import { useDialogo } from '@/components/ui/useDialogo';
+import { IconX } from '@tabler/icons-react';
+import { useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useNavigate } from 'react-router-dom';
+import { useDialogo } from '@/components/ui/useDialogo';
+import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { localRepository } from '@/data/local/localRepository';
 import type { Transaction } from '@/domain/types';
 import type { Outstanding } from '@/domain/totals/outstanding';
 import { formatMoney } from '@/domain/money/format';
+import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
+import { compareISO } from '@/domain/dates';
+import { shortDay } from '@/lib/formatShortDate';
+import { EMPTY } from '@/lib/empty';
 import { useT } from '@/i18n/language';
+import { relevantDate } from './upcoming';
 
 /**
- * Breakdown sheet for the "Por pagar" chip.
+ * Breakdown of "Falta pagar" (prototype 1a, "Desglose"): the total, how it
+ * splits into pending / scheduled / on card, and what's in it.
  *
  * Receives the breakdown ALREADY computed, with disjoint sets. It used to
  * receive three overlapping lists and sum them again here, so it showed
@@ -23,12 +33,16 @@ export function ToPaySheet({
 }) {
   const t = useT();
   const navigate = useNavigate();
-  const [showHelp, setShowHelp] = useState(false);
+  const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
+  const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const { pending, scheduled, onCard: enTC } = toPay;
-  const sum = (arr: Transaction[]) => arr.reduce((a, t) => a + t.amount, 0);
-  const total = toPay.count;
-  const totalAmount = toPay.amount;
+  const { pending, scheduled, onCard } = toPay;
+  const rows = useMemo(
+    () => [...pending, ...scheduled, ...onCard].sort((a, b) => compareISO(relevantDate(a), relevantDate(b))),
+    [pending, scheduled, onCard],
+  );
+
+  const go = (to: string) => { navigate(to); onClose(); };
 
   const dialogRef = useDialogo(onClose);
   return (
@@ -54,89 +68,107 @@ export function ToPaySheet({
           maxWidth: 560,
           margin: '0 auto',
           background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0',
-          padding: '10px 16px calc(var(--safe-bottom) + 16px)',
+          borderRadius: '28px 28px 0 0',
+          padding: '10px 20px calc(var(--safe-bottom) + 30px)',
+          maxHeight: 'calc(100% - 54px)',
+          overflowY: 'auto',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 14px' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{t('toPay.title')}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0, fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>{t('toPay.thisMonth')}</h2>
           <button
             type="button"
-            onClick={() => setShowHelp(!showHelp)}
-            aria-label={t('toPay.whatDoTheseMean')}
+            onClick={onClose}
+            aria-label={t('action.close')}
             style={{
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              border: '1px solid var(--line-strong)',
-              background: 'var(--surface)',
-              color: 'var(--text-muted)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
+              width: 30, height: 30, borderRadius: 15, border: 'none', cursor: 'pointer',
+              background: 'var(--surface-sunken)', color: 'var(--text-muted)', display: 'grid', placeItems: 'center',
             }}
           >
-            ?
+            <IconX size={15} stroke={2} aria-hidden />
           </button>
         </div>
+        <div
+          className="figures"
+          style={{ fontSize: 36, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--danger-text)', marginTop: 2 }}
+        >
+          {formatMoney(toPay.amount)}
+        </div>
 
-        {showHelp && (
-          <div style={{ background: 'var(--surface-sunken)', borderRadius: 'var(--radius-s)', padding: '12px 14px', marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>
-            <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>{t('toPay.pendingLabel')}</strong> {t('toPay.pendingHelp')}
-            </p>
-            <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>{t('toPay.scheduledLabel')}</strong> {t('toPay.scheduledHelp')}
-            </p>
-            <p style={{ margin: 0 }}>
-              <strong style={{ color: 'var(--text)' }}>{t('toPay.onCardLabel')}</strong> {t('toPay.onCardHelp')}
-            </p>
-          </div>
-        )}
+        {/* The three kinds, each a way into its own list. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, margin: '16px 0' }}>
+          <Stat
+            count={pending.length}
+            label={t('toPay.pendingRow')}
+            title={t('toPay.pendingHelp')}
+            onClick={() => go('/movimientos?estado=pending')}
+          />
+          <Stat
+            count={scheduled.length}
+            label={t('toPay.scheduledRow')}
+            title={t('toPay.scheduledHelp')}
+            onClick={() => go('/movimientos?estado=scheduled')}
+          />
+          <Stat
+            count={onCard.length}
+            label={t('toPay.onCardRow')}
+            title={t('toPay.onCardHelp')}
+            onClick={() => go('/tarjeta')}
+          />
+        </div>
 
-        <BreakdownRow label={t('toPay.pendingRow')} count={pending.length} amount={sum(pending)} onClick={() => { navigate('/movimientos?estado=pending'); onClose(); }} />
-        <BreakdownRow label={t('toPay.scheduledRow')} count={scheduled.length} amount={sum(scheduled)} onClick={() => { navigate('/movimientos?estado=scheduled'); onClose(); }} />
-        <BreakdownRow label={t('toPay.onCardRow')} count={enTC.length} amount={sum(enTC)} onClick={() => { navigate('/tarjeta'); onClose(); }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 8px 4px', borderTop: '1px solid var(--line-strong)', marginTop: 4 }}>
-          <span style={{ fontWeight: 700 }}>{t('toPay.total')}</span>
-          <span className="figures" style={{ fontWeight: 700 }}>
-            {total} · {formatMoney(totalAmount)}
-          </span>
+        <div className="divided" style={{ background: 'var(--paper)', borderRadius: 18, overflow: 'hidden' }}>
+          {rows.map((tx) => <Row key={tx.id} tx={tx} category={tx.categoryId ? categoryById.get(tx.categoryId) : undefined} />)}
+          {rows.length === 0 && (
+            <div style={{ padding: 18, textAlign: 'center', color: 'var(--positive-text)', fontSize: 14, fontWeight: 600 }}>
+              {t('toPay.allPaid')}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function BreakdownRow({ label, count, amount, onClick }: { label: string; count: number; amount: number; onClick: () => void }) {
+function Stat({ count, label, title, onClick }: { count: number; label: string; title: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
+      className="row-hover"
       style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '12px 8px',
-        background: 'none',
-        border: 'none',
-        borderBottom: '1px solid var(--line)',
-        cursor: 'pointer',
-        textAlign: 'left',
-        color: 'var(--text)',
+        border: 'none', borderRadius: 14, padding: '10px 12px', textAlign: 'left', cursor: 'pointer',
+        background: 'var(--surface-sunken)', color: 'var(--text)',
       }}
     >
-      <span>{label}</span>
-      <span className="figures" style={{ color: 'var(--text-muted)' }}>
-        <span style={{ marginRight: 12 }}>{count}</span>
-        <span style={{ color: 'var(--text)', fontWeight: 600 }}>{formatMoney(amount)}</span>
-        <span style={{ marginLeft: 8, color: 'var(--text-faint)' }}>›</span>
+      <span className="figures" style={{ display: 'block', fontSize: 20, fontWeight: 700, color: count === 0 ? 'var(--text-faint)' : 'var(--text)' }}>
+        {count}
       </span>
+      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{label}</span>
     </button>
+  );
+}
+
+function Row({ tx, category }: { tx: Transaction; category: import('@/domain/types').Category | undefined }) {
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px' }}>
+      <CategoryAvatar
+        icon={category?.icon ?? 'other'}
+        color={category ? categoryColor(category) : UNCATEGORIZED_COLOR}
+        size={34}
+      />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontSize: 15, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {tx.concept}
+        </span>
+        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{shortDay(relevantDate(tx))}</span>
+      </span>
+      <span className="figures" style={{ flex: 'none', fontWeight: 700, fontSize: 15 }}>{formatMoney(tx.amount)}</span>
+    </div>
   );
 }

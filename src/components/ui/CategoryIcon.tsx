@@ -119,7 +119,8 @@ export function CategoryAvatar({ icon, color, size = 38 }: {
         flex: 'none',
         width: size,
         height: size,
-        borderRadius: size / 2.6,
+        // 12px on the 38px tile, as in the prototype (§0).
+        borderRadius: Math.round(size * 0.32),
         display: 'grid',
         placeItems: 'center',
         background: `color-mix(in srgb, ${color} 14%, transparent)`,

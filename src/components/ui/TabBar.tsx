@@ -1,6 +1,5 @@
 import { useT } from '@/i18n/language';
-import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
-import { useState, type ComponentType } from 'react';
+import { useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
@@ -14,9 +13,10 @@ import { useBreakpoint } from '@/app/useBreakpoint';
  */
 export const TABS = [
   // The KEY is stored, not the text: the text depends on the active language.
-  { to: '/', key: 'nav.home', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
-  { to: '/analisis', key: 'nav.analytics', icon: 'M5 20V10M12 20V4M19 20v-7' },
-  { to: '/ajustes', key: 'nav.settings', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
+  // The prototype's own icon paths (a house, three bars, two sliders).
+  { to: '/', key: 'nav.home', icon: 'M5 12l-2 0l9 -9l9 9l-2 0 M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7' },
+  { to: '/analisis', key: 'nav.analytics', icon: 'M5 20V11M12 20V4M19 20v-7' },
+  { to: '/ajustes', key: 'nav.settings', icon: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4' },
 ] as const;
 
 export function TabBar() {
@@ -266,32 +266,38 @@ function QuickActionSheet({
           maxWidth: 560,
           margin: '0 auto',
           background: 'var(--surface)',
-          borderRadius: '20px 20px 0 0',
-          padding: '10px 16px calc(var(--safe-bottom) + 16px)',
+          borderRadius: '28px 28px 0 0',
+          padding: '10px 16px calc(var(--safe-bottom) + 20px)',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 12px' }} />
+        {/* Prototype 1a: each action in its own colour, the same paths. */}
         <ActionRow
-          icono={IconMicrophone}
+          icon="M9 5a3 3 0 0 1 3 -3a3 3 0 0 1 3 3v5a3 3 0 0 1 -3 3a3 3 0 0 1 -3 -3z M5 10a7 7 0 0 0 14 0 M8 21l8 0 M12 17l0 4"
+          tone="var(--q10)"
+          first
           label={t('action.tellIt')}
           sub={t('action.tellItSub')}
           onClick={() => onSelect('hablar')}
         />
         <ActionRow
-          icono={IconTrendingDown}
+          icon="M3 7l6 6l4 -4l8 8 M21 10l0 7l-7 0"
+          tone="var(--danger)"
           label={t('action.newExpense')}
           sub={t('action.newExpenseSub')}
           onClick={() => onSelect('gasto')}
         />
         <ActionRow
-          icono={IconCurrencyDollar}
+          icon="M3 17l6 -6l4 4l8 -8 M14 7l7 0l0 7"
+          tone="var(--positive)"
           label={t('action.newIncome')}
           sub={t('action.newIncomeSub')}
           onClick={() => onSelect('ingreso')}
         />
         <ActionRow
-          icono={IconRepeat}
+          icon="M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3 M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3"
+          tone="var(--q25)"
           label={t('action.newRecurring')}
           sub={t('action.newRecurringSub')}
           onClick={() => onSelect('recurrente')}
@@ -302,8 +308,8 @@ function QuickActionSheet({
           style={{
             width: '100%',
             marginTop: 8,
-            minHeight: 48,
-            borderRadius: 'var(--radius-s)',
+            minHeight: 50,
+            borderRadius: 16,
             border: 'none',
             background: 'var(--surface-sunken)',
             color: 'var(--text)',
@@ -319,8 +325,8 @@ function QuickActionSheet({
   );
 }
 
-function ActionRow({ icono: Icono, label, sub, onClick }: {
-  icono: ComponentType<IconProps>; label: string; sub: string; onClick: () => void;
+function ActionRow({ icon, tone, label, sub, onClick, first = false }: {
+  icon: string; tone: string; label: string; sub: string; onClick: () => void; first?: boolean;
 }) {
   return (
     <button
@@ -333,11 +339,11 @@ function ActionRow({ icono: Icono, label, sub, onClick }: {
         width: '100%',
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
-        padding: '12px 8px',
+        gap: 14,
+        padding: '12px 6px',
         background: 'none',
         border: 'none',
-        borderBottom: '1px solid var(--line)',
+        borderTop: first ? 'none' : '1px solid var(--line)',
         cursor: 'pointer',
         textAlign: 'left',
         color: 'var(--text)',
@@ -346,17 +352,19 @@ function ActionRow({ icono: Icono, label, sub, onClick }: {
       <span
         aria-hidden
         style={{
-          flex: 'none', width: 40, height: 40, borderRadius: 12, display: 'grid',
-          placeItems: 'center', background: 'var(--surface-sunken)', color: 'var(--text)',
+          flex: 'none', width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center',
+          background: `color-mix(in srgb, ${tone} 13%, transparent)`, color: tone,
         }}
       >
-        <Icono size={21} stroke={1.75} />
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d={icon} />
+        </svg>
       </span>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 'var(--text-md)', fontWeight: 600 }}>{label}</div>
-        <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{sub}</div>
-      </div>
-      <span style={{ color: 'var(--text-faint)', fontSize: 20 }}>›</span>
+      <span style={{ flex: 1 }}>
+        <span style={{ display: 'block', fontSize: 16, fontWeight: 600 }}>{label}</span>
+        <span style={{ display: 'block', fontSize: 13, color: 'var(--text-muted)' }}>{sub}</span>
+      </span>
+      <span aria-hidden style={{ color: 'var(--text-dim)', fontSize: 18 }}>›</span>
     </button>
   );
 }

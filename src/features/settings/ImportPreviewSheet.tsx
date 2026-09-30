@@ -17,8 +17,8 @@ export function ImportPreviewSheet({ preview, onConfirm, onCancel }: {
       style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 60 }}
       onClick={onCancel}
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)' }}>
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+      <div onClick={(e) => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)', borderRadius: '28px 28px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)' }}>
+        <div style={{ width: 36, height: 5, borderRadius: 3, background: 'var(--handle)', margin: '0 auto 16px' }} />
         <p style={{ fontWeight: 700, margin: '0 0 6px' }}>{t('import.contains')}</p>
         <ul style={{ margin: '0 0 12px', paddingLeft: 18, color: 'var(--text-muted)', fontSize: 14 }}>
           <li>{preview.transactions} {t('set.importTransactions')}</li>
