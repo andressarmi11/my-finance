@@ -1,8 +1,6 @@
 import { db } from '../db';
 import type { Repository } from '../repository';
 import type { Settings } from '@/domain/types';
-import { importBackup } from '../backup/exportImport';
-import { BackupSchema } from '../backup/schema';
 import { normalize } from '@/domain/inference/conceptInference';
 import { makeTombstone, type DeletableEntity } from '../sync/tombstones';
 import { removableOnRuleDelete } from '@/domain/recurring/propagate';
@@ -189,6 +187,10 @@ const baseRepository: Repository = {
   },
 
   async importAll(data) {
+    // Loaded on demand: the backup code and zod stay out of the first download.
+    const [{ BackupSchema }, { importBackup }] = await Promise.all([
+      import('../backup/schema'), import('../backup/exportImport'),
+    ]);
     const parsed = BackupSchema.parse(data); // the caller (UI) should already have validated with parseBackupFile
     await importBackup(parsed);
   },

@@ -3,19 +3,24 @@ import { IconDownload, IconUpload } from '@tabler/icons-react';
 import { Screen } from '@/components/ui/Screen';
 import { useT } from '@/i18n/language';
 import type { TextKey } from '@/i18n/texts';
-import {
-  exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, importBackup, parseBackupFile, type BackupPreview,
-} from '@/data/backup/exportImport';
+import type { BackupPreview } from '@/data/backup/exportImport';
 import type { Backup } from '@/data/backup/schema';
+
+/**
+ * The backup code (with zod, its validator) loads only when an export or an
+ * import is actually used: it was ~a third of the first download for a
+ * screen most people open once a month.
+ */
+const backupModule = () => import('@/data/backup/exportImport');
 import { ImportPreviewSheet } from './ImportPreviewSheet';
 import { SettingsGroup, noteStyle, rowStyle, useSettingsBack } from './ui';
 
 type Kind = 'json' | 'csv' | 'xlsx';
 
 const EXPORTS: Array<{ kind: Kind; label: TextKey; sub: TextKey; badge: string; tint: string; run: () => Promise<unknown> }> = [
-  { kind: 'json', label: 'settings.exportJSON', sub: 'set.exportJsonSub', badge: '{ }', tint: 'var(--q10)', run: exportBackupJSON },
-  { kind: 'csv', label: 'settings.exportCSV', sub: 'set.exportCsvSub', badge: 'CSV', tint: 'var(--positive)', run: exportTransactionsCSV },
-  { kind: 'xlsx', label: 'settings.exportExcel', sub: 'set.exportXlsxSub', badge: 'XLS', tint: 'var(--positive)', run: exportBackupXLSX },
+  { kind: 'json', label: 'settings.exportJSON', sub: 'set.exportJsonSub', badge: '{ }', tint: 'var(--q10)', run: async () => (await backupModule()).exportBackupJSON() },
+  { kind: 'csv', label: 'settings.exportCSV', sub: 'set.exportCsvSub', badge: 'CSV', tint: 'var(--positive)', run: async () => (await backupModule()).exportTransactionsCSV() },
+  { kind: 'xlsx', label: 'settings.exportExcel', sub: 'set.exportXlsxSub', badge: 'XLS', tint: 'var(--positive)', run: async () => (await backupModule()).exportBackupXLSX() },
 ];
 
 /**
@@ -42,7 +47,7 @@ export function DataScreen() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    const result = parseBackupFile(await file.text());
+    const result = (await backupModule()).parseBackupFile(await file.text());
     if (!result.success) {
       setImportState({ status: 'error', message: result.error });
       return;
@@ -54,7 +59,7 @@ export function DataScreen() {
     if (importState.status !== 'preview') return;
     setBusy('import');
     try {
-      await importBackup(importState.backup);
+      await (await backupModule()).importBackup(importState.backup);
       setImportState({ status: 'idle' });
     } finally {
       setBusy(null);

@@ -27,9 +27,9 @@ select cron.schedule(
     url := 'https://TU-PROYECTO.supabase.co/functions/v1/send-reminders',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
-      -- Usar el secret guardado en Vault, no la key en texto plano:
-      -- 'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
-      'Authorization', 'Bearer REEMPLAZAR_CON_TU_CRON_SECRET'
+      -- El secret sale de Vault (guárdalo antes con vault.create_secret), nunca
+      -- en texto plano: quedaría legible en cron.job.
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
     ),
     body := '{}'::jsonb,
     timeout_milliseconds := 30000

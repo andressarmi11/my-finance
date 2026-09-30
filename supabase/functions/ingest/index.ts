@@ -34,6 +34,8 @@ const ORIGENES = new Set(['sms', 'dictado', 'atajo']);
 const MAX_PER_MINUTE = 20;
 // And a ceiling on what's waiting: past this nobody is reviewing them.
 const MAX_PENDING = 300;
+// 2.000 characters of text plus the token and JSON punctuation, with room.
+const MAX_BODY_BYTES = 16 * 1024;
 
 async function sha256Hex(texto: string): Promise<string> {
   const datos = new TextEncoder().encode(texto);
@@ -70,6 +72,11 @@ Deno.serve(async (req) => {
       origen: url.searchParams.get('origen') ?? undefined,
     };
   } else if (req.method === 'POST') {
+    // Refuse oversized bodies BEFORE parsing them: the text is capped at
+    // 2.000 characters anyway, and parsing megabytes of JSON is billed CPU.
+    if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) {
+      return responder(413, { error: 'El cuerpo es demasiado grande.' });
+    }
     try {
       datos = await req.json();
     } catch {

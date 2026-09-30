@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] — Cost and security audit
+
+Reports: `docs/auditoria/COSTOS.md` and `docs/auditoria/SEGURIDAD.md`.
+No critical or high findings. Only changes that users can't see were applied;
+everything that changes behaviour, data or infrastructure waits for approval.
+
+### Changed
+- Exchange-rate request gives up after 8 s and falls back to the cached table.
+- `ingest` Edge Function refuses bodies over 16 KB (413) before parsing them.
+- `send-reminders` logs only the push status code, not the error object
+  (which carried the device's push endpoint).
+- The backup code and `zod` load only when exporting or importing (−27 KB
+  gzip on the first load).
+- The manual cron template reads the secret from Vault instead of a
+  plain-text placeholder.
+
+### Removed
+- `recharts` dependency (unused since the Analytics redesign).
+
 ## [Unreleased] — Redesign v4, phase 6: Settings
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,

@@ -16,6 +16,7 @@ import { todayISO } from './todayISO';
  */
 export const FX_ENDPOINT = 'https://open.er-api.com/v6/latest/';
 const CACHE_KEY = 'fx.daily';
+const FETCH_TIMEOUT_MS = 8_000;
 
 export interface RateTable {
   /** Main currency the table is based on. */
@@ -74,7 +75,11 @@ export function loadRates(base: string, today = todayISO()): Promise<RateTable |
   const key = `${base}|${today}`;
   let p = inFlight.get(key);
   if (!p) {
-    p = fetch(`${FX_ENDPOINT}${encodeURIComponent(base)}`)
+    // A rates API that never answers must not leave the sheet on "Trayendo
+    // la tasa…" forever: give up after FETCH_TIMEOUT_MS and use the cache.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    p = fetch(`${FX_ENDPOINT}${encodeURIComponent(base)}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((json) => {
         const table = tableFromApi(base, today, json);
@@ -82,7 +87,7 @@ export function loadRates(base: string, today = todayISO()): Promise<RateTable |
         return table ?? cached;
       })
       .catch(() => cached)
-      .finally(() => inFlight.delete(key));
+      .finally(() => { clearTimeout(timer); inFlight.delete(key); });
     inFlight.set(key, p);
   }
   return p;
