@@ -1,5 +1,58 @@
 # Changelog
 
+## [Unreleased] — Redesign v4: visual polish against the prototype
+
+The phases implemented `REDISENO.md`; this pass compares every screen with
+the prototype (`Step Up Rediseno.dc.html`, rendered locally) at 390px and
+1440px, in Spanish and English, and closes the gaps: sizes, weights,
+colours, spacing, labels and element order.
+
+### Changed
+- Home: month pill with grey arrows (34px phone, 40px desktop), hero line at
+  400, "$" top-aligned like a superscript, flow cells at 12/17px with zeros
+  in grey, 19px "Falta este mes", 38px avatars and 26px checks.
+- Transactions: the month beside the title, search with its icon, 14px
+  filter chips (and a new "Tarjeta" chip: credit-card purchases only), the
+  count and totals on one line, pay-period headers with the range underneath
+  and the remainder when folded, rows at 11px/14px with dividers.
+- Months and dates written as in the prototype: "Sep", "1 Oct",
+  "29 de Septiembre", "10 – 24 Sep"; in English "Sep 29", "Sep 10 – 24".
+- Calendar in its own card; out-of-month days dimmed; the day's list with
+  category subtitles and a dashed "Nada este día".
+- Every sheet: 28px corners and a 36×5 handle. The + menu with coloured
+  icon tiles. New expense: the sheet's own keypad (the amount stays a real
+  input), the concept as centred text, category chips with coloured icons,
+  method and date on one row, and a bell before the reminder chips.
+  "Contarle a la app": mic label, the reading as the row it will become.
+  "Falta pagar": the total, three counters and the list.
+- New recurring: the same sheet as a new expense (Gasto | Ingreso, "Cada
+  mes, el día", keypad); frequency, schedule, dates and "active" in "Más
+  opciones".
+- Analytics: the period navigator beside the title, "+$" in colour with the
+  figure in white, "Ingresos $X  Gastos $Y", foldable cards at 16/13px,
+  "Presupuestos" with "Llevas 4,2M de 4,7M", split-bar legends as in the
+  prototype, "Orden original".
+- Settings: text chevrons, values in 14px, the prototype's icons, Legal as a
+  pushed sub-screen on the phone. Sub-screens: currencies in the prototype's
+  order, reminders with "Cuándo", compact steppers and the "Así te llega"
+  notification, payment methods with "sale al instante" / "corte 15, paga
+  el 2" / "sin fechas", budgets with the month beside the title.
+- Desktop: header aligned to the title, 13px chips and tabs, pending in
+  grey, Ajustes as a plain list of 40px rows with each sub-screen in a card,
+  the profile as cards, the new-transaction dialog with "Moneda /
+  Categoría / Método de pago / Aviso" labels and the prototype's mini
+  calendar; the sign-in panel with the legal links at its foot.
+- Sign-in: blue logo tile, inset tabs, a drawn checkbox, "Crear cuenta" on
+  the button (its accessible name stays "Crear mi cuenta").
+- English labels aligned with the prototype's ("To pay", "Pay period 25",
+  "Analytics", "Pending", "Remaining", "Left for September"…), US spelling.
+
+### Tests
+- Updated the E2E whose labels or layout changed on purpose (placeholders,
+  "Nuevo método", "Orden original", the analytics navigator beside the
+  title, export rows named "JSON / CSV / Excel", the reminder "A las",
+  English strings); none removed.
+
 ## [Unreleased] — Redesign v4, phase 10: language
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 10; §11 item 12).
