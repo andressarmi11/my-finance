@@ -1,6 +1,7 @@
 import { Suspense, lazy } from 'react';
 import { Navigate, createBrowserRouter, useLocation } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
+import { translate } from '@/i18n/language';
 import { LegalLayout } from './LegalLayout';
 import { ErrorBoundary } from './ErrorBoundary';
 import { DashboardScreen } from '@/features/dashboard/DashboardScreen';
@@ -41,7 +42,7 @@ function MovimientosRoute() {
 }
 
 function LazyFallback() {
-  return <div style={{ padding: 'var(--gap-l)', color: 'var(--text-faint)' }}>Cargando…</div>;
+  return <div style={{ padding: 'var(--gap-l)', color: 'var(--text-faint)' }}>{translate('home.loading')}</div>;
 }
 
 export const router = createBrowserRouter(

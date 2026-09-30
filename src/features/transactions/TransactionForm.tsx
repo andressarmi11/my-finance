@@ -560,7 +560,7 @@ export function TransactionForm({
       <div
         ref={dialogRef}
         role="dialog"
-        aria-label={existing ? 'Editar movimiento' : 'Agregar movimiento'}
+        aria-label={existing ? t('form.dialogEdit') : t('form.dialogAdd')}
         className="dialog-wide"
         style={{
           position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 55%, transparent)',
@@ -666,7 +666,7 @@ export function TransactionForm({
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label={existing ? 'Editar movimiento' : 'Agregar movimiento'}
+      aria-label={existing ? t('form.dialogEdit') : t('form.dialogAdd')}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
         display: 'flex', alignItems: 'flex-end', zIndex: 50,

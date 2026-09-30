@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 10: language
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 10; §11 item 12).
+
+### Fixed
+- Hard-coded Spanish that English users saw, now in the dictionary: the
+  "Still to pay" breakdown sheet (title, statuses, rows), the empty state of
+  Transactions, the "Cancelled" status, the new-transaction dialog names,
+  the new-password placeholders, the onboarding name field and its buttons,
+  and the lazy-screen "Loading…".
+- The Spanish text of the Shortcut instructions was in English.
+
+### Tests
+- New E2E 48: walks every screen AND the main sheets (+ menu, new expense
+  and income with "More options", new recurring, "Tell the app", the "Still
+  to pay" breakdown) in English, at phone and desktop widths. The
+  Spanish-only word list is derived from the dictionary itself (Spanish
+  words that never appear in the English texts), so any hard-coded label
+  reusing app vocabulary fails it; a control test proves the detector
+  flags the Spanish interface.
+- The dictionary has no key missing in English.
+
 ## [Unreleased] — Redesign v4, phase 9: desktop and tablet
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 9; §9g). The

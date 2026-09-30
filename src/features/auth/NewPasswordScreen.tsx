@@ -77,14 +77,14 @@ export function NewPasswordScreen() {
             <input
               type="password" required autoFocus autoComplete="new-password" minLength={MIN_PASSWORD}
               value={key} onChange={(e) => setClave(e.target.value)}
-              placeholder={`Contraseña nueva (mínimo ${MIN_PASSWORD})`}
+              placeholder={t('auth.newPasswordMin').replace('{n}', String(MIN_PASSWORD))}
               aria-label={t('auth.newPassword')}
               style={inputStyle}
             />
             <input
               type="password" required autoComplete="new-password"
               value={repetir} onChange={(e) => setRepetir(e.target.value)}
-              placeholder="Repetirla"
+              placeholder={t('auth.repeatIt')}
               aria-label={t('auth.repeatPassword')}
               style={{
                 ...inputStyle,

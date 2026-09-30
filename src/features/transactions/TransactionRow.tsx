@@ -48,7 +48,7 @@ export function TransactionRow({
   const statusLabel =
     isPaid ? (isIncome ? t('status.received') : t('status.paid'))
     : tx.status === 'scheduled' ? t('status.scheduled')
-    : tx.status === 'cancelled' ? 'Cancelado'
+    : tx.status === 'cancelled' ? t('status.cancelled')
     : t('status.pending');
 
   const statusColor =
