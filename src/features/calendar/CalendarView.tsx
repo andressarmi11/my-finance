@@ -2,25 +2,36 @@ import { useT } from '@/i18n/language';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { IconCreditCard } from '@tabler/icons-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Screen } from '@/components/ui/Screen';
-import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
 import { dateLabel } from '@/lib/dateLabels';
 import { todayISO } from '@/lib/todayISO';
-import { buildCalendarGrid, shiftMonthISO } from './calendarGrid';
+import { buildCalendarGrid } from './calendarGrid';
 import { EMPTY } from '@/lib/empty';
 
-export function CalendarScreen() {
+/**
+ * The month grid and the selected day's list. It used to be its own screen
+ * (CalendarScreen); now it is the "Calendario" view of Movimientos, which
+ * owns the month navigator and passes the month in. `/calendario` redirects
+ * to `/movimientos?vista=calendario`.
+ */
+export function CalendarView({ year: viewYear, month: viewMonth }: { year: number; month: number }) {
   const t = useT();
   const weekdays = t('calendar.weekdays').split(',');
   const today = todayISO();
   const [year, month] = today.split('-').map(Number) as [number, number];
-  const [view, setView] = useState({ year, month });
   const [selected, setSelected] = useState(today);
+
+  // Coming back to the current month also selects today: returning to the
+  // month and staying parked on some day from another month would be a
+  // half-hearted return.
+  const inCurrentMonth = viewYear === year && viewMonth === month;
+  useEffect(() => {
+    if (inCurrentMonth) setSelected(today);
+  }, [inCurrentMonth, today]);
 
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
@@ -42,33 +53,13 @@ export function CalendarScreen() {
     return map;
   }, [transactions]);
 
-  const cells = useMemo(() => buildCalendarGrid(view.year, view.month), [view]);
-  const inCurrentMonth = view.year === year && view.month === month;
+  const cells = useMemo(() => buildCalendarGrid(viewYear, viewMonth), [viewYear, viewMonth]);
 
   const dayTransactions = transactions.filter((t) => t.date === selected);
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
 
   return (
-    <Screen title={t('calendar.title')} subtitle={t('calendar.subtitle')}>
-      {/* MonthNav and not a local copy: this screen used to have its own
-          inline navigation, and that's why it was left without the Today button when the
-          shared component gained one. */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-        <MonthNav
-          label={`${monthName(view.month)} ${view.year}`}
-          widthSample={widestMonthLabel()}
-          todayIsAhead={view.year * 12 + view.month < year * 12 + month}
-          onPrev={() => setView((v) => shiftMonthISO(v.year, v.month, -1))}
-          onNext={() => setView((v) => shiftMonthISO(v.year, v.month, 1))}
-          onToday={inCurrentMonth ? undefined : () => {
-            setView({ year, month });
-            // Today also gets selected: going back to the month and staying
-            // parked on some day from the past month would be a half-hearted return.
-            setSelected(today);
-          }}
-        />
-      </div>
-
+    <>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
         {weekdays.map((w, i) => (
           <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', fontWeight: 600 }}>{w}</div>
@@ -147,7 +138,7 @@ export function CalendarScreen() {
           ))}
         </div>
       )}
-    </Screen>
+    </>
   );
 }
 

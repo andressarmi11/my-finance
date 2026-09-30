@@ -22,7 +22,8 @@ export function SyncIndicator({ status, error, onReintentar }: {
         position: 'fixed',
         left: '50%',
         transform: 'translateX(-50%)',
-        bottom: 'calc(var(--safe-bottom) + 76px)',
+        // Above the floating tab bar (12px gap + 62px) with a 10px gap.
+        bottom: 'calc(var(--safe-bottom) + 12px + var(--tabbar-h) + 10px)',
         zIndex: 45,
         display: 'flex',
         alignItems: 'center',

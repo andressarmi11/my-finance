@@ -6,6 +6,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
+import { Segmented } from '@/components/ui/Segmented';
+import { CalendarView } from '@/features/calendar/CalendarView';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
 import { deleteInstallmentPlan, createInstallmentPlan } from '@/data/local/installmentPlans';
@@ -174,6 +176,17 @@ export function TransactionsScreen() {
 
   const inSelection = selection !== null;
 
+  // Lista | Calendario lives in the URL (?vista=calendario), so the back
+  // button, links and the old /calendario path all land on the right view.
+  const calendarView = params.get('vista') === 'calendario';
+  function setView(next: 'lista' | 'calendario') {
+    const updated = new URLSearchParams(params);
+    if (next === 'calendario') updated.set('vista', 'calendario');
+    else updated.delete('vista');
+    setSelection(null);
+    setParams(updated, { replace: true });
+  }
+
   function toggleSelection(id: string) {
     setSelection((prev) => {
       const next = new Set(prev ?? []);
@@ -295,6 +308,21 @@ export function TransactionsScreen() {
         <button type="button" onClick={() => setSelection(null)} style={buttonText}>Cancelar</button>
       ) : (searching ? undefined : nav)}
     >
+      {!inSelection && (
+        <div style={{ marginBottom: 'var(--gap-m)' }}>
+          <Segmented
+            label={t('transactions.view')}
+            value={calendarView ? 'calendario' : 'lista'}
+            onChange={setView}
+            options={[
+              { value: 'lista', label: t('transactions.viewList') },
+              { value: 'calendario', label: t('transactions.viewCalendar') },
+            ]}
+          />
+        </div>
+      )}
+
+      {calendarView ? <CalendarView year={cursor.y} month={cursor.m} /> : (<>
       {transactions.length > 0 && (
         <input
           value={query}
@@ -406,6 +434,7 @@ export function TransactionsScreen() {
           </section>
         ))
       )}
+      </>)}
 
       {inSelection && (
         <div
@@ -413,8 +442,8 @@ export function TransactionsScreen() {
           aria-label={t('transactions.selectionActions')}
           style={{
             position: 'fixed', left: 0, right: 0,
-            // Right above the tab bar (61px) and its safe area.
-            bottom: 'calc(var(--safe-bottom) + 61px)',
+            // Right above the floating tab bar (12px gap + 62px) and its safe area.
+            bottom: 'calc(var(--safe-bottom) + 12px + var(--tabbar-h) + 10px)',
             zIndex: 45, display: 'flex', gap: 8,
             padding: '10px 16px',
             background: 'var(--surface)',

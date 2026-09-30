@@ -280,16 +280,16 @@ Referencia: turno 2 del prototipo (2a).
 
 ## 10. Checklist
 
-Progreso por fase (§12): **Fase 1 ✅** · Fase 2 ⬜ · Fase 3 ⬜ · Fase 4 ⬜ · Fase 5 ⬜ · Fase 6 ⬜ · Fase 7 ⬜ · Fase 8 ⬜ · Fase 9 ⬜ · Fase 10 ⬜
+Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · Fase 3 ⬜ · Fase 4 ⬜ · Fase 5 ⬜ · Fase 6 ⬜ · Fase 7 ⬜ · Fase 8 ⬜ · Fase 9 ⬜ · Fase 10 ⬜
 
 - [x] Tokens oscuros actualizados — Fase 1
-- [ ] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado
-- [ ] `/calendario` redirige a `/movimientos?vista=calendario`
-- [ ] `CalendarView` extraído y montado en Movimientos
+- [x] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado — Fase 2
+- [x] `/calendario` redirige a `/movimientos?vista=calendario` — Fase 2
+- [x] `CalendarView` extraído y montado en Movimientos — Fase 2
 - [ ] Inicio: hero nuevo, "Falta pagar" abre `ToPaySheet`, sin `PeriodCard` ni `ExpectCard`
 - [ ] Análisis: donut fusionado con la lista de categorías
 - [ ] Ajustes agrupado en subpantallas
-- [ ] `LegalFooter` solo en Legal
+- [x] `LegalFooter` solo en Legal — Fase 2
 - [x] Logo 1c en `Logo.tsx` y los íconos regenerados — Fase 1
 - [ ] Moneda por movimiento + método Efectivo (tipos, migración 0013, mappers, nlp)
 - [ ] Hoja de nuevo movimiento compacta; QuickEntrySheet con moneda y método

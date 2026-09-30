@@ -4,7 +4,6 @@ import { InstallBanner } from '@/components/ui/InstallBanner';
 import { InboxBanner } from '@/features/inbox/InboxBanner';
 import { SyncIndicator } from '@/components/ui/SyncIndicator';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
-import { LegalFooter } from '@/features/legal/LegalFooter';
 import { Logo } from '@/components/ui/Logo';
 import { AuthGate } from '@/features/auth/AuthGate';
 import { OnboardingGate } from '@/features/onboarding/OnboardingGate';
@@ -46,14 +45,16 @@ function AppShell() {
             flex: 1,
             // The top safe-area is already absorbed by BrandBar, which sits flush.
             paddingTop: 'var(--gap-l)',
-            // 61 bar + 14 + 56 FAB + breathing room: nothing ends up under the tab bar or the +.
-            paddingBottom: 'calc(var(--safe-bottom) + 148px)',
+            // 12 gap + 62 floating tab bar + breathing room: nothing ends up
+            // under the pill or the +.
+            paddingBottom: 'calc(var(--safe-bottom) + 110px)',
           }}
         >
           <InstallBanner />
           <InboxBanner />
+          {/* No LegalFooter here: legal lives in Ajustes → Legal and in
+              LegalLayout, not under every screen. */}
           <Outlet />
-          <LegalFooter />
         </main>
         <TabBar />
         <PullToRefresh />
