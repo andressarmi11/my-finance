@@ -163,7 +163,7 @@ function TabButton({ isActive, onClick, children }: { isActive: boolean; onClick
         flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)',
         border: `1px solid ${isActive ? 'var(--q10)' : 'var(--line-strong)'}`,
         background: isActive ? 'var(--q10)' : 'var(--surface)',
-        color: isActive ? '#fff' : 'var(--text)',
+        color: isActive ? 'var(--on-accent)' : 'var(--text)',
         fontWeight: 600, fontSize: 'var(--text-base)', cursor: 'pointer',
       }}
     >

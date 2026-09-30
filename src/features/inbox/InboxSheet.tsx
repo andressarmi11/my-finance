@@ -202,7 +202,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
                   style={{
                     flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
                     background: full ? 'var(--q10)' : 'var(--surface-sunken)',
-                    color: full ? '#fff' : 'var(--text-faint)',
+                    color: full ? 'var(--on-accent)' : 'var(--text-faint)',
                     fontWeight: 700, cursor: full ? 'pointer' : 'not-allowed',
                     fontSize: 'var(--text-base)',
                   }}

@@ -101,10 +101,11 @@ export default defineConfig({
         start_url: '/step-up/',
         scope: '/step-up/',
         display: 'standalone',
-        // theme_color/background_color en claro; el modo oscuro real lo
-        // define la app en runtime via prefers-color-scheme (ver index.html)
-        background_color: '#F2F2F7',
-        theme_color: '#007AFF', // SystemBlue, igual que --q10 en tokens.css
+        // El splash usa el --paper oscuro, igual que el tile del ícono 1c.
+        // El color real de cada tema lo define la app en runtime via
+        // prefers-color-scheme (ver index.html).
+        background_color: '#0B0D12',
+        theme_color: '#0B0D12',
         orientation: 'portrait',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

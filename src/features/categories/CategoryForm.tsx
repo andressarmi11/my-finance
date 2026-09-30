@@ -4,9 +4,16 @@ import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category } from '@/domain/types';
 import { Field, FieldGroup } from '@/components/ui/Field';
 import { CategoryIcon, SELECTABLE_ICONS } from '@/components/ui/CategoryIcon';
+import { DEFAULT_CATEGORIES } from '@/domain/seed/defaultCategories';
+import { categoryColor } from '@/domain/seed/categoryColor';
 
 // The names live in components/ui/CategoryIcon.tsx: a single registry.
-const COLORS = ['#5B6FE0', '#E0A23B', '#3BA3E0', '#C15BD1', '#3BC1A3', '#E05B5B', '#8A5CF6', '#D18A5B', '#5B8AD1', '#B0721A', '#B3261E', '#1E8E6A', '#6C727F'];
+// The palette is the seeded categories' one (the twelve --cat-* tokens). The
+// hex is what gets STORED (portable, see categoryColor.ts); the swatch is
+// PAINTED with the matching token so it follows the theme.
+const PALETTE = DEFAULT_CATEGORIES.map((c) => ({ stored: c.color, painted: categoryColor(c) }));
+const COLORS = PALETTE.map((p) => p.stored);
+const paint = (stored: string) => PALETTE.find((p) => p.stored.toUpperCase() === stored.toUpperCase())?.painted ?? stored;
 
 export function CategoryForm({
   existing, nextSortOrder, onSave, onCancel, onDelete }: {
@@ -67,9 +74,9 @@ export function CategoryForm({
             <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i} aria-label={i}
               style={{
                 width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center',
-                border: `1.5px solid ${icon === i ? color : 'var(--line)'}`,
-                background: icon === i ? `color-mix(in srgb, ${color} 16%, var(--surface))` : 'var(--surface)',
-                color: icon === i ? color : 'var(--text-muted)', cursor: 'pointer',
+                border: `1.5px solid ${icon === i ? paint(color) : 'var(--line)'}`,
+                background: icon === i ? `color-mix(in srgb, ${paint(color)} 16%, var(--surface))` : 'var(--surface)',
+                color: icon === i ? paint(color) : 'var(--text-muted)', cursor: 'pointer',
               }}>
               <CategoryIcon icon={i} size={20} />
             </button>
@@ -79,7 +86,7 @@ export function CategoryForm({
         <FieldGroup label="Color" id="cat-color" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           {COLORS.map((c) => (
             <button key={c} type="button" onClick={() => setColor(c)} aria-pressed={color === c} aria-label={`Color ${c}`}
-              style={{ width: 30, height: 30, borderRadius: 15, background: c, border: color === c ? '3px solid var(--text)' : '1px solid var(--line)', cursor: 'pointer' }} />
+              style={{ width: 30, height: 30, borderRadius: 15, background: paint(c), border: color === c ? '3px solid var(--text)' : '1px solid var(--line)', cursor: 'pointer' }} />
           ))}
         </FieldGroup>
 

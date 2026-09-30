@@ -182,6 +182,21 @@
   --shadow-2: 0 2px 8px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.04);
   --shadow-3: 0 6px 20px rgb(0 0 0 / 0.10);
 
+  /* ────────────── Rediseño v4 ────────────── */
+  --radius-card: 20px;           /* tarjetas: --surface + 1px --line */
+  --tabbar-h: 62px;              /* pildora flotante y boton + */
+  --hover: color-mix(in srgb, var(--text) 5%, var(--surface));
+
+  /* Tinta SOBRE un relleno de acento (--q10, --danger, --positive). En claro
+     el acento es oscuro y va blanco; en oscuro el acento es claro, asi que
+     va el --paper (mismo criterio que el prototipo). */
+  --on-accent: #FFFFFF;
+  /* Perilla de un switch: blanca en los dos temas, como iOS. */
+  --knob: #FFFFFF;
+  /* Tile del logo 1c: indigo solido en claro, casi negro en oscuro. */
+  --brand-tile: #2F4FE0;
+  --on-brand-tile: #FFFFFF;
+
   /* ────────────── Misc ────────────── */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -204,19 +219,20 @@
     --gray-900: #E5E5EA;
     --gray-950: #F2F2F7;
 
-    /* Backgrounds */
-    --paper: #0E1116;
-    --surface: #181D26;
-    --surface-sunken: #222833;
+    /* Backgrounds — rediseño v4: mas negro, menos azul, para que un solo
+       numero grande sea lo unico que brille en la pantalla. */
+    --paper: #0B0D12;
+    --surface: #151922;
+    --surface-sunken: #1D222C;
 
     /* Texto */
-    --text: #FFFFFF;
-    --text-muted: #E2E6EE;
-    --text-faint: #8A93A3;
+    --text: #F4F6FA;
+    --text-muted: #A3ABBA;
+    --text-faint: #7C8595;
 
     /* Líneas */
-    --line: #2B323E;
-    --line-strong: #3A4250;
+    --line: #232936;
+    --line-strong: #2B323E;
 
     /* Acentos (versiones más brillantes de iOS Dark) */
     --q10: #6B8AFF;                /* 6.04:1 sobre el fondo oscuro */
@@ -256,6 +272,9 @@
     --cat-deudas: #D892E8;
     --cat-ahorro: #EB8CCD;
 
+    --on-accent: var(--paper);
+    --brand-tile: #0B0D12;
+
     /* Materiales en dark */
     --material-thin: color-mix(in srgb, #1C1C1E 72%, transparent);
     --material-regular: color-mix(in srgb, #1C1C1E 90%, transparent);
@@ -281,16 +300,16 @@
   --gray-900: #E5E5EA;
   --gray-950: #F2F2F7;
 
-  --paper: #0E1116;
-  --surface: #181D26;
-  --surface-sunken: #222833;
+  --paper: #0B0D12;
+  --surface: #151922;
+  --surface-sunken: #1D222C;
 
-  --text: #FFFFFF;
-  --text-muted: #E2E6EE;
-  --text-faint: #8A93A3;
+  --text: #F4F6FA;
+  --text-muted: #A3ABBA;
+  --text-faint: #7C8595;
 
-  --line: #2B323E;
-  --line-strong: #3A4250;
+  --line: #232936;
+  --line-strong: #2B323E;
 
   --q10: #6B8AFF;
   --q10-soft: #1D2540;
@@ -322,6 +341,9 @@
   --cat-servicios: #C09BFC;
   --cat-deudas: #D892E8;
   --cat-ahorro: #EB8CCD;
+
+  --on-accent: var(--paper);
+  --brand-tile: #0B0D12;
 
   --material-thin: color-mix(in srgb, #1C1C1E 72%, transparent);
   --material-regular: color-mix(in srgb, #1C1C1E 90%, transparent);

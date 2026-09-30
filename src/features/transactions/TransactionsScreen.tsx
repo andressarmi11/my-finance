@@ -477,7 +477,7 @@ export function TransactionsScreen() {
               disabled={applying}
               style={{
                 width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-                background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 16,
+                background: 'var(--danger)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16,
                 cursor: applying ? 'not-allowed' : 'pointer', marginBottom: 8,
               }}
             >
@@ -550,7 +550,7 @@ function Chip({ activeRecognizer, onClick, children }: {
         flex: 'none', minHeight: 34, padding: '0 14px', borderRadius: 999,
         border: `1px solid ${activeRecognizer ? 'var(--q10)' : 'var(--line-strong)'}`,
         background: activeRecognizer ? 'var(--q10)' : 'var(--surface)',
-        color: activeRecognizer ? '#fff' : 'var(--text)',
+        color: activeRecognizer ? 'var(--on-accent)' : 'var(--text)',
         fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}

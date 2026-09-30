@@ -195,7 +195,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
               style={{
                 width: 48, height: 48, flex: 'none', borderRadius: 24, border: 'none',
                 background: escuchando ? 'var(--danger)' : 'var(--q10)',
-                color: '#fff', fontSize: 20, cursor: 'pointer',
+                color: 'var(--on-accent)', fontSize: 20, cursor: 'pointer',
                 animation: escuchando ? 'fadeIn 0.6s ease-in-out infinite alternate' : undefined,
               }}
             >
@@ -288,7 +288,7 @@ export function QuickEntrySheet({ onClose, onAdjust }: {
           style={{
             width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
             background: canSubmit ? 'var(--q10)' : 'var(--surface-sunken)',
-            color: canSubmit ? '#fff' : 'var(--text-faint)',
+            color: canSubmit ? 'var(--on-accent)' : 'var(--text-faint)',
             fontWeight: 700, fontSize: 16, cursor: canSubmit ? 'pointer' : 'not-allowed',
           }}
         >

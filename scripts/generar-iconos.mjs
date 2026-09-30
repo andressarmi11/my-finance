@@ -19,19 +19,20 @@ const raiz = fileURLToPath(new URL('..', import.meta.url));
 /** `maskable` deja el margen que Android se puede comer al recortar en círculo. */
 function svg({ maskable = false } = {}) {
   // Android recorta hasta el 20% de cada borde: el glifo se achica y el
-  // fondo azul se estira a todo el lienzo, sin esquinas redondeadas.
+  // fondo (el tile oscuro de la marca 1c) se estira a todo el lienzo, sin
+  // esquinas redondeadas.
   const escala = maskable ? 1.15 : 1.6;
   const off = (64 - 24 * escala) / 2;
   const rx = maskable ? 0 : 14;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#0051D5"/>
-  </linearGradient></defs>
-  <rect width="64" height="64" rx="${rx}" fill="url(#g)"/>
+  <rect width="64" height="64" rx="${rx}" fill="#0B0D12"/>
   <g transform="translate(${off} ${off}) scale(${escala})">
-    <rect x="2"  y="13" width="6" height="8"  rx="2" fill="#FFFFFF"/>
-    <rect x="9"  y="8"  width="6" height="13" rx="2" fill="#FFFFFF"/>
-    <rect x="16" y="3"  width="6" height="18" rx="2" fill="#FFB340"/>
+    <rect x="3"  y="2"   width="14" height="5"    rx="2" fill="#FFFFFF"/>
+    <rect x="3"  y="2"   width="5"  height="12"   rx="2" fill="#FFFFFF"/>
+    <rect x="3"  y="9.5" width="18" height="5"    rx="2" fill="#FFFFFF"/>
+    <rect x="16" y="9.5" width="5"  height="12.5" rx="2" fill="#FFFFFF"/>
+    <rect x="7"  y="17"  width="14" height="5"    rx="2" fill="#FFFFFF"/>
+    <rect x="18" y="2"   width="3"  height="5"    rx="1.5" fill="#FFB340"/>
   </g>
 </svg>`;
 }

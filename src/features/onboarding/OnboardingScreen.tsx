@@ -311,5 +311,5 @@ function optionStyle(isActive: boolean): React.CSSProperties {
 
 const buttonStyle: React.CSSProperties = {
   flex: 1, minHeight: 52, borderRadius: 'var(--radius-m)', border: 'none',
-  background: 'var(--q10)', color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer',
+  background: 'var(--q10)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 17, cursor: 'pointer',
 };

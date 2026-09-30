@@ -70,7 +70,7 @@ export class ErrorBoundary extends Component<Props, State> {
           }}
           style={{
             width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-            background: 'var(--q10)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer',
+            background: 'var(--q10)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16, cursor: 'pointer',
           }}
         >
           Recargar

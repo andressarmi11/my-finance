@@ -189,7 +189,7 @@ function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean 
         borderRadius: 28,
         border: 'none',
         background: 'var(--q10)',
-        color: '#fff',
+        color: 'var(--on-accent)',
         fontSize: 28,
         fontWeight: 400,
         lineHeight: 1,

@@ -32,7 +32,7 @@ export function ImportPreviewSheet({ preview, onConfirm, onCancel }: {
             Esto <strong>{t('import.replacesEverything')}</strong> {t('import.cannotUndo')}
           </p>
         </div>
-        <button type="button" onClick={onConfirm} style={{ width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none', background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>
+        <button type="button" onClick={onConfirm} style={{ width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none', background: 'var(--danger)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginBottom: 10 }}>
           {t('import.confirmReplace')}
         </button>
         <button type="button" onClick={onCancel} style={{ width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}>
