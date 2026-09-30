@@ -51,6 +51,9 @@ export function useTurnstile(container: RefObject<HTMLDivElement | null>) {
           size: 'flexible',
           theme: 'auto',
           language: 'auto',
+          // Invisible unless Cloudflare needs a click: the screen shows its
+          // own discreet "check passed" row instead (§9f).
+          appearance: 'interaction-only',
           callback: (t: string) => setToken(t),
           'expired-callback': () => setToken(null),
           'error-callback': () => setToken(null),
