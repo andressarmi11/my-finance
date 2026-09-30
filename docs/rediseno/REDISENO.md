@@ -280,7 +280,7 @@ Referencia: turno 2 del prototipo (2a).
 
 ## 10. Checklist
 
-Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · Fase 6 ⬜ · **Fase 7 ✅** (backend; el editor se monta en Ajustes → Recordatorios con la Fase 6) · Fase 8 ⬜ · Fase 9 ⬜ · Fase 10 ⬜
+Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · Fase 6 ⬜ · **Fase 7 ✅** (backend; el editor se monta en Ajustes → Recordatorios con la Fase 6) · **Fase 8 ✅** (login y registro; cambiar contraseña y cerrar sesión van con la Fase 6) · Fase 9 ⬜ · Fase 10 ⬜
 
 - [x] Tokens oscuros actualizados — Fase 1
 - [x] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado — Fase 2

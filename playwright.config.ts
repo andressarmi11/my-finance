@@ -19,7 +19,8 @@ const SOURCE_IMPORTING = /account-isolation|sync-duplicate-occurrences|xlsx-is-a
 // `.test` host the spec answers with route() — real login, real sync,
 // nothing leaves the machine.
 const PORT_SYNC = 5174;
-const CLOUD_SYNC = /cloud-sync/;
+// The sign-in screen spec runs there too: it is the only build that has it.
+const CLOUD_SYNC = /cloud-sync|login-redesign/;
 
 export default defineConfig({
   testDir: './e2e',
