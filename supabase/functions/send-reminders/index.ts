@@ -210,7 +210,9 @@ Deno.serve(async (req) => {
           if (status === 404 || status === 410) {
             await supabase.from('push_subscriptions').delete().eq('id', sub.id);
           } else {
-            console.error(`Push fallido para suscripcion ${sub.id}:`, err);
+            // Status code only: the error object carries the device's push
+            // endpoint (a capability URL) and would bloat the logs.
+            console.error(`Push fallido para suscripcion ${sub.id}: ${status ?? 'sin código'}`);
           }
         }
       }
