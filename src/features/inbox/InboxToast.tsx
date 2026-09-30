@@ -25,12 +25,13 @@ export function InboxToast({ toast, sheetOpen, onUndo }: {
       style={{
         position: 'fixed', zIndex: 70,
         left: desktop ? '50%' : 16, right: desktop ? 'auto' : 16,
-        width: desktop ? 420 : 'auto', transform: desktop ? 'translateX(-50%)' : undefined,
+        width: 'auto', maxWidth: desktop ? 560 : undefined, transform: desktop ? 'translateX(-50%)' : undefined,
+        whiteSpace: 'nowrap',
         bottom: `calc(var(--safe-bottom) + ${bottom}px)`,
         opacity: shown ? 1 : 0, pointerEvents: shown ? 'auto' : 'none',
         transition: 'all .3s cubic-bezier(.22,1,.36,1)',
-        background: 'var(--text)', color: 'var(--paper)', borderRadius: 16,
-        padding: '0 6px 0 16px', height: 48, display: 'flex', alignItems: 'center', gap: 8,
+        background: 'var(--text)', color: 'var(--paper)', borderRadius: desktop ? 14 : 16,
+        padding: '0 6px 0 16px', height: desktop ? 46 : 48, display: 'flex', alignItems: 'center', gap: desktop ? 10 : 8,
         fontSize: 14, fontWeight: 600,
       }}
     >

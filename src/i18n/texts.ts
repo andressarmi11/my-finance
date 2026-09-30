@@ -857,7 +857,7 @@ export const TEXTS = {
     'inbox.noAmount': 'Sin monto',
     'inbox.review': 'Revisar',
     'inbox.reviewAll': 'Revisar los {n}',
-    'inbox.position': '{i} de {n}',
+    'inbox.position': '{n} de {total}',
     'inbox.progress': 'Progreso de la revisión',
     'inbox.amountPlaceholder': 'Escribe el monto',
     'inbox.amountLabel': 'Monto',
@@ -904,6 +904,14 @@ export const TEXTS = {
     'inbox.pushTapOne': 'Toca para revisarlo antes de anotarlo.',
     'inbox.pushTapMany': '{n} por revisar. Toca para verlos.',
     'inbox.typeLabel': 'Gasto o ingreso',
+    // Bandeja web (BANDEJA-WEB.md)
+    'inbox.navTitle': 'Por revisar',
+    'inbox.prev': 'Anterior',
+    'inbox.next': 'Siguiente',
+    'inbox.originalMessage': 'Mensaje original',
+    'inbox.shortcutsHint': '⏎ anotar · ⌫ descartar · ↑↓ moverse · Esc cerrar',
+    'inbox.openPanel': 'Abrir movimientos por revisar',
+    'inbox.missingAmountShort': 'Sin monto',
   },
 
   en: {
@@ -1730,7 +1738,7 @@ export const TEXTS = {
     'inbox.noAmount': 'No amount',
     'inbox.review': 'Review',
     'inbox.reviewAll': 'Review all {n}',
-    'inbox.position': '{i} of {n}',
+    'inbox.position': '{n} of {total}',
     'inbox.progress': 'Review progress',
     'inbox.amountPlaceholder': 'Type the amount',
     'inbox.amountLabel': 'Amount',
@@ -1777,6 +1785,14 @@ export const TEXTS = {
     'inbox.pushTapOne': 'Tap to review it before recording it.',
     'inbox.pushTapMany': '{n} to review. Tap to see them.',
     'inbox.typeLabel': 'Expense or income',
+    // Bandeja web (BANDEJA-WEB.md)
+    'inbox.navTitle': 'To review',
+    'inbox.prev': 'Previous',
+    'inbox.next': 'Next',
+    'inbox.originalMessage': 'Original message',
+    'inbox.shortcutsHint': '⏎ log · ⌫ discard · ↑↓ move · Esc close',
+    'inbox.openPanel': 'Open items to review',
+    'inbox.missingAmountShort': 'No amount',
   },
 } as const;
 

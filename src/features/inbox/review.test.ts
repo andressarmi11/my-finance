@@ -5,7 +5,8 @@ import { interpretText } from '@/domain/nlp/interpret';
 import type { InboxEntry } from '@/data/supabase/inbox';
 import { LanguageProvider } from '@/i18n/language';
 import { InboxSheet } from './InboxSheet';
-import { ago, bankFromText, bulkable, buildDraft, sourceOf, toTransaction, type Edits } from './review';
+import { ago, bankFromText, bulkable, buildDraft, moveIndex, queueTone, sourceOf, toTransaction, type Draft, type Edits } from './review';
+import type { InboxReview } from './useInboxReview';
 
 const TODAY = '2026-09-30';
 const ctx = { today: TODAY, mainCurrency: 'COP', knownCurrencies: ['COP', 'USD'] };
@@ -77,6 +78,33 @@ describe('toTransaction', () => {
   });
 });
 
+describe('moving without deciding (BANDEJA-WEB.md)', () => {
+  it('move never leaves the range', () => {
+    expect(moveIndex(0, -1, 4)).toBe(0);
+    expect(moveIndex(3, 1, 4)).toBe(3);
+    expect(moveIndex(1, 1, 4)).toBe(2);
+    expect(moveIndex(5, 0, 4)).toBe(3);
+    expect(moveIndex(0, 1, 0)).toBe(0);
+  });
+
+  it('edits are kept by id: moving away and back finds what was typed', () => {
+    // The hook keeps { [entryId]: Edits }; a draft rebuilt from them after a
+    // move is the same one the user left.
+    const edits: Record<string, Edits> = { d: { amount: 18_000 } };
+    const before = draft(NO_AMOUNT, edits.d);
+    draft(LUNCH, edits.a ?? {}); // moved to another one
+    const after = draft(NO_AMOUNT, edits.d);
+    expect(after).toEqual(before);
+    expect(after.amount).toBe(18_000);
+  });
+
+  it('colours each one in the queue', () => {
+    expect(queueTone(draft(NO_AMOUNT))).toBe('missing');
+    expect(queueTone(draft(FUTURE))).toBe('future');
+    expect(queueTone(draft(LUNCH))).toBe('ok');
+  });
+});
+
 describe('small helpers', () => {
   it('reads the source and the bank', () => {
     expect(sourceOf('dictado')).toBe('dictation');
@@ -96,12 +124,22 @@ describe('small helpers', () => {
 describe('InboxSheet', () => {
   beforeAll(() => { vi.stubGlobal('navigator', { language: 'es-CO' }); });
 
-  function render(edits: Edits = {}, e = NO_AMOUNT, bulkCount = 0): string {
+  function fakeReview(current: Draft, items: Draft[] = [current], bulkCount = 0): InboxReview {
+    const noop = () => {};
+    return {
+      enabled: true, loaded: true, open: true, items, idx: Math.max(0, items.indexOf(current)), current,
+      doneCount: 0, recorded: 0, discarded: 0, bulkCount, busy: false, canAccept: current.complete,
+      fx: { status: 'same' }, toast: null, fresh: new Set(), mainCurrency: 'COP', quickCurrencies: undefined,
+      payDays: [10, 25], categories: [], methods: [], today: TODAY,
+      openAt: noop, close: noop, move: noop, goTo: noop, patch: noop, accept: noop, discard: noop, acceptAll: noop,
+      undo: async () => {},
+    };
+  }
+  function render(edits: Edits = {}, e = NO_AMOUNT, bulkCount = 0, total = 4): string {
+    const current = draft(e, edits);
+    const items = [current, ...[LUNCH, INCOME, FUTURE].slice(0, total - 1).map((x) => draft(x))];
     return renderToStaticMarkup(createElement(LanguageProvider, null, createElement(InboxSheet, {
-      current: draft(e, edits), position: 1, total: 4, doneCount: 0, recorded: 0, discarded: 0, bulkCount,
-      busy: false, fx: { status: 'same' }, mainCurrency: 'COP', quickCurrencies: undefined, payDays: [10, 25],
-      categories: [], methods: [], today: TODAY,
-      onPatch: () => {}, onAccept: () => {}, onDiscard: () => {}, onAcceptAll: () => {}, onClose: () => {},
+      review: fakeReview(current, items, bulkCount),
     })));
   }
   const acceptButton = (html: string) => html.match(/<button[^>]*>Anotar<\/button>/)?.[0] ?? '';

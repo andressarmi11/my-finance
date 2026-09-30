@@ -1,5 +1,29 @@
 # Changelog
 
+## [Unreleased] — Inbox v2, part 2: web and moving between entries
+
+Plan and checklist: `docs/BANDEJA-WEB.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html` (3b, 4a, 4b).
+
+### Changed
+- Move between what arrived on its own without deciding: `‹ N de M ›`,
+  tappable progress segments (resolved in --q10, missing something in
+  red) and a swipe on the card. What was typed in an entry survives
+  moving away and back.
+- Desktop: "Por revisar" in the sidebar (any screen, amber count), a
+  40 px inbox button between the search and "Nuevo movimiento", and a
+  480 px side panel instead of the dialog — the whole queue on top,
+  the same editable card with the original message always open, a fixed
+  foot with ⌫ / ⏎. Keys: ⏎ ⌫ ↑↓ ←→ Esc.
+- The Movimientos table puts what was just recorded from the inbox first
+  in its group, with a faint amber wash for a few seconds.
+- One hook, `useInboxReview()`, behind both the sheet and the panel.
+
+### Tests
+- Unit: moving stays in range, edits are kept per entry, queue colours.
+- E2E 41-inbox-navigate (phone: ›, swipe, segments; desktop: ↓, queue
+  click, ↑/←, Esc) and 27-english-has-no-spanish-inbox (sheet and panel
+  in English). E2E 40 follows the panel on desktop.
+
 ## [Unreleased] — Inbox v2: what arrives on its own
 
 Plan and checklist: `docs/BANDEJA.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html`.

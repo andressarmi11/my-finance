@@ -187,7 +187,7 @@ export function DashboardScreen() {
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
       onNext={() => setCursor((c) => shiftMonth(c.y, c.m, 1))}
       onToday={isCurrentMonth ? undefined : () => setCursor({ y: todayYear, m: todayMonth })}
-      beforePill={<InboxButton />}
+      beforePill={desktop ? undefined : <InboxButton />}
     />
   );
 
@@ -425,6 +425,7 @@ export function DashboardScreen() {
               {isMac ? '⌘K' : 'Ctrl K'}
             </kbd>
           </label>
+          <InboxButton desktop />
           <button
             type="button"
             onClick={() => { haptic('light'); setQuickOpen(true); }}

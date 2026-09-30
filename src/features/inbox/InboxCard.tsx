@@ -8,7 +8,7 @@ import { useT } from '@/i18n/language';
 import { EMPTY } from '@/lib/empty';
 import { fill } from '@/lib/dateLabels';
 import { useInboxContext } from './InboxProvider';
-import { useSourceLine } from './InboxSheet';
+import { useSourceLine } from './InboxFields';
 
 /**
  * "4 por revisar" on Inicio, between the flow grid and "Falta este mes"

@@ -192,8 +192,11 @@ export const TABLE_COLUMNS = '32px minmax(0, 1fr) 90px 100px 96px 140px';
  * nothing about what a row does changes with the width.
  */
 export function TransactionTableRow({
-  tx, category, paymentMethod, onTogglePaid, onOpen, selected, onSeleccionar,
-}: Parameters<typeof TransactionRow>[0]) {
+  tx, category, paymentMethod, onTogglePaid, onOpen, selected, onSeleccionar, fresh = false,
+}: Parameters<typeof TransactionRow>[0] & {
+  /** Just recorded from the inbox: a faint amber wash for a few seconds. */
+  fresh?: boolean;
+}) {
   const t = useT();
   const inSelection = onSeleccionar !== undefined;
   const isIncome = tx.type === 'income';
@@ -218,10 +221,13 @@ export function TransactionTableRow({
     <div
       className="row-hover"
       data-testid="tx-table-row"
+      data-fresh={fresh || undefined}
       onClick={primary}
       style={{
         display: 'grid', gridTemplateColumns: TABLE_COLUMNS, gap: 12, alignItems: 'center',
-        padding: 8, borderRadius: 12, background: selected ? 'var(--q10-soft)' : 'transparent',
+        padding: 8, borderRadius: 12,
+        background: selected ? 'var(--q10-soft)' : fresh ? 'color-mix(in srgb, var(--q25) 5%, transparent)' : 'transparent',
+        transition: 'background 1s ease',
       }}
     >
       <button
