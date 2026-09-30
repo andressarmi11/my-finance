@@ -1,4 +1,6 @@
--- Programa la llamada a la Edge Function `send-reminders` cada 15 minutos.
+-- Programa la llamada a la Edge Function `send-reminders` cada 10 minutos
+-- (recordatorios v2: "30 minutos antes" necesita un cron más fino que 15 min;
+-- ver supabase/migrations/0015_reminder_v2.sql). Re-ejecutable.
 --
 -- IMPORTANTE - pasos manuales antes de aplicar esto (ver docs/NOTIFICATIONS.md):
 --   1. Desplegar la funcion: supabase functions deploy send-reminders
@@ -13,9 +15,13 @@
 create extension if not exists pg_cron;
 create extension if not exists pg_net;
 
+-- El nombre viejo (cada 15 min) se retira para no tener dos jobs.
+select cron.unschedule(jobid) from cron.job where jobname = 'send-reminders-every-15-min';
+
+-- Con el mismo nombre, cron.schedule actualiza el job en lugar de duplicarlo.
 select cron.schedule(
-  'send-reminders-every-15-min',
-  '*/15 * * * *',
+  'send-reminders-every-10-min',
+  '*/10 * * * *',
   $$
   select net.http_post(
     url := 'https://TU-PROYECTO.supabase.co/functions/v1/send-reminders',
@@ -25,9 +31,10 @@ select cron.schedule(
       -- 'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'cron_secret')
       'Authorization', 'Bearer REEMPLAZAR_CON_TU_CRON_SECRET'
     ),
-    body := '{}'::jsonb
+    body := '{}'::jsonb,
+    timeout_milliseconds := 30000
   );
   $$
 );
 
--- Para desactivarlo despues: select cron.unschedule('send-reminders-every-15-min');
+-- Para desactivarlo despues: select cron.unschedule('send-reminders-every-10-min');

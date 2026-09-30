@@ -162,3 +162,27 @@ describe('custom recurrence in backups', () => {
     expect(cell(row, 10).value).toBe('2m');
   });
 });
+
+describe('general reminder in backups (migration 0015)', () => {
+  const withReminder = (reminder: unknown) => {
+    const b = backup();
+    return { ...b, settings: [{ ...b.settings[0], reminder }] };
+  };
+
+  it('keeps a valid rule and still accepts backups without one', () => {
+    const rule = { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'minutes', value: 30 } };
+    expect(BackupSchema.parse(withReminder(rule)).settings[0]!.reminder).toEqual(rule);
+    expect(BackupSchema.parse(backup()).settings[0]!.reminder).toBeUndefined();
+  });
+
+  it('rejects a malformed rule', () => {
+    const bad = [
+      'none',
+      { mode: 'weekly', days: 1, time: '09:00', sameDay: { kind: 'hours', value: 1 } },
+      { mode: 'days', days: 9, time: '09:00', sameDay: { kind: 'hours', value: 1 } },
+      { mode: 'days', days: 1, time: '9am', sameDay: { kind: 'hours', value: 1 } },
+      { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'at', value: '25:00' } },
+    ];
+    for (const r of bad) expect(BackupSchema.safeParse(withReminder(r)).success).toBe(false);
+  });
+});

@@ -38,12 +38,19 @@ function reminderFromJson(value: unknown): Transaction['reminder'] {
   return undefined;
 }
 
+/** Migration 0015: the general reminder. Only an object counts; anything else = derived. */
+function settingsReminderFromJson(value: unknown): ReminderRule | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as ReminderRule : undefined;
+}
+
 export interface SettingsRow {
   user_id: string; display_name: string | null; onboarded_at: string | null;
   currency: string; locale: string; quincena_start_days: number[];
   default_payment_method_id: string | null; reminder_default_days_before: number; theme: string;
   /** Migration 0013. null = the default trio. */
   quick_currencies?: string[] | null;
+  /** Migration 0015. null = derived from reminder_default_days_before. */
+  reminder?: unknown;
   updated_at: string;
 }
 export function settingsFromRow(row: SettingsRow): Settings {
@@ -62,6 +69,7 @@ export function settingsFromRow(row: SettingsRow): Settings {
     reminderDefaultDaysBefore: row.reminder_default_days_before,
     theme: row.theme as Settings['theme'],
     ...(row.quick_currencies?.length ? { quickCurrencies: [...row.quick_currencies] } : {}),
+    ...(settingsReminderFromJson(row.reminder) ? { reminder: settingsReminderFromJson(row.reminder) } : {}),
     updatedAt: row.updated_at,
   };
 }
@@ -76,6 +84,8 @@ export function settingsToRow(userId: string, s: Settings): SettingsRow {
     reminder_default_days_before: s.reminderDefaultDaysBefore,
     theme: s.theme,
     quick_currencies: s.quickCurrencies?.length ? [...s.quickCurrencies] : null,
+    // Always sent, null included: an explicit null is what clears it remotely.
+    reminder: s.reminder ?? null,
     // Explicit: if it's not sent, Postgres's now() default overwrites the
     // date and the remote row always looks newer than the local one.
     updated_at: s.updatedAt || new Date().toISOString(),

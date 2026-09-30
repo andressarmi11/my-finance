@@ -68,6 +68,12 @@ export interface Settings {
   payDays: number[];
   defaultPaymentMethodId: Id | null;
   reminderDefaultDaysBefore: number;
+  /**
+   * The general reminder (redesign §9f, migration 0015). Missing = derived
+   * from reminderDefaultDaysBefore: that many days before at 09:00 (see
+   * generalReminderRule in domain/reminders/schedule.ts).
+   */
+  reminder?: ReminderRule;
   theme: 'system' | 'light' | 'dark';
   /**
    * The currencies offered as chips in the new-transaction sheet (max 3).

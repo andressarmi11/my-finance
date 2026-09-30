@@ -115,8 +115,11 @@ onward). They're re-runnable.
 > deploying the app version that needs them — the app always sends their
 > columns, and Postgres rejects a row with a column it doesn't have. The
 > redesign (v4) needs `0013_currency_cash.sql` (per-transaction currency,
-> quick currencies) and `0014_transaction_reminder.sql` (per-transaction
-> reminder and time).
+> quick currencies), `0014_transaction_reminder.sql` (per-transaction
+> reminder and time) and `0015_reminder_v2.sql` (the general reminder,
+> `settings.reminder`; it also moves an existing reminder cron from every
+> 15 to every **10 minutes**, reusing the job's own command, so no URL or
+> secret is needed).
 
 ### 4.3 Enable email login
 
@@ -163,7 +166,8 @@ key alone doesn't give anyone access to your data.
 
 See **[docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md)** — it has its
 own complete guide (generating VAPID keys, deploying the Edge
-Function, scheduling the cron). It's the most advanced part of the
+Function, scheduling the cron — every 10 minutes since reminders v2, so
+"30 minutes before" arrives on time). It's the most advanced part of the
 whole project; skip it if for now you only want cloud backup.
 
 ---
