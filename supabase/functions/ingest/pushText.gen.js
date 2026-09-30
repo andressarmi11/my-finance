@@ -165,6 +165,15 @@ function wordsToNumber(words) {
 }
 function findAmount(originalText) {
   const text = normalizeText(originalText);
+  const dollar = /\$\s{0,2}(\d[\d.,]{0,20})\s*(millon(?:es)?|mil(?:es)?|k)?/.exec(text);
+  if (dollar) {
+    const base = digitsToNumber(dollar[1].replace(/[.,]$/, ""));
+    if (base !== null) {
+      const scale = dollar[2];
+      const value = scale === "k" ? base * 1e3 : scale ? base * (SCALES[scale] ?? 1) : base;
+      return { value: Math.round(value), text: dollar[0].trim() };
+    }
+  }
   const withDigits = /\$?\s*(\d[\d.,]*)\s*(millon(?:es)?|milesimo|mil(?:es)?|luca(?:s)?|palo(?:s)?|k)?(\s+y\s+medio)?/i;
   const m = withDigits.exec(text);
   if (m) {
@@ -184,7 +193,8 @@ function findAmount(originalText) {
       const chunk = tokens.slice(start, end);
       if (!chunk.some((p) => p in UNIDADES || p in HUNDREDS || p in SCALES)) continue;
       const value = wordsToNumber(chunk);
-      if (value !== null && value > 0) {
+      const onlyArticle = chunk.every((p) => p === "un" || p === "una" || p === "uno" || p === "y");
+      if (value !== null && value > 0 && !onlyArticle) {
         const half = chunk.includes("medio") || chunk.includes("media");
         const usedScale = chunk.find((p) => p in SCALES);
         const extra = half && usedScale ? SCALES[usedScale] / 2 : 0;
@@ -336,6 +346,112 @@ function guessCategory(text) {
     }
   }
   return best?.categoryId ?? null;
+}
+
+// src/domain/nlp/bankSms.ts
+var OUT = [
+  "compraste",
+  "pagaste",
+  "enviaste",
+  "transferiste",
+  "retiraste",
+  "giraste",
+  "debitamos",
+  "se debito",
+  "realizaste un pago",
+  "realizaste una compra",
+  "realizaste una transferencia",
+  "compra aprobada",
+  "pago aprobado"
+];
+var IN = [
+  "recibiste",
+  "te consignaron",
+  "te transfirieron",
+  "te enviaron",
+  "te llego",
+  "te llegaron",
+  "abono",
+  "abonamos",
+  "consignacion",
+  "recibio",
+  "deposito"
+];
+function moneyAfterDollar(raw) {
+  const s = raw.replace(/\s/g, "");
+  if (!/^\d[\d.,]{0,20}$/.test(s)) return null;
+  const seps = [...s.matchAll(/[.,]/g)].map((m) => m.index);
+  if (seps.length === 0) return Number(s);
+  const last = seps[seps.length - 1];
+  const tail = s.slice(last + 1);
+  const whole = tail.length === 2 || tail.length === 1 ? s.slice(0, last) : s;
+  const n = Number(whole.replace(/[.,]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+function firstIndex(text, words) {
+  let best = null;
+  for (const w of words) {
+    const re = new RegExp(`(^|[\\s,:;.])${w.replace(/\s/g, "\\s+")}(?=[\\s,:;.]|$)`);
+    const m = re.exec(text);
+    if (m && (best === null || m.index < best.at)) best = { word: w, at: m.index };
+  }
+  return best;
+}
+function cleanMerchant(raw) {
+  let s = raw.trim();
+  if (s.includes("*")) {
+    const [head, ...rest] = s.split("*");
+    const tailPart = rest.join(" ").trim();
+    s = head.trim().length <= 3 && tailPart ? tailPart : head.trim();
+  }
+  s = s.replace(/[._-]+(com|co|net)\b.*$/, "").replace(/[^\p{L}\p{N}&\s'.-]/gu, " ").replace(/\s+/g, " ").trim();
+  return titleCase(s);
+}
+function titleCase(s) {
+  return s.split(" ").filter(Boolean).map((w) => w.length <= 2 && /^(de|la|el|y|en|del)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+var STOP = String.raw`(?=\s+(?:con|en tu|desde|a la|a tu|por|el\s+\d|a las|si tienes|el dia|aut|autorizacion|ref|referencia|saldo|cupo|trans|hora)\b|[,;]|\.(?=\s|$)|$)`;
+function counterpart(text, after, kind) {
+  const rest = text.slice(after, after + 240);
+  const lead = kind === "merchant" ? String.raw`\s(?:en|a)\s` : kind === "from" ? String.raw`\s(?:de|desde)\s` : String.raw`\s(?:a)\s`;
+  const re = new RegExp(`${lead}(?:el\\s+)?([\\p{L}\\p{N}*&'.\\- ]{2,60}?)${STOP}`, "u");
+  const m = re.exec(rest);
+  if (!m) return null;
+  const got = m[1].trim();
+  if (/^(tu|su|la|el)\s|^\d/.test(got) || /^(cuenta|llave|corresponsal)$/.test(got)) return null;
+  return got;
+}
+function parseBankSms(text) {
+  const dollar = /\$\s{0,2}(\d[\d.,]{0,20})/.exec(text);
+  if (!dollar) return null;
+  const amount = moneyAfterDollar(dollar[1]);
+  if (amount == null || amount <= 0) return null;
+  const outVerb = firstIndex(text, OUT);
+  const inVerb = firstIndex(text, IN);
+  if (!outVerb && !inVerb) return null;
+  const type = inVerb && (!outVerb || inVerb.at < outVerb.at) ? "income" : "expense";
+  const verb = type === "income" ? inVerb : outVerb;
+  const from = verb.at + verb.word.length;
+  let concept = null;
+  if (type === "expense") {
+    if (/codigo\s+qr|\bqr\b/.test(text) && verb.word === "pagaste") concept = "Pago QR";
+    else if (verb.word === "retiraste") concept = "Retiro";
+    else if (verb.word === "enviaste" || verb.word === "transferiste" || verb.word === "realizaste una transferencia") {
+      const to = counterpart(text, from, "to");
+      concept = to ? cleanMerchant(to) : "Transferencia";
+    } else {
+      const m = counterpart(text, dollar.index, "merchant") ?? counterpart(text, from, "merchant");
+      concept = m ? cleanMerchant(m) : null;
+    }
+  } else {
+    const corresponsal = /corresponsal\s+([\p{L}\p{N} ]{2,60}?)(?=\s+en\s|[,.]|$)/u.exec(text);
+    if (verb.word === "consignacion" || corresponsal) concept = "Consignaci\xF3n";
+    else {
+      const who = counterpart(text, from, "from") ?? counterpart(text, dollar.index, "from");
+      concept = who ? cleanMerchant(who) : null;
+    }
+  }
+  return { type, amount, concept: concept ?? "" };
 }
 
 // src/domain/nlp/parse.ts
@@ -570,7 +686,9 @@ function parseUtterance(originalText, today) {
       break;
     }
   }
-  const concept = bankConcept(text) ?? extractConcept(rest, [
+  const bank = parseBankSms(text);
+  if (bank) type = bank.type;
+  const concept = bank?.concept || bankConcept(text) || extractConcept(rest, [
     amount ? normalizeText(amount.text) : null,
     methodText,
     currencyText,
@@ -592,7 +710,7 @@ function parseUtterance(originalText, today) {
   ]);
   return {
     type,
-    amount: amount?.value ?? null,
+    amount: bank?.amount ?? amount?.value ?? null,
     // "Recibí 400 mil" says nothing else, and an entry without a concept
     // can't be logged — it sat in the inbox with the button off. For
     // money coming in, "Ingreso" is an honest name; an expense still asks.

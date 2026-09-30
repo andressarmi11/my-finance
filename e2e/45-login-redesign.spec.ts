@@ -34,6 +34,15 @@ const password = (page: Page) => page.getByLabel('Contraseña', { exact: true })
 test.describe('phone', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test('an expired confirmation link lands on the sign-in screen with an explanation', async ({ page }) => {
+    await stubBackend(page);
+    await page.goto('#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired');
+
+    await expect(page.getByText('El enlace de confirmación venció o ya se usó', { exact: false })).toBeVisible();
+    // The error is read once and taken off the address bar.
+    await expect(page).not.toHaveURL(/error_code/);
+  });
+
   test('the tabs switch the title, and never share a name with the submit button', async ({ page }) => {
     await stubBackend(page);
     await page.goto('');

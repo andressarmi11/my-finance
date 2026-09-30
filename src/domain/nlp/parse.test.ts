@@ -93,16 +93,16 @@ describe('bank SMS', () => {
 
   it('Bancolombia purchase: merchant and T.Cred / T.Deb', () => {
     const c = p('Bancolombia: Compraste $45.900,00 en EXITO LAURELES con tu T.Cred *1234, el 20/06/2026 a las 15:05. Si tienes dudas, llamanos al 018000931987');
-    expect(c).toMatchObject({ type: 'expense', amount: 45_900, concept: 'Exito laureles', method: 'credit', date: '2026-06-20' });
+    expect(c).toMatchObject({ type: 'expense', amount: 45_900, concept: 'Exito Laureles', method: 'credit', date: '2026-06-20' });
     const d = p('Bancolombia: Compraste $12.000,00 en RAPPI con tu T.Deb *7145, el 20/06/2026 a las 15:05.');
     expect(d).toMatchObject({ amount: 12_000, concept: 'Rappi', method: 'debit' });
   });
 
   it('Bancolombia QR payment and deposit (real SMS)', () => {
     const qr = p('Bancolombia: ANDRES FELIPE PALACIOS SARMIENTO pagaste $71,200.00 por codigo QR desde tu cuenta *7145 a la llave 0052549599 el 18/06/2026 a las 18:30. Con codigo QR es facil y de una. Dudas al 018000912345');
-    expect(qr).toMatchObject({ type: 'expense', amount: 71_200, concept: 'Pago qr', method: 'debit', date: '2026-06-18' });
+    expect(qr).toMatchObject({ type: 'expense', amount: 71_200, concept: 'Pago QR', method: 'debit', date: '2026-06-18' });
     const dep = p('Bancolombia: Recibiste una consignacion por $72,000 desde el corresponsal BARRIO VILLA HEERMOSA MEDELLIN en MEDELLIN, el 18/06/26 19:47. Si tienes dudas, llamanos: 018000931987. A tu lado siempre.');
-    expect(dep).toMatchObject({ type: 'income', amount: 72_000, concept: 'Consignacion', date: '2026-06-18' });
+    expect(dep).toMatchObject({ type: 'income', amount: 72_000, concept: 'Consignación', date: '2026-06-18' });
   });
 
   it('spoken income: "recibí" and "vendí"', () => {

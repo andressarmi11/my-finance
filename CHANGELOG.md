@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased] — Bank SMS amounts and the sign-up email link
+
+### Fixed
+- Bank SMS: the amount is the figure right after "$" ("$300,000.00",
+  "$17.686,00", "$72,000"), never "una transferencia" (read as 1) nor a
+  card or account number (*7145). New `bankSms.ts` reads the verb
+  (compraste / pagaste / enviaste / retiraste… → gasto; recibiste / te
+  consignaron / abono… → ingreso) and the counterpart: "Rappi Colombia",
+  "Didi" (DLO*Didi), "Pago QR", "Consignación", the sender's name. Messages
+  can be longer or shorter; only "$" + a verb are required. The push text
+  (ingest) uses the same parser (`pushText.gen.js` regenerated).
+- Sign-up and password-reset emails now link back to the app
+  (`emailRedirectTo` = origin + /step-up/) instead of the bare domain,
+  which gave a 404. An expired or used link (`#error_code=otp_expired`)
+  lands on the sign-in screen with an explanation, and the hash is cleared.
+
+### Tests
+- Unit: `bankSms.test.ts` with the real messages; parse expectations updated.
+- E2E 45: an expired confirmation link shows the explanation.
+
 ## [Unreleased] — Tab bar transparency
 
 Plan and checklist: `docs/BARRA.md`. Prototype: `docs/barra/Step Up Barra.dc.html`.
