@@ -69,44 +69,72 @@ function todayBogota(): string {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
 }
 
+/** What happened with the notification: in the response and in the function's logs. */
+interface PushReport {
+  subscriptions: number;
+  sent: number;
+  /** Why nothing (or not everything) went out, when that's the case. */
+  problem?: string;
+  errors?: string[];
+}
+
 /**
  * One notification per entry, saying what was understood. Same `tag` per
  * user, so a burst of four shows as one that says "4 por revisar" instead
  * of four banners. Tapping it opens the review on THIS entry.
+ *
+ * Never throws: the entry is already in the inbox. But it says what went
+ * wrong — it used to swallow every error, and a push that never arrived
+ * left nothing to look at.
  */
-async function notify(userId: string, entryId: string, texto: string, pending: number): Promise<void> {
+async function notify(userId: string, entryId: string, texto: string, pending: number): Promise<PushReport> {
   const publicKey = Deno.env.get('VAPID_PUBLIC_KEY');
   const privateKey = Deno.env.get('VAPID_PRIVATE_KEY');
-  if (!publicKey || !privateKey) return;
-  webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:soporte@example.com', publicKey, privateKey);
+  if (!publicKey || !privateKey) return { subscriptions: 0, sent: 0, problem: 'Faltan los secrets VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY.' };
+  try {
+    webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:soporte@example.com', publicKey, privateKey);
+  } catch (e) {
+    return { subscriptions: 0, sent: 0, problem: `Claves VAPID inválidas: ${String(e)}` };
+  }
 
   // `language` is migration 0018; before it, ask without it (Spanish).
   let subs: Subscription[] = [];
   const withLang = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth, language').eq('user_id', userId);
   if (withLang.error) {
     const plain = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
+    if (plain.error) return { subscriptions: 0, sent: 0, problem: `No se pudieron leer las suscripciones: ${plain.error.message}` };
     subs = (plain.data ?? []) as Subscription[];
   } else {
     subs = (withLang.data ?? []) as Subscription[];
   }
-  if (subs.length === 0) return;
+  if (subs.length === 0) return { subscriptions: 0, sent: 0, problem: 'Esta cuenta no tiene ningún dispositivo con notificaciones activas.' };
 
   const { data: settings } = await admin.from('settings').select('currency').eq('user_id', userId).maybeSingle();
   const currency = (settings?.currency as string | undefined) ?? 'COP';
   const today = todayBogota();
 
+  const errors: string[] = [];
+  let sent = 0;
   await Promise.all(subs.map(async (sub) => {
-    const language = sub.language === 'en' ? 'en' : 'es';
-    const { title, body } = pushText(texto, { today, language, currency, pending });
-    const payload = JSON.stringify({ title, body, tag: `inbox-${userId}`, url: `/?revisar=${entryId}` });
     try {
-      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 3600 });
+      const language = sub.language === 'en' ? 'en' : 'es';
+      const { title, body } = pushText(texto, { today, language, currency, pending });
+      const payload = JSON.stringify({ title, body, tag: `inbox-${userId}`, url: `/?revisar=${entryId}` });
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+        { TTL: 3600, timeout: 10_000 },
+      );
+      sent++;
     } catch (e) {
-      // Gone for good: the browser unsubscribed. Same cleanup as send-reminders.
       const status = (e as { statusCode?: number }).statusCode;
+      const host = (() => { try { return new URL(sub.endpoint).host; } catch { return '?'; } })();
+      errors.push(`${host}: ${status ?? ''} ${(e as { body?: string }).body ?? String(e)}`.trim());
+      // Gone for good: the browser unsubscribed. Same cleanup as send-reminders.
       if (status === 404 || status === 410) await admin.from('push_subscriptions').delete().eq('id', sub.id);
     }
   }));
+  return { subscriptions: subs.length, sent, ...(errors.length ? { errors } : {}) };
 }
 
 /**
@@ -187,12 +215,16 @@ Deno.serve(async (req) => {
   if (errInsert || !creada) return responder(500, { error: 'No se pudo guardar.' });
 
   // Never fails the ingestion: the entry is already in the inbox.
-  await notify(fila.user_id, creada.id as string, texto, (pending ?? 0) + 1).catch(() => undefined);
+  const push = await notify(fila.user_id, creada.id as string, texto, (pending ?? 0) + 1)
+    .catch((e): PushReport => ({ subscriptions: 0, sent: 0, problem: String(e) }));
+  if (push.problem || push.errors) console.error('ingest push', JSON.stringify(push));
+  else console.log('ingest push', JSON.stringify(push));
 
   await admin
     .from('ingest_tokens')
     .update({ last_used_at: new Date().toISOString() })
     .eq('id', fila.id);
 
-  return responder(200, { ok: true });
+  // How the notification went: only counts and reasons, nothing of the user's.
+  return responder(200, { ok: true, push });
 });
