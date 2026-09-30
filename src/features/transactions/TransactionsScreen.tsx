@@ -692,7 +692,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
         <EmptyState
           title={t('transactions.emptyTitle')}
           body={t('transactions.emptyBody')}
-          action={{ label: loadingDemo ? 'Cargando...' : 'Cargar datos de ejemplo', onClick: handleLoadDemo }}
+          action={{ label: loadingDemo ? t('home.loading') : t('home.loadSample'), onClick: handleLoadDemo }}
         />
       ) : groups.length === 0 ? (
         <EmptyState

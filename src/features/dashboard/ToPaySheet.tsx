@@ -35,7 +35,7 @@ export function ToPaySheet({
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label="Por pagar — desglose"
+      aria-label={t('toPay.dialog')}
       onClick={onClose}
       style={{
         position: 'fixed',
@@ -62,7 +62,7 @@ export function ToPaySheet({
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 12px' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>Por pagar</h2>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700 }}>{t('toPay.title')}</h2>
           <button
             type="button"
             onClick={() => setShowHelp(!showHelp)}
@@ -86,10 +86,10 @@ export function ToPaySheet({
         {showHelp && (
           <div style={{ background: 'var(--surface-sunken)', borderRadius: 'var(--radius-s)', padding: '12px 14px', marginBottom: 12, fontSize: 'var(--text-sm)', color: 'var(--text-muted)', lineHeight: 'var(--lh-normal)' }}>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Pendiente:</strong> {t('toPay.pendingHelp')}
+              <strong style={{ color: 'var(--text)' }}>{t('toPay.pendingLabel')}</strong> {t('toPay.pendingHelp')}
             </p>
             <p style={{ margin: '0 0 6px' }}>
-              <strong style={{ color: 'var(--text)' }}>Programado:</strong> {t('toPay.scheduledHelp')}
+              <strong style={{ color: 'var(--text)' }}>{t('toPay.scheduledLabel')}</strong> {t('toPay.scheduledHelp')}
             </p>
             <p style={{ margin: 0 }}>
               <strong style={{ color: 'var(--text)' }}>{t('toPay.onCardLabel')}</strong> {t('toPay.onCardHelp')}
@@ -97,9 +97,9 @@ export function ToPaySheet({
           </div>
         )}
 
-        <BreakdownRow label="Pendientes" count={pending.length} amount={sum(pending)} onClick={() => { navigate('/movimientos?estado=pending'); onClose(); }} />
-        <BreakdownRow label="Programados" count={scheduled.length} amount={sum(scheduled)} onClick={() => { navigate('/movimientos?estado=scheduled'); onClose(); }} />
-        <BreakdownRow label="En tarjeta" count={enTC.length} amount={sum(enTC)} onClick={() => { navigate('/tarjeta'); onClose(); }} />
+        <BreakdownRow label={t('toPay.pendingRow')} count={pending.length} amount={sum(pending)} onClick={() => { navigate('/movimientos?estado=pending'); onClose(); }} />
+        <BreakdownRow label={t('toPay.scheduledRow')} count={scheduled.length} amount={sum(scheduled)} onClick={() => { navigate('/movimientos?estado=scheduled'); onClose(); }} />
+        <BreakdownRow label={t('toPay.onCardRow')} count={enTC.length} amount={sum(enTC)} onClick={() => { navigate('/tarjeta'); onClose(); }} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 8px 4px', borderTop: '1px solid var(--line-strong)', marginTop: 4 }}>
           <span style={{ fontWeight: 700 }}>{t('toPay.total')}</span>

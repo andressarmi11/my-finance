@@ -99,7 +99,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
             <Question title={t('onboarding.nameQuestion')} help={t('onboarding.nameHelp')}>
               <input
                 autoFocus value={name} onChange={(e) => setNombre(e.target.value)}
-                placeholder="Tu nombre" aria-label="Tu nombre" maxLength={40}
+                placeholder={t('settings.yourName')} aria-label={t('settings.yourName')} maxLength={40}
                 onKeyDown={(e) => { if (e.key === 'Enter' && canContinue) next(); }}
                 style={{
                   width: '100%', minHeight: 52, padding: '0 16px', borderRadius: 'var(--radius-m)',
@@ -228,7 +228,7 @@ export function OnboardingScreen({ settings }: { settings: Settings }) {
             </button>
           )}
           <button type="button" onClick={next} disabled={!canContinue || saving} style={{ ...buttonStyle, opacity: canContinue ? 1 : 0.5 }}>
-            {saving ? 'Guardando…' : step === STEPS.length - 1 ? 'Empezar' : 'Siguiente'}
+            {saving ? t('action.saving') : step === STEPS.length - 1 ? t('onboarding.start') : t('onboarding.next')}
           </button>
         </div>
       </div>

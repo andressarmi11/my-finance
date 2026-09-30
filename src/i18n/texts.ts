@@ -298,7 +298,7 @@ export const TEXTS = {
     'automation.copied': 'Copiado',
     'automation.shortcutStepsBefore': 'En el Atajo: una acción',
     'automation.shortcutStepsAction': 'Obtener contenido de la URL',
-    'automation.shortcutStepsAfter': 'action, you paste the address above and drag the message variable onto the end. Nothing else: no method, no body, no JSON fields. The step by step is in docs/ATAJOS_IOS.md.',
+    'automation.shortcutStepsAfter': ', pegas la dirección de arriba y arrastras la variable del mensaje al final. Nada más: sin método, sin cuerpo, sin campos JSON. El paso a paso está en docs/ATAJOS_IOS.md.',
     'notifications.title': 'Notificaciones',
     'notifications.pendingSetup': 'Configuración de notificaciones pendiente.',
     'notifications.blocked': 'Bloqueaste las notificaciones para esta app. Actívalas desde los ajustes de tu sistema si cambias de opinión.',
@@ -818,6 +818,18 @@ export const TEXTS = {
     'desk.langTheme': 'Idioma y tema',
     'desk.themeNote': 'Se aplica al instante en todas las pantallas.',
     'desk.legalPick': 'Elige un documento para leerlo aquí.',
+    // Fase 10 — Idioma
+    'toPay.dialog': 'Por pagar — desglose',
+    'toPay.title': 'Por pagar',
+    'toPay.pendingLabel': 'Pendiente:',
+    'toPay.scheduledLabel': 'Programado:',
+    'toPay.pendingRow': 'Pendientes',
+    'toPay.scheduledRow': 'Programados',
+    'toPay.onCardRow': 'En tarjeta',
+    'form.dialogAdd': 'Agregar movimiento',
+    'form.dialogEdit': 'Editar movimiento',
+    'auth.newPasswordMin': 'Contraseña nueva (mínimo {n})',
+    'auth.repeatIt': 'Repetirla',
   },
 
   en: {
@@ -1605,6 +1617,18 @@ export const TEXTS = {
     'desk.langTheme': 'Language and theme',
     'desk.themeNote': 'Applies instantly on every screen.',
     'desk.legalPick': 'Pick a document to read it here.',
+    // Fase 10 — Idioma
+    'toPay.dialog': 'Still to pay — breakdown',
+    'toPay.title': 'Still to pay',
+    'toPay.pendingLabel': 'Unpaid:',
+    'toPay.scheduledLabel': 'Scheduled:',
+    'toPay.pendingRow': 'Unpaid',
+    'toPay.scheduledRow': 'Scheduled',
+    'toPay.onCardRow': 'On card',
+    'form.dialogAdd': 'Add transaction',
+    'form.dialogEdit': 'Edit transaction',
+    'auth.newPasswordMin': 'New password (at least {n})',
+    'auth.repeatIt': 'Repeat it',
   },
 } as const;
 

@@ -280,7 +280,7 @@ Referencia: turno 2 del prototipo (2a).
 
 ## 10. Checklist
 
-Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · **Fase 6 ✅** · **Fase 7 ✅** · **Fase 8 ✅** · **Fase 9 ✅** · Fase 10 ⬜
+Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · **Fase 6 ✅** · **Fase 7 ✅** · **Fase 8 ✅** · **Fase 9 ✅** · **Fase 10 ✅**
 
 - [x] Tokens oscuros actualizados — Fase 1
 - [x] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado — Fase 2
@@ -301,12 +301,12 @@ Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · 
 - [x] Recordatorios v2 (días/mismo día) + aviso por movimiento; cron cada 5–15 min — Fases 4, 6 y 7
 - [x] Movimientos: 10 → 25, grupos plegables, vista mensual, barra de selección con Eliminar — Fase 3
 - [x] Cero hex sueltos en componentes (todo por variables) — Fase 1
-- [ ] `npm run typecheck && npm test && npm run test:e2e` en verde (e2e a revisar: 24, 25, 29, 31, 32, 38)
+- [x] `npm run typecheck && npm test && npm run test:e2e` en verde (e2e a revisar: 24, 25, 29, 31, 32, 38) — en cada fase, más 46–48
 
 
 ## 11. Pendiente: lo que la app todavía NO tiene
 
-Hechos: 4, 5 (Fase 6) · 6, 7, 8 (Fase 3) · 1, 2 (Fase 4; la moneda en el formulario de recurrentes llega con su hoja nueva en la Fase 6) · 3: datos por movimiento y chips de aviso (Fase 4, migración 0014), falta el cálculo y el cron (Fase 7) · 9 (columnas; el stepper ±50.000 va con Presupuestos en la Fase 6), 10 (Fase 5).
+Hechos: 4, 5 (Fase 6) · 6, 7, 8 (Fase 3) · 1, 2 (Fase 4; la moneda en el formulario de recurrentes llega con su hoja nueva en la Fase 6) · 3: datos por movimiento y chips de aviso (Fase 4, migración 0014), falta el cálculo y el cron (Fase 7) · 12 (Fase 10) · 13 (Fase 9) · 14 (Fase 1) · 9 (columnas; el stepper ±50.000 va con Presupuestos en la Fase 6), 10 (Fase 5).
 
 Cada punto dice qué falta, dónde va y cómo hacerlo. Nada de esto requiere reescribir `src/domain/`, solo extenderlo.
 
