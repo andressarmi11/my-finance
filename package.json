@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
-    "preview:iphone": "node scripts/iphone-preview.mjs"
+    "preview:iphone": "node scripts/iphone-preview.mjs",
+    "build:push-text": "node scripts/build-push-text.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

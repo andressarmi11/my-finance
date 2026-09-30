@@ -1,5 +1,5 @@
 import { useT } from '@/i18n/language';
-import { IconCheck } from '@tabler/icons-react';
+import { IconBolt, IconCheck } from '@tabler/icons-react';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import type { Category, PaymentMethod, Transaction } from '@/domain/types';
@@ -7,6 +7,19 @@ import { formatMoney } from '@/domain/money/format';
 import { shortDay } from '@/lib/formatShortDate';
 import { fill } from '@/lib/dateLabels';
 import { formatRate } from '@/lib/currencies';
+
+/**
+ * The trace of what arrived on its own (BANDEJA.md): an amber bolt beside
+ * the concept. The detail says where from ("Origen: SMS Bancolombia").
+ */
+export function ArrivedAloneMark() {
+  const t = useT();
+  return (
+    <span role="img" aria-label={t('inbox.arrivedAlone')} title={t('inbox.arrivedAlone')} style={{ display: 'inline-flex', flex: 'none', color: 'var(--q25)' }}>
+      <IconBolt size={13} stroke={2.2} aria-hidden />
+    </span>
+  );
+}
 
 function shortDate(iso: string): string {
   return shortDay(iso);
@@ -107,14 +120,17 @@ export function TransactionRow({
 
         <span style={{ flex: 1, minWidth: 0 }}>
           <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span
-              style={{
-                flex: 1, minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 500,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                textDecoration: tx.status === 'cancelled' ? 'line-through' : undefined,
-              }}
-            >
-              {tx.concept}
+            <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                style={{
+                  minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 500,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  textDecoration: tx.status === 'cancelled' ? 'line-through' : undefined,
+                }}
+              >
+                {tx.concept}
+              </span>
+              {tx.source && <ArrivedAloneMark />}
             </span>
             <span
               className="figures"
@@ -245,11 +261,14 @@ export function TransactionTableRow({
           size={36}
         />
         <span style={{ minWidth: 0 }}>
-          <span style={{
-            display: 'block', fontSize: 15, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            textDecoration: tx.status === 'cancelled' ? 'line-through' : undefined,
-          }}>
-            {tx.concept}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{
+              minWidth: 0, fontSize: 15, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textDecoration: tx.status === 'cancelled' ? 'line-through' : undefined,
+            }}>
+              {tx.concept}
+            </span>
+            {tx.source && <ArrivedAloneMark />}
           </span>
           <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {category?.name ?? t('analytics.noCategory')}

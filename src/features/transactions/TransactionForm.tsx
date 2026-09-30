@@ -1,4 +1,5 @@
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { ArrivedAloneMark } from './TransactionRow';
 import { useT } from '@/i18n/language';
 import { IconCalendar } from '@tabler/icons-react';
 import { MiniCalendar, relativeDayLabel } from '@/components/ui/MiniCalendar';
@@ -560,6 +561,14 @@ export function TransactionForm({
     </MoreOptions>
   );
 
+  // What arrived on its own says where from (BANDEJA.md): "Origen: SMS Bancolombia".
+  const originLine = existing?.source && (
+    <p style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '14px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
+      <ArrivedAloneMark />
+      {fill(t('inbox.origin'), { source: [t(`inbox.src.${existing.source}`), existing.sourceLabel].filter(Boolean).join(' ') })}
+    </p>
+  );
+
   const editActions = existing && (
     <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
       {onDuplicate && (
@@ -663,6 +672,7 @@ export function TransactionForm({
               <DeskLabel>{t('form.reminder')}</DeskLabel>
               <ReminderChips value={value.reminder} onChange={(reminder) => setValue((v) => ({ ...v, reminder }))} wrap />
               <div style={{ marginTop: 12 }}>{moreOptions}</div>
+              {originLine}
               {editActions}
             </div>
             <div>
@@ -819,6 +829,7 @@ export function TransactionForm({
         {/* 8. Advanced options, folded. */}
         <div style={{ marginTop: 12 }}>{moreOptions}</div>
 
+        {originLine}
         {editActions}
       </div>
     </div>

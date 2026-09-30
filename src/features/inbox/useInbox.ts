@@ -12,7 +12,10 @@ import { useSession } from '@/features/auth/useSession';
 export function useInbox() {
   const { session } = useSession();
   const userId = session?.user.id ?? null;
+  const enabled = isSupabaseConfigured() && userId !== null;
   const [pending, setPendientes] = useState<InboxEntry[]>([]);
+  // The first answer arrived: the ?revisar= deep link waits for it.
+  const [loaded, setLoaded] = useState(false);
 
   const reload = useCallback(async () => {
     if (!isSupabaseConfigured() || !userId) {
@@ -25,6 +28,8 @@ export function useInbox() {
       // Without a connection there's no inbox to show; it's not an error that
       // deserves interrupting anyone.
       setPendientes([]);
+    } finally {
+      setLoaded(true);
     }
   }, [userId]);
 
@@ -39,5 +44,5 @@ export function useInbox() {
     return () => document.removeEventListener('visibilitychange', onBack);
   }, [userId, reload]);
 
-  return { pending, reload };
+  return { enabled, loaded, pending, reload };
 }

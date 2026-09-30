@@ -70,7 +70,7 @@ const TODAY_IN_EVERY_LANGUAGE = ['Hoy', 'Today'];
  * the same as no affordance.
  */
 export function MonthNav({
-  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false, compact: compactProp = false, large = false, bare = false,
+  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false, compact: compactProp = false, large = false, bare = false, beforePill,
 }: {
   label: string;
   /**
@@ -116,6 +116,8 @@ export function MonthNav({
    * for headers where the navigator sits beside a title or the logo.
    */
   compact?: boolean;
+  /** Compact only: something glued to the pill's left, inside Today (Inicio's inbox button). */
+  beforePill?: React.ReactNode;
   /** Desktop header (§9g 2a): the same pill, 40px tall. Implies `compact`. */
   large?: boolean;
   /** The pill's arrows and label with no pill: beside a screen title (prototype 1a, Movimientos). Implies `compact`. */
@@ -280,6 +282,7 @@ export function MonthNav({
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         {todayButton}
+        {beforePill && <span style={{ display: 'flex', marginRight: 2 }}>{beforePill}</span>}
         {arrowsAndLabel}
       </div>
     );

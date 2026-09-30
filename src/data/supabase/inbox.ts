@@ -37,6 +37,13 @@ export async function listPending(): Promise<InboxEntry[]> {
   }));
 }
 
+/** Deshacer: the entry goes back to the inbox, as if nobody had touched it. */
+export async function reopenEntry(id: string): Promise<void> {
+  const supabase = await getSupabase();
+  const { error } = await supabase.from('inbox').update({ status: 'pending' }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function closeEntry(id: string, outcome: 'done' | 'discarded'): Promise<void> {
   const supabase = await getSupabase();
   const { error } = await supabase.from('inbox').update({ status: outcome }).eq('id', id);

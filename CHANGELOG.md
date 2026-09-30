@@ -1,5 +1,37 @@
 # Changelog
 
+## [Unreleased] — Inbox v2: what arrives on its own
+
+Plan and checklist: `docs/BANDEJA.md`. Prototype: `docs/bandeja/Step Up Bandeja.dc.html`.
+
+### Changed
+- The inbox banner is gone. Inicio has an inbox button beside the month
+  (amber count) and a "N por revisar" card between the flow grid and
+  "Falta este mes", only while something waits.
+- Review one at a time: progress bar, and everything editable in place
+  (expense/income, amount, concept, category, method, date, currency).
+  A coloured hint says how sure it is (green learned/complete, blue
+  scheduled, red missing) and "Anotar" stays off while the amount or the
+  concept is missing. "Anotar los N completos" records the complete ones
+  only. Every action leaves a 5 s "Deshacer"; discarding no longer asks.
+- Desktop: a 520 px dialog; ⏎ records, ⌫ discards, Esc closes.
+- What arrived on its own carries an amber bolt in every list and
+  "Origen: SMS Bancolombia" in its detail (`Transaction.source`,
+  `sourceLabel`).
+- The ingest Edge Function sends a push saying what it understood ("Gasto
+  de $ 500.000 en Restaurante El Cielo"), grouped per user; tapping it opens
+  the review on that entry (`/?revisar=<id>`).
+
+### Database
+- `0018_inbox_v2.sql`: `transactions.source` / `source_label` and
+  `push_subscriptions.language`. Run it before recording from the inbox.
+
+### Tests
+- Unit: review logic (drafts, hints, bulk, conversion), the sheet's
+  "Anotar" button, the push text and its bundle, source round-trip.
+- E2E 40-inbox-review-one-by-one: type the missing amount, record, undo;
+  the deep link; desktop shortcuts.
+
 ## [Unreleased] — Cost audit: C1, C2, C3
 
 Audit: `docs/auditoria/COSTOS.md`.

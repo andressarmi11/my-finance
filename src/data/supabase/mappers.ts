@@ -146,8 +146,15 @@ export interface TransactionRow {
   currency?: string | null; original_amount?: number | null; fx_rate?: number | string | null;
   /** Migration 0014. */
   reminder?: unknown; time?: string | null;
+  /** Migration 0018. Only sent when set, so rows typed in the app upload before it runs. */
+  source?: string | null; source_label?: string | null;
   created_at: string; updated_at: string;
 }
+const SOURCES: readonly string[] = ['sms', 'atajo', 'dictation'];
+function isSource(v: unknown): v is NonNullable<Transaction['source']> {
+  return typeof v === 'string' && SOURCES.includes(v);
+}
+
 export function transactionFromRow(row: TransactionRow): Transaction {
   return {
     id: row.id, type: row.type as Transaction['type'], concept: row.concept, amount: row.amount, date: row.date,
@@ -162,6 +169,8 @@ export function transactionFromRow(row: TransactionRow): Transaction {
     ...foreignFromRow(row),
     ...(row.time ? { time: row.time } : {}),
     ...(reminderFromJson(row.reminder) !== undefined ? { reminder: reminderFromJson(row.reminder) } : {}),
+    ...(isSource(row.source) ? { source: row.source } : {}),
+    ...(row.source_label ? { sourceLabel: row.source_label } : {}),
     createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -178,6 +187,7 @@ export function transactionToRow(userId: string, t: Transaction): TransactionRow
     ...foreignToRow(t),
     reminder: t.reminder ?? null,
     time: t.time ?? null,
+    ...(t.source ? { source: t.source, source_label: t.sourceLabel ?? null } : {}),
     created_at: t.createdAt, updated_at: t.updatedAt,
   };
 }

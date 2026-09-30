@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#E9E8E4;font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:#2F4FE0}a:hover{color:#1d36b0}button,input{font:inherit;color:inherit}</style></helmet>
+<section id="t3" style="padding:40px 44px 32px">
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 20px"><a href="#t3" style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none">3</a><span style="font:600 13px system-ui,sans-serif;color:#1a1a1a">Movimientos que llegan solos · notificación → Inicio → revisar</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+
+<div id="3a" style="display:flex;flex-direction:column;gap:9px;width:330px">
+<div style="display:flex;gap:8px;align-items:baseline;font:11px system-ui;color:rgba(0,0,0,.55)"><a href="#3a" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none">3a</a>Notificación del sistema</div>
+<div style="background:linear-gradient(160deg,#2a3350,#141826);border-radius:28px;padding:22px 14px 26px;display:flex;flex-direction:column;gap:10px">
+<div style="text-align:center;color:#fff;font-size:15px;font-weight:600;opacity:.85">martes, 30 de septiembre</div>
+<div style="text-align:center;color:#fff;font-size:64px;font-weight:600;line-height:1;margin-bottom:14px;letter-spacing:-.02em">12:42</div>
+<button onClick="{{ openFromPush }}" style="border:none;text-align:left;cursor:pointer;background:rgba(245,245,250,.78);backdrop-filter:blur(20px);border-radius:20px;padding:12px 14px;display:flex;gap:10px;color:#111">
+<span style="width:38px;height:38px;border-radius:9px;background:#0B0D12;display:grid;place-items:center;flex:none"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="2" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="3" y="2" width="5" height="12" rx="2" fill="#6B8AFF"></rect><rect x="3" y="9.5" width="18" height="5" rx="2" fill="#6B8AFF"></rect><rect x="16" y="9.5" width="5" height="12.5" rx="2" fill="#6B8AFF"></rect><rect x="7" y="17" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="18" y="2" width="3" height="5" rx="1.5" fill="#FFB340"></rect></svg></span>
+<span style="flex:1;min-width:0"><span style="display:flex;justify-content:space-between;font-size:14px;font-weight:700"><span>Step up</span><span style="font-weight:400;color:#555;font-size:13px">ahora</span></span><span style="display:block;font-size:14px;font-weight:600;margin-top:1px">Gasto de $ 500.000 en Restaurante El Cielo</span><span style="display:block;font-size:14px;color:#333">Toca para revisarlo antes de anotarlo.</span></span>
+</button>
+<div style="margin:-6px 12px 0;height:12px;border-radius:0 0 16px 16px;background:rgba(245,245,250,.5)"></div>
+<div style="text-align:center;font-size:12px;color:rgba(255,255,255,.7)">+3 más de Step up</div>
+</div>
+<div style="font-size:12.5px;line-height:1.5;color:#3A4250;display:flex;flex-direction:column;gap:6px">
+<div>Una notificación por movimiento, agrupadas por la app. El texto dice <b>qué entendió</b> (monto + comercio), no "llegó algo".</div>
+<div>Tocarla abre la revisión directamente en ese movimiento. Si llegan 4 seguidos, se agrupan en "4 por revisar".</div>
+<div>Toca la notificación para probarlo.</div>
+</div>
+</div>
+
+<div id="3b" style="display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;gap:8px;align-items:baseline;font:11px system-ui;color:rgba(0,0,0,.55)"><a href="#3b" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none">3b</a>Inicio + revisión uno a uno · interactivo</div>
+<div style="width:390px;height:844px;border-radius:56px;background:#000;padding:10px;box-shadow:0 30px 60px rgba(0,0,0,.25)">
+<div style="position:relative;width:100%;height:100%;border-radius:46px;overflow:hidden;background:#0B0D12;color:#F4F6FA">
+<div style="position:absolute;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0;z-index:5;font-weight:600;font-size:15px"><span>12:42</span><span style="width:120px;height:34px;border-radius:20px;background:#000;position:absolute;left:50%;top:10px;transform:translateX(-50%)"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid #F4F6FA"></span></div>
+
+<div style="position:absolute;inset:0;overflow-y:auto;padding:56px 20px 120px;scrollbar-width:none">
+<div style="display:flex;align-items:center;justify-content:space-between;height:44px">
+<div style="display:flex;align-items:center;gap:8px"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="2" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="3" y="2" width="5" height="12" rx="2" fill="#6B8AFF"></rect><rect x="3" y="9.5" width="18" height="5" rx="2" fill="#6B8AFF"></rect><rect x="16" y="9.5" width="5" height="12.5" rx="2" fill="#6B8AFF"></rect><rect x="7" y="17" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="18" y="2" width="3" height="5" rx="1.5" fill="#FFB340"></rect></svg><span style="font-weight:700;font-size:16px">Step up</span></div>
+<div style="display:flex;align-items:center;gap:8px">
+<button onClick="{{ openFirst }}" aria-label="Por revisar" style="position:relative;width:36px;height:36px;border-radius:18px;border:1px solid #232936;background:#151922;cursor:pointer;display:grid;place-items:center;color:#A3ABBA;padding:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h3l3 3h4l3 -3h3 M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-5l-3 -8h-10z"></path></svg><sc-if value="{{ hasPending }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:#FFB340;color:#0B0D12;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 4px;box-sizing:border-box">{{ pendingCount }}</span></sc-if></button>
+<div style="height:36px;padding:0 12px;border-radius:18px;background:#151922;border:1px solid #232936;display:flex;align-items:center;font-size:13px;font-weight:600">‹  Sep 2026  ›</div>
+</div>
+</div>
+<div style="text-align:center;padding:26px 0 22px">
+<div style="font-size:15px;color:#A3ABBA">Hola, Andres. Te queda en septiembre</div>
+<div style="font-size:52px;font-weight:700;letter-spacing:-.035em;margin-top:6px;font-variant-numeric:tabular-nums">$ {{ leftTxt }}</div>
+<div style="font-size:14px;color:#A3ABBA;margin-top:10px"><span style="color:#FFB340;font-weight:600">● Quincena del 25</span> · quedan $ 324.906</div>
+</div>
+
+<sc-if value="{{ hasPending }}" hint-placeholder-val="{{ true }}">
+<div style="background:#151922;border:1px solid #3a3322;border-radius:20px;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:14px 14px 10px">
+<span style="width:30px;height:30px;border-radius:9px;background:rgba(255,179,64,.14);color:#FFB340;display:grid;place-items:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"></path></svg></span>
+<span style="flex:1"><span style="display:block;font-weight:700;font-size:16px">{{ pendingTitle }}</span><span style="display:block;font-size:12px;color:#A3ABBA">Llegaron solos. Revisa el monto antes de anotar.</span></span>
+</div>
+<sc-for list="{{ homeRows }}" as="r" hint-placeholder-count="2">
+<button onClick="{{ r.open }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border:none;border-top:1px solid #232936;background:none;cursor:pointer;text-align:left">
+<span style="width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;background:{{ r.avBg }};color:{{ r.avColor }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ r.icon }}"></path></svg></span>
+<span style="flex:1;min-width:0"><span style="display:block;font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.concept }}</span><span style="display:block;font-size:12px;color:{{ r.metaColor }}">{{ r.meta }}</span></span>
+<span style="font-weight:700;font-size:15px;color:{{ r.amountColor }};font-variant-numeric:tabular-nums">{{ r.amountTxt }}</span>
+</button>
+</sc-for>
+<button onClick="{{ openFirst }}" style="width:100%;height:46px;border:none;border-top:1px solid #232936;background:none;color:#6B8AFF;font-weight:600;font-size:14px;cursor:pointer">{{ reviewAllLabel }}</button>
+</div>
+</sc-if>
+
+<div style="display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 10px"><h2 style="margin:0;font-size:19px;font-weight:700">Falta este mes</h2><span style="color:#6B8AFF;font-weight:600;font-size:14px">Ver todos</span></div>
+<div style="background:#151922;border:1px solid #232936;border-radius:20px;overflow:hidden">
+<sc-for list="{{ recent }}" as="r" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:{{ r.divider }}">
+<span style="width:36px;height:36px;border-radius:11px;flex:none;display:grid;place-items:center;background:{{ r.avBg }};color:{{ r.avColor }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ r.icon }}"></path></svg></span>
+<span style="flex:1;min-width:0"><span style="display:flex;align-items:center;gap:6px;font-size:15px;font-weight:500">{{ r.concept }}<sc-if value="{{ r.auto }}" hint-placeholder-val="{{ false }}"><span title="Llegó solo" style="display:inline-flex;color:#FFB340"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"></path></svg></span></sc-if></span><span style="display:block;font-size:12px;color:#A3ABBA">{{ r.meta }}</span></span>
+<span style="font-weight:700;font-size:15px;color:{{ r.amountColor }};font-variant-numeric:tabular-nums">{{ r.amountTxt }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="position:absolute;left:14px;right:14px;bottom:24px;display:flex;gap:10px;z-index:3">
+<div style="flex:1;height:62px;border-radius:31px;background:rgba(21,25,34,.9);border:1px solid #2B323E;display:grid;grid-template-columns:repeat(3,1fr);padding:4px;box-sizing:border-box">
+<span style="border-radius:27px;background:#2B323E;display:grid;place-items:center;font-size:11px;font-weight:600">Inicio</span><span style="display:grid;place-items:center;font-size:11px;font-weight:600;color:#7C8595">Análisis</span><span style="display:grid;place-items:center;font-size:11px;font-weight:600;color:#7C8595">Ajustes</span>
+</div>
+<span style="width:62px;height:62px;border-radius:31px;background:#6B8AFF;color:#0B0D12;display:grid;place-items:center;font-size:30px">+</span>
+</div>
+
+<div onClick="{{ close }}" style="position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.55);opacity:{{ scrimOp }};pointer-events:{{ scrimEv }};transition:opacity .25s"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;z-index:9;background:#151922;border-radius:28px 28px 0 0;padding:10px 18px 30px;transform:{{ sheetT }};transition:transform .38s cubic-bezier(.22,1,.36,1)">
+<div style="width:36px;height:5px;border-radius:3px;background:#3A4250;margin:0 auto 12px"></div>
+<sc-if value="{{ hasCurrent }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;gap:10px">
+<span style="flex:1;font-weight:700;font-size:18px">Por revisar</span>
+<span style="font-size:13px;color:#A3ABBA;font-weight:600">{{ posTxt }}</span>
+<button onClick="{{ close }}" style="width:30px;height:30px;border-radius:15px;border:none;background:#1D222C;color:#A3ABBA;cursor:pointer">✕</button>
+</div>
+<div style="display:flex;gap:4px;margin:10px 0 14px"><sc-for list="{{ dots }}" as="d" hint-placeholder-count="4"><span style="flex:1;height:4px;border-radius:2px;background:{{ d.c }}"></span></sc-for></div>
+
+<div style="background:#0B0D12;border-radius:20px;padding:16px">
+<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#A3ABBA"><span style="display:flex;color:#FFB340"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ cur.srcIcon }}"></path></svg></span>{{ cur.src }}</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;background:#151922;border-radius:10px;padding:3px;margin-top:12px;width:180px"><sc-for list="{{ typeTabs }}" as="m" hint-placeholder-count="2"><button onClick="{{ m.onClick }}" style="height:28px;border:none;border-radius:8px;background:{{ m.bg }};color:{{ m.color }};font-weight:600;font-size:12px;cursor:pointer">{{ m.label }}</button></sc-for></div>
+<div style="display:flex;align-items:baseline;gap:4px;margin-top:10px;border-bottom:1.5px solid {{ amountLine }};padding-bottom:4px">
+<span style="font-size:26px;font-weight:700;color:#7C8595">$</span>
+<input value="{{ cur.amountInput }}" onChange="{{ onAmount }}" placeholder="Escribe el monto" inputMode="numeric" style="flex:1;min-width:0;border:none;background:none;outline:none;font-size:40px;font-weight:700;letter-spacing:-.03em;color:{{ cur.amountColor }}"></input>
+</div>
+<input value="{{ cur.concept }}" onChange="{{ onConcept }}" style="width:100%;margin-top:8px;border:none;background:none;outline:none;font-size:16px;font-weight:500;color:#F4F6FA;padding:0"></input>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+<button onClick="{{ cycleCat }}" style="height:32px;padding:0 11px 0 7px;border-radius:16px;border:1px solid {{ cur.catBorder }};background:#151922;display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:13px;color:{{ cur.catText }}"><span style="display:flex;color:{{ cur.catColor }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ cur.catIcon }}"></path></svg></span>{{ cur.catName }}</button>
+<button onClick="{{ cycleMethod }}" style="height:32px;padding:0 11px;border-radius:16px;border:1px solid #2B323E;background:#151922;cursor:pointer;font-weight:600;font-size:13px">{{ cur.method }}</button>
+<span style="height:32px;padding:0 11px;border-radius:16px;border:1px solid #2B323E;background:#151922;display:flex;align-items:center;font-weight:600;font-size:13px">{{ cur.dateTxt }}</span>
+<span style="height:32px;padding:0 11px;border-radius:16px;border:1px solid #2B323E;background:#151922;display:flex;align-items:center;gap:5px;font-weight:600;font-size:13px">🇨🇴 COP</span>
+</div>
+<sc-if value="{{ cur.hasHint }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:9px 11px;border-radius:12px;background:{{ cur.hintBg }};color:{{ cur.hintColor }};font-size:13px;font-weight:500"><span style="flex:none;margin-top:1px">{{ cur.hintMark }}</span><span>{{ cur.hint }}</span></div></sc-if>
+<button onClick="{{ toggleOrig }}" style="margin-top:10px;border:none;background:none;padding:0;color:#7C8595;font-size:12px;cursor:pointer">{{ origLabel }}</button>
+<sc-if value="{{ showOrig }}" hint-placeholder-val="{{ false }}"><div style="margin-top:6px;padding:10px 12px;border-radius:12px;background:#151922;font:12px/1.45 ui-monospace,Menlo,monospace;color:#A3ABBA">{{ cur.raw }}</div></sc-if>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:14px">
+<button onClick="{{ discard }}" style="height:50px;border-radius:14px;border:1px solid #2B323E;background:none;font-weight:600;font-size:15px;cursor:pointer;color:#A3ABBA">Descartar</button>
+<button onClick="{{ accept }}" style="height:50px;border-radius:14px;border:none;background:{{ acceptBg }};color:{{ acceptColor }};font-weight:700;font-size:15px;cursor:pointer">{{ acceptLabel }}</button>
+</div>
+<sc-if value="{{ canBulk }}" hint-placeholder-val="{{ false }}"><button onClick="{{ acceptAll }}" style="width:100%;margin-top:6px;height:40px;border:none;background:none;color:#6B8AFF;font-weight:600;font-size:14px;cursor:pointer">{{ bulkLabel }}</button></sc-if>
+</sc-if>
+<sc-if value="{{ allDone }}" hint-placeholder-val="{{ false }}">
+<div style="text-align:center;padding:26px 0 8px">
+<span style="width:56px;height:56px;border-radius:28px;background:rgba(61,209,107,.14);color:#3DD16B;display:inline-grid;place-items:center"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"></path></svg></span>
+<div style="font-size:20px;font-weight:700;margin-top:12px">Todo revisado</div>
+<div style="font-size:14px;color:#A3ABBA;margin-top:4px">{{ doneSummary }}</div>
+<button onClick="{{ close }}" style="margin-top:20px;width:100%;height:50px;border-radius:14px;border:none;background:#1D222C;font-weight:600;font-size:15px;cursor:pointer">Cerrar</button>
+</div>
+</sc-if>
+</div>
+
+<div style="position:absolute;left:16px;right:16px;bottom:{{ toastBottom }};z-index:12;opacity:{{ toastOp }};pointer-events:{{ toastEv }};transition:all .3s cubic-bezier(.22,1,.36,1);background:#F4F6FA;color:#0B0D12;border-radius:16px;padding:0 6px 0 16px;height:48px;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600">
+<span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ toast }}</span>
+<button onClick="{{ undo }}" style="border:none;background:none;color:#2F4FE0;font-weight:700;font-size:14px;cursor:pointer;height:36px;padding:0 10px">Deshacer</button>
+</div>
+</div>
+</div>
+<button onClick="{{ reset }}" style="align-self:flex-start;height:30px;padding:0 12px;border-radius:15px;border:1px solid #DDD;background:#FAFAF8;font-size:12px;font-weight:600;cursor:pointer;color:#151B28">Reiniciar demo</button>
+</div>
+
+<div id="3c" style="display:flex;flex-direction:column;gap:9px;width:340px">
+<div style="display:flex;gap:8px;align-items:baseline;font:11px system-ui;color:rgba(0,0,0,.55)"><a href="#3c" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none">3c</a>Cómo está organizado</div>
+<div style="background:#fff;border-radius:14px;padding:18px;border:1px solid rgba(0,0,0,.08);font-size:13px;line-height:1.5;color:#3A4250;display:flex;flex-direction:column;gap:10px">
+<div><b style="color:#151B28">1. Sale el banner de arriba.</b> Empujaba todo hacia abajo y competía con el número principal. En su lugar hay dos entradas: el ícono de bandeja en el header (con contador ámbar), que está siempre, y la tarjeta "Por revisar" entre el hero y "Falta este mes", que solo aparece si hay algo pendiente.</div>
+<div><b style="color:#151B28">2. Uno a la vez.</b> La hoja muestra un movimiento con barra de progreso. Todo se puede corregir ahí mismo, sin abrir otro formulario: monto, concepto, gasto o ingreso, categoría y método (toca los chips). Al anotar o descartar pasa al siguiente.</div>
+<div><b style="color:#151B28">3. Qué entendió, con su nivel de duda.</b> Verde si lo aprendió de antes. Azul si es a futuro y no cuenta hoy (el botón dice "Programar"). Rojo si falta algo: el botón se apaga hasta que lo completes.</div>
+<div><b style="color:#151B28">4. Anotar varios.</b> Solo aparece cuando quedan 2 o más completos y ninguno tiene dudas. Nunca anota los que tienen algo en rojo.</div>
+<div><b style="color:#151B28">5. Deshacer.</b> Cada acción deja un aviso de 5 s con "Deshacer". Así Descartar no necesita confirmación.</div>
+<div><b style="color:#151B28">6. Rastro.</b> Lo que llegó solo lleva un rayo ámbar junto al concepto en las listas, y "Origen: SMS Bancolombia" en su detalle.</div>
+</div>
+</div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const IC = {
+  alimentacion: 'M4 3h8l-1 9h-6z M7 18h2v3h-2z M20 3v12h-5c-.023 -3.681 .184 -7.406 5 -12z M20 15v6h-1v-3 M8 12v6',
+  transporte: 'M4 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M16 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M4 17h-2v-11a1 1 0 0 1 1 -1h14a5 7 0 0 1 5 7v5h-2m-4 0h-8 M16 5l1.5 7l4.5 0',
+  suscripciones: 'M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3 M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3',
+  ingreso: 'M9 9h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M12 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M17 9v-2a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v6a2 2 0 0 0 2 2h2',
+  salud: 'M19.5 13.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572',
+  none: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0 M12 8v4 M12 16h.01',
+};
+const CATS = { alimentacion: ['Alimentación', '#F7945A'], transporte: ['Transporte', '#C5B337'], suscripciones: ['Suscripciones', '#00C8E3'], salud: ['Salud', '#00CCC6'], ingreso: ['Otros ingresos', '#3DD16B'] };
+const SRC = { sms: 'M8 9h8 M8 13h6 M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12z', atajo: 'M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11' };
+const METHODS = ['Débito', 'Tarjeta', 'Efectivo'];
+const fmtN = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const SEED = () => [
+  { id: 'a', src: 'SMS · Bancolombia · hace 1 min', srcK: 'sms', type: 'expense', amount: 500000, concept: 'Restaurante El Cielo', cat: 'alimentacion', method: 'Débito', dateTxt: 'Hoy, 30 sep', kind: 'learned', raw: 'Bancolombia: Compraste $500.000,00 en RESTAURANTE EL CIELO con tu T.Deb *4521 el 30/09/2026 a las 12:41.' },
+  { id: 'b', src: 'Atajo · Nequi · hace 6 min', srcK: 'atajo', type: 'income', amount: 120000, concept: 'Juan Pérez', cat: 'ingreso', method: 'Débito', dateTxt: 'Hoy, 30 sep', kind: 'ok', raw: 'Nequi: Recibiste $120.000 de JUAN PEREZ. Tu saldo es $845.300.' },
+  { id: 'c', src: 'SMS · Bancolombia · hace 20 min', srcK: 'sms', type: 'expense', amount: 44900, concept: 'Netflix', cat: 'suscripciones', method: 'Tarjeta', dateTxt: '5 oct', kind: 'future', raw: 'Bancolombia: Se programó un débito automático de $44.900 a NETFLIX.COM para el 05/10/2026.' },
+  { id: 'd', src: 'SMS · Bancolombia · hace 1 h', srcK: 'sms', type: 'expense', amount: null, concept: 'Uber', cat: 'transporte', method: 'Tarjeta', dateTxt: 'Hoy, 30 sep', kind: 'missing', raw: 'Bancolombia: Compra aprobada en UBER *TRIP HELP.UBER.COM con T.Cred *8810. Consulta el detalle en la app.' },
+];
+const RECENT = [
+  { concept: 'GYM', meta: 'Salud · 1 oct', cat: 'salud', amount: 100000, type: 'expense' },
+  { concept: 'Apple Music', meta: 'Suscripciones · 4 oct', cat: 'suscripciones', amount: 9900, type: 'expense' },
+];
+
+class Component extends DCLogic {
+  state = { items: SEED(), done: [], open: false, idx: 0, showOrig: false, toast: '', last: null };
+
+  flash(msg, last) { clearTimeout(this._t); this.setState({ toast: msg, last }); this._t = setTimeout(() => this.setState({ toast: '', last: null }), 5000); }
+  patchCur(p) { this.setState((s) => ({ items: s.items.map((it, i) => i === s.idx ? { ...it, ...p } : it) })); }
+  resolve(outcome) {
+    const s = this.state; const it = s.items[s.idx]; if (!it) return;
+    if (outcome === 'done' && !this.complete(it)) return;
+    const items = s.items.filter((_, i) => i !== s.idx);
+    this.setState({ items, done: [...s.done, { ...it, outcome }], idx: Math.min(s.idx, Math.max(0, items.length - 1)), showOrig: false });
+    const verb = outcome === 'discarded' ? 'Descartado' : it.kind === 'future' ? 'Programado' : 'Anotado';
+    this.flash(`${verb} · ${it.concept}${it.amount ? ' $ ' + fmtN(it.amount) : ''}`, { it, at: s.idx });
+  }
+  complete(it) { return !!it.amount && !!it.concept; }
+
+  renderVals() {
+    const s = this.state;
+    const it = s.items[s.idx];
+    const accepted = s.done.filter((d) => d.outcome === 'done');
+    const delta = accepted.reduce((a, d) => a + (d.kind === 'future' ? 0 : d.type === 'income' ? d.amount : -d.amount), 0);
+    const row = (d) => {
+      const [n, c] = CATS[d.cat] || ['', '#A3ABBA']; const inc = d.type === 'income';
+      return { avBg: `color-mix(in srgb, ${c} 16%, #151922)`, avColor: c, icon: IC[d.cat], concept: d.concept, amountTxt: d.amount ? (inc ? '+ ' : '') + '$ ' + fmtN(d.amount) : 'Sin monto', amountColor: !d.amount ? '#FF7A70' : inc ? '#3DD16B' : '#F4F6FA' };
+    };
+    const hints = {
+      learned: { t: 'Lo puse en Alimentación porque ya lo habías anotado así.', bg: 'rgba(61,209,107,.1)', c: '#3DD16B', m: '✓' },
+      ok: { t: 'Ingreso de hoy. Cuenta en la quincena del 25.', bg: 'rgba(61,209,107,.1)', c: '#3DD16B', m: '✓' },
+      future: { t: 'Es para el 5 oct. Se agenda como pendiente y no cuenta hoy.', bg: 'rgba(107,138,255,.12)', c: '#8FA6FF', m: '◷' },
+      missing: { t: 'No pude leer el monto. Escríbelo para poder anotarlo.', bg: 'rgba(255,122,112,.12)', c: '#FF7A70', m: '!' },
+    };
+    let cur = {};
+    if (it) {
+      const [cn, cc] = CATS[it.cat]; const h = it.amount || it.kind !== 'missing' ? hints[it.kind === 'missing' ? 'ok' : it.kind] : hints.missing;
+      const hint = it.kind === 'missing' && it.amount ? { t: 'Monto escrito por ti. Revisa el resto y anota.', bg: 'rgba(61,209,107,.1)', c: '#3DD16B', m: '✓' } : h;
+      cur = { src: it.src, srcIcon: SRC[it.srcK], amountInput: it.amount ? fmtN(it.amount) : '', amountColor: it.type === 'income' ? '#3DD16B' : '#F4F6FA', concept: it.concept, catName: cn, catIcon: IC[it.cat], catColor: cc, catBorder: '#2B323E', catText: '#F4F6FA', method: it.method, dateTxt: it.dateTxt, hasHint: true, hint: hint.t, hintBg: hint.bg, hintColor: hint.c, hintMark: hint.m, raw: it.raw };
+    }
+    const full = it && this.complete(it);
+    const bulkable = s.items.filter((x) => this.complete(x) && x.kind !== 'missing');
+    const total = s.items.length + s.done.length;
+    return {
+      leftTxt: fmtN(1587906 + delta),
+      hasPending: s.items.length > 0, pendingCount: s.items.length,
+      pendingTitle: s.items.length === 1 ? '1 por revisar' : `${s.items.length} por revisar`,
+      homeRows: s.items.slice(0, 2).map((d, i) => ({ ...row(d), meta: d.kind === 'missing' ? 'Falta el monto' : d.src.split(' · ').slice(1).join(' · '), metaColor: d.kind === 'missing' ? '#FF7A70' : '#A3ABBA', open: () => this.setState({ open: true, idx: i, showOrig: false }) })),
+      reviewAllLabel: s.items.length > 2 ? `Revisar los ${s.items.length}` : 'Revisar',
+      recent: [...accepted.slice().reverse().map((d) => ({ ...row(d), meta: `${CATS[d.cat][0]} · ${d.dateTxt}`, auto: true })), ...RECENT.map((d) => ({ ...row(d), meta: d.meta, auto: false }))].map((r, i) => ({ ...r, divider: i === 0 ? 'none' : '1px solid #232936' })),
+      openFirst: () => this.setState({ open: true, idx: 0, showOrig: false }),
+      openFromPush: () => this.setState({ open: true, idx: 0, showOrig: false }),
+      close: () => this.setState({ open: false }),
+      scrimOp: s.open ? 1 : 0, scrimEv: s.open ? 'auto' : 'none', sheetT: s.open ? 'translateY(0)' : 'translateY(105%)',
+      hasCurrent: !!it, allDone: !it,
+      posTxt: `${s.done.length + 1} de ${total}`,
+      dots: Array.from({ length: total }, (_, i) => ({ c: i < s.done.length ? '#6B8AFF' : i === s.done.length ? '#F4F6FA' : '#2B323E' })),
+      cur,
+      typeTabs: [['expense', 'Gasto'], ['income', 'Ingreso']].map(([k, l]) => { const on = it && it.type === k; return { label: l, bg: on ? '#2B323E' : 'transparent', color: on ? '#F4F6FA' : '#7C8595', onClick: () => this.patchCur({ type: k, cat: k === 'income' ? 'ingreso' : (it.cat === 'ingreso' ? 'alimentacion' : it.cat) }) }; }),
+      amountLine: it && !it.amount ? '#FF7A70' : '#2B323E',
+      onAmount: (e) => { const v = parseInt(e.target.value.replace(/\D/g, '').slice(0, 10) || '0', 10); this.patchCur({ amount: v || null }); },
+      onConcept: (e) => this.patchCur({ concept: e.target.value }),
+      cycleCat: () => { if (!it || it.type === 'income') return; const ks = ['alimentacion', 'transporte', 'suscripciones', 'salud']; this.patchCur({ cat: ks[(ks.indexOf(it.cat) + 1) % ks.length], kind: it.kind === 'learned' ? 'ok' : it.kind }); },
+      cycleMethod: () => it && this.patchCur({ method: METHODS[(METHODS.indexOf(it.method) + 1) % 3] }),
+      showOrig: s.showOrig, origLabel: s.showOrig ? '▾ Ocultar mensaje original' : '▸ Ver mensaje original', toggleOrig: () => this.setState({ showOrig: !s.showOrig }),
+      acceptLabel: it && it.kind === 'future' ? 'Programar' : 'Anotar', acceptBg: full ? '#6B8AFF' : '#1D222C', acceptColor: full ? '#0B0D12' : '#4A5263',
+      accept: () => this.resolve('done'), discard: () => this.resolve('discarded'),
+      canBulk: bulkable.length >= 2, bulkLabel: `Anotar los ${bulkable.length} que están completos`,
+      acceptAll: () => { const ids = new Set(bulkable.map((x) => x.id)); this.setState((st) => ({ items: st.items.filter((x) => !ids.has(x.id)), done: [...st.done, ...bulkable.map((x) => ({ ...x, outcome: 'done' }))], idx: 0 })); this.flash(`${bulkable.length} anotados`, null); },
+      doneSummary: `${accepted.length} anotados · ${s.done.length - accepted.length} descartados`,
+      toast: s.toast, toastOp: s.toast ? 1 : 0, toastEv: s.toast ? 'auto' : 'none', toastBottom: s.toast ? (s.open ? '24px' : '100px') : '70px',
+      undo: () => { const l = s.last; if (!l) return; this.setState((st) => { const items = st.items.slice(); items.splice(l.at, 0, l.it); return { items, done: st.done.filter((d) => d.id !== l.it.id), idx: l.at, toast: '', last: null, open: true }; }); },
+      reset: () => this.setState({ items: SEED(), done: [], idx: 0, open: false, toast: '', last: null }),
+    };
+  }
+}
+</script>
+</body>
+</html>
