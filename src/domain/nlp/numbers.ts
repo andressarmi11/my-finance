@@ -112,6 +112,19 @@ export interface FoundAmount {
 export function findAmount(originalText: string): FoundAmount | null {
   const text = normalizeText(originalText);
 
+  // 0. A figure after "$" is the amount, whatever came before it: in a bank
+  // SMS "recibiste una transferencia ... por $300,000.00" the old first-match
+  // read "una" or an account number (*7145) instead.
+  const dollar = /\$\s{0,2}(\d[\d.,]{0,20})\s*(millon(?:es)?|mil(?:es)?|k)?/.exec(text);
+  if (dollar) {
+    const base = digitsToNumber(dollar[1]!.replace(/[.,]$/, ''));
+    if (base !== null) {
+      const scale = dollar[2];
+      const value = scale === 'k' ? base * 1_000 : scale ? base * (SCALES[scale] ?? 1) : base;
+      return { value: Math.round(value), text: dollar[0]!.trim() };
+    }
+  }
+
   // 1. Digits, with an optional scale: "45.000", "$45.000", "45 mil", "1.2 millones", "45k"
   // The alternatives go from LONGEST to shortest on purpose: regex
   // alternation is ordered, so having 'mil' before 'millones' made
@@ -143,7 +156,9 @@ export function findAmount(originalText: string): FoundAmount | null {
       // At least one scale or number; avoids capturing lone "y"s.
       if (!chunk.some((p) => p in UNIDADES || p in HUNDREDS || p in SCALES)) continue;
       const value = wordsToNumber(chunk);
-      if (value !== null && value > 0) {
+      // "una transferencia", "un pago": an article, not the amount 1.
+      const onlyArticle = chunk.every((p) => p === 'un' || p === 'una' || p === 'uno' || p === 'y');
+      if (value !== null && value > 0 && !onlyArticle) {
         const half = chunk.includes('medio') || chunk.includes('media');
         const usedScale = chunk.find((p) => p in SCALES);
         const extra = half && usedScale ? (SCALES[usedScale]! / 2) : 0;

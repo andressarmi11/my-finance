@@ -62,6 +62,17 @@ export function SignInScreen() {
   );
 }
 
+/** The app's own address (with /step-up/), for the links Supabase emails. */
+function appUrl(): string {
+  return window.location.origin + import.meta.env.BASE_URL;
+}
+
+/** The error a Supabase email link comes back with, if any: 'otp_expired', 'access_denied'… */
+export function linkFailure(hash: string): string | null {
+  const params = new URLSearchParams(hash.replace(/^#/, ''));
+  return params.get('error_code') ?? params.get('error');
+}
+
 function SignInForm() {
   const t = useT();
   const desktop = useBreakpoint() === 'desktop';
@@ -76,6 +87,16 @@ function SignInForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState(() => (signedOutEmail ? t('login.signedOut') : ''));
+  // Arriving from an email link that failed (#error_code=otp_expired…):
+  // say so, and clear it from the address bar.
+  useEffect(() => {
+    const failure = linkFailure(window.location.hash);
+    if (!failure) return;
+    setError(t(failure === 'otp_expired' ? 'auth.confirmLinkExpired' : 'auth.linkExpired'));
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const captchaBox = useRef<HTMLDivElement>(null);
   const captcha = useTurnstile(captchaBox);
   // Undefined when there's no captcha configured: Supabase ignores it then.
@@ -109,7 +130,12 @@ function SignInForm() {
 
       if (mode === 'crear') {
         if (key.length < MIN_PASSWORD) throw new Error(t('auth.passwordTooShort').replace('{n}', String(MIN_PASSWORD)));
-        const { data, error: err } = await supabase.auth.signUp({ email, password: key, options: { captchaToken } });
+        // Where the confirmation email's link lands: the app itself (/step-up/).
+        // Without it Supabase used the project's Site URL, the bare domain,
+        // and the link opened a GitHub Pages 404.
+        const { data, error: err } = await supabase.auth.signUp({
+          email, password: key, options: { captchaToken, emailRedirectTo: appUrl() },
+        });
         if (err) throw err;
         // If the project requires confirming the email, there's no session yet.
         if (!data.session) {
@@ -127,7 +153,7 @@ function SignInForm() {
 
       // forgot
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + window.location.pathname,
+        redirectTo: appUrl(),
         captchaToken,
       });
       if (err) throw err;

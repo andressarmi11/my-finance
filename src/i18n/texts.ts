@@ -926,6 +926,8 @@ export const TEXTS = {
     'navBar.noteGlass': 'Cristal: se ve lo que hay detrás, con desenfoque. Los íconos mantienen el contraste.',
     'navBar.style': 'Estilo de la barra',
     'navBar.preview': 'Vista previa de la barra',
+    // Enlaces de correo
+    'auth.confirmLinkExpired': 'El enlace de confirmación venció o ya se usó. Si ya confirmaste, entra con tu correo y contraseña; si no, crea la cuenta otra vez para recibir un enlace nuevo.',
   },
 
   en: {
@@ -1821,6 +1823,8 @@ export const TEXTS = {
     'navBar.noteGlass': 'Glass: what\'s behind shows through, blurred. Icons keep their contrast.',
     'navBar.style': 'Bar style',
     'navBar.preview': 'Bar preview',
+    // Enlaces de correo
+    'auth.confirmLinkExpired': 'The confirmation link has expired or was already used. If you already confirmed, sign in with your email and password; if not, create the account again to get a new link.',
   },
 } as const;
 

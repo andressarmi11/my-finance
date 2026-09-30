@@ -16,6 +16,7 @@ import { addDays, clampDay, parseISO, shiftMonth, toISO } from '../dates';
 import type { ISODate, PaymentMethodType, TransactionType } from '../types';
 import { guessCategory } from './categories';
 import { findAmount, normalizeText } from './numbers';
+import { parseBankSms } from './bankSms';
 
 export interface Parsed {
   type: TransactionType;
@@ -262,7 +263,12 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     }
   }
 
-  const concept = bankConcept(text) ?? extractConcept(rest, [
+  // A bank SMS is read by its template (bankSms.ts): the "$" amount, the
+  // verb for the direction, the merchant or person it names.
+  const bank = parseBankSms(text);
+  if (bank) type = bank.type;
+
+  const concept = bank?.concept || bankConcept(text) || extractConcept(rest, [
     amount ? normalizeText(amount.text) : null,
     methodText,
     currencyText,
@@ -275,7 +281,7 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
 
   return {
     type,
-    amount: amount?.value ?? null,
+    amount: bank?.amount ?? amount?.value ?? null,
     // "Recibí 400 mil" says nothing else, and an entry without a concept
     // can't be logged — it sat in the inbox with the button off. For
     // money coming in, "Ingreso" is an honest name; an expense still asks.
