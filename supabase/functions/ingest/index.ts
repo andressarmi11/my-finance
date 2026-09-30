@@ -4,20 +4,30 @@
 // usuario. Es el camino que hace que la automatización del SMS no tenga
 // que abrir nada: el Atajo manda el mensaje acá y sigue de largo.
 //
-// A propósito NO interpreta el texto. El parser vive en la app
-// (src/domain/nlp) y hay uno solo; duplicarlo en Deno sería garantizar que
-// los dos digan cosas distintas con el tiempo.
+// Guarda el texto crudo: la interpretación que vale es la de la app, que
+// el usuario revisa antes de anotar. Pero la notificación dice lo que
+// entendió ("Gasto de $ 500.000 en Restaurante El Cielo", BANDEJA.md), y
+// para eso usa EL MISMO parser de la app, empaquetado en pushText.gen.js
+// (npm run build:push-text) — nunca una copia escrita en Deno.
+//
+// La notificación es best-effort: si no hay suscripciones, faltan las
+// claves VAPID o el envío falla, el movimiento igual queda en la bandeja.
 //
 // Autenticación: un token de un solo propósito por usuario, guardado
 // hasheado en ingest_tokens. Solo permite AGREGAR a la bandeja — no lee
 // movimientos ni configuración. Si se filtra, lo peor es basura en la
 // bandeja, que el usuario ve antes de confirmar.
 //
+// Secrets para la notificación (los mismos de send-reminders):
+// VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT.
+//
 // Desplegar: supabase functions deploy ingest --no-verify-jwt
 //   (--no-verify-jwt porque el Atajo no tiene sesión de Supabase; la
 //    autenticación la hace esta función con su propio token.)
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import webpush from 'npm:web-push@3.6.7';
+import { pushText } from './pushText.gen.js';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -50,6 +60,53 @@ function responder(status: number, cuerpo: Record<string, unknown>): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+interface Subscription { id: string; endpoint: string; p256dh: string; auth: string; language?: string | null }
+
+/** Today in Colombia: the parser resolves "mañana" / "el 5" against it. */
+function todayBogota(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+}
+
+/**
+ * One notification per entry, saying what was understood. Same `tag` per
+ * user, so a burst of four shows as one that says "4 por revisar" instead
+ * of four banners. Tapping it opens the review on THIS entry.
+ */
+async function notify(userId: string, entryId: string, texto: string, pending: number): Promise<void> {
+  const publicKey = Deno.env.get('VAPID_PUBLIC_KEY');
+  const privateKey = Deno.env.get('VAPID_PRIVATE_KEY');
+  if (!publicKey || !privateKey) return;
+  webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:soporte@example.com', publicKey, privateKey);
+
+  // `language` is migration 0018; before it, ask without it (Spanish).
+  let subs: Subscription[] = [];
+  const withLang = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth, language').eq('user_id', userId);
+  if (withLang.error) {
+    const plain = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
+    subs = (plain.data ?? []) as Subscription[];
+  } else {
+    subs = (withLang.data ?? []) as Subscription[];
+  }
+  if (subs.length === 0) return;
+
+  const { data: settings } = await admin.from('settings').select('currency').eq('user_id', userId).maybeSingle();
+  const currency = (settings?.currency as string | undefined) ?? 'COP';
+  const today = todayBogota();
+
+  await Promise.all(subs.map(async (sub) => {
+    const language = sub.language === 'en' ? 'en' : 'es';
+    const { title, body } = pushText(texto, { today, language, currency, pending });
+    const payload = JSON.stringify({ title, body, tag: `inbox-${userId}`, url: `/?revisar=${entryId}` });
+    try {
+      await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 3600 });
+    } catch (e) {
+      // Gone for good: the browser unsubscribed. Same cleanup as send-reminders.
+      const status = (e as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) await admin.from('push_subscriptions').delete().eq('id', sub.id);
+    }
+  }));
 }
 
 /**
@@ -121,11 +178,16 @@ Deno.serve(async (req) => {
     return responder(429, { error: 'La bandeja está llena: revisa lo que tienes pendiente.' });
   }
 
-  const { error: errInsert } = await admin
+  const { data: creada, error: errInsert } = await admin
     .from('inbox')
-    .insert({ user_id: fila.user_id, texto, origen });
+    .insert({ user_id: fila.user_id, texto, origen })
+    .select('id')
+    .single();
 
-  if (errInsert) return responder(500, { error: 'No se pudo guardar.' });
+  if (errInsert || !creada) return responder(500, { error: 'No se pudo guardar.' });
+
+  // Never fails the ingestion: the entry is already in the inbox.
+  await notify(fila.user_id, creada.id as string, texto, (pending ?? 0) + 1).catch(() => undefined);
 
   await admin
     .from('ingest_tokens')

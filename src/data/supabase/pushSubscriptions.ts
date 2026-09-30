@@ -1,5 +1,5 @@
 import { getSupabase } from './client';
-import { translate } from '@/i18n/language';
+import { activeLanguage, translate } from '@/i18n/language';
 
 export async function savePushSubscription(sub: globalThis.PushSubscription): Promise<void> {
   const supabase = await getSupabase();
@@ -23,6 +23,13 @@ export async function savePushSubscription(sub: globalThis.PushSubscription): Pr
     { onConflict: 'endpoint' },
   );
   if (error) throw error;
+  // Which language the inbox notification is written in (migration 0018).
+  // Apart and best-effort: before 0018 the column doesn't exist, and that
+  // must not break subscribing.
+  await supabase.from('push_subscriptions')
+    .update({ language: activeLanguage() })
+    .eq('endpoint', json.endpoint)
+    .then(() => undefined, () => undefined);
 }
 
 export async function removePushSubscription(endpoint: string): Promise<void> {

@@ -54,6 +54,11 @@ const LanguageContext = createContext<LanguageContextValue | null>(null);
  */
 let currentLanguage: Language = 'es';
 
+/** The active language, outside React (the push subscription stores it). */
+export function activeLanguage(): Language {
+  return currentLanguage;
+}
+
 export function translate(key: TextKey): string {
   return TEXTS[currentLanguage][key] ?? TEXTS.es[key] ?? key;
 }

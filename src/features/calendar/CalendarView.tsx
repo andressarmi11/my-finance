@@ -1,4 +1,5 @@
 import { useT } from '@/i18n/language';
+import { ArrivedAloneMark } from '@/features/transactions/TransactionRow';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import { IconCreditCard } from '@tabler/icons-react';
@@ -222,7 +223,10 @@ export function CalendarView({ year: viewYear, month: viewMonth, wide = false }:
                   size={38}
                 />
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                    <span style={{ minWidth: 0, fontSize: 16, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                    {tx.source && <ArrivedAloneMark />}
+                  </span>
                   {cat && <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{cat.name}</span>}
                 </span>
                 <span className="figures" style={{ fontWeight: 700, fontSize: 16, color: tx.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>

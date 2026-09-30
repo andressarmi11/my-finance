@@ -168,6 +168,20 @@ describe('foreign currency and per-transaction reminder (migrations 0013/0014)',
     expect(transactionFromRow(transactionToRow(USER, none))).toEqual(none);
   });
 
+  it('what arrived on its own keeps its source and sender (migration 0018)', () => {
+    const tx: Transaction = { ...base, source: 'sms', sourceLabel: 'Bancolombia' };
+    const row = transactionToRow(USER, tx);
+    expect(row).toMatchObject({ source: 'sms', source_label: 'Bancolombia' });
+    expect(transactionFromRow(row)).toEqual(tx);
+  });
+
+  it('a typed transaction sends no source columns, so it uploads before 0018 runs', () => {
+    const row = transactionToRow(USER, base);
+    expect('source' in row).toBe(false);
+    expect('source_label' in row).toBe(false);
+    expect(transactionFromRow({ ...row, source: 'fax', source_label: null }).source).toBeUndefined();
+  });
+
   it('a recurring rule keeps its foreign amount', () => {
     const rule: RecurringRule = {
       id: 'r9', name: 'Spotify', type: 'expense', amount: 44_000, categoryId: null, paymentMethodId: null,

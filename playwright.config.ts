@@ -21,7 +21,7 @@ const SOURCE_IMPORTING = /account-isolation|sync-duplicate-occurrences|xlsx-is-a
 const PORT_SYNC = 5174;
 // The sign-in screen spec runs there too (it is the only build that has it),
 // and so does the sign-out / change-password flow, which needs a session.
-const CLOUD_SYNC = /cloud-sync|login-redesign|logout-clear-local/;
+const CLOUD_SYNC = /cloud-sync|login-redesign|logout-clear-local|inbox-review/;
 
 export default defineConfig({
   testDir: './e2e',

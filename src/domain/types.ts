@@ -135,6 +135,8 @@ export interface PaymentMethod {
   updatedAt: string;
 }
 
+export type TransactionSource = 'sms' | 'atajo' | 'dictation';
+
 export interface Transaction extends ForeignAmount {
   id: Id;
   type: TransactionType;
@@ -176,6 +178,14 @@ export interface Transaction extends ForeignAmount {
   time?: string;
   /** This transaction's reminder: its own rule, 'none', or null/absent = the general one. */
   reminder?: ReminderRule | 'none' | null;
+
+  /**
+   * It arrived on its own (inbox, BANDEJA.md): from a bank SMS, a Shortcut or
+   * dictation. Absent for everything typed in the app. `sourceLabel` is who
+   * sent it when the text says so ("Bancolombia").
+   */
+  source?: TransactionSource;
+  sourceLabel?: string;
 
   /** Recurrence traceability. UNIQUE(recurringRuleId, periodKey) in the DB. */
   recurringRuleId?: Id;

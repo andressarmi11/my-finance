@@ -36,6 +36,9 @@ import { SEARCH_INPUT_ID, consumeSearchFocus, onSearchFocusRequest } from '@/app
 import { QuickActions } from '@/components/ui/TabBar';
 import { BudgetColumns } from '@/features/analytics/BudgetColumns';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
+import { InboxButton } from '@/features/inbox/InboxButton';
+import { InboxCard } from '@/features/inbox/InboxCard';
+import { ArrivedAloneMark } from '@/features/transactions/TransactionRow';
 
 
 export function DashboardScreen() {
@@ -184,6 +187,7 @@ export function DashboardScreen() {
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
       onNext={() => setCursor((c) => shiftMonth(c.y, c.m, 1))}
       onToday={isCurrentMonth ? undefined : () => setCursor({ y: todayYear, m: todayMonth })}
+      beforePill={<InboxButton />}
     />
   );
 
@@ -198,7 +202,7 @@ export function DashboardScreen() {
           Step up
         </span>
       </span>
-      {transactions.length > 0 && nav}
+      {transactions.length > 0 ? nav : <InboxButton />}
     </header>
   );
 
@@ -219,6 +223,7 @@ export function DashboardScreen() {
         <h1 style={{ margin: '0 0 16px', fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em' }}>
           {settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')}
         </h1>
+        <InboxCard style={{ marginBottom: 16 }} />
         {emptyHome}
       </HomeFrame>
     );
@@ -342,8 +347,9 @@ export function DashboardScreen() {
                 size={desktop ? 36 : 38}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {tx.concept}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-md)', fontWeight: 500, minWidth: 0 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                  {tx.source && <ArrivedAloneMark />}
                 </div>
                 <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
                   {isLate ? `${t('home.overdue')} ` : ''}{shortDay(relevantDate(tx))}
@@ -441,7 +447,10 @@ export function DashboardScreen() {
           style={{ display: 'grid', gridTemplateColumns: '410px minmax(0, 1fr)', gap: 24, marginTop: 26, alignItems: 'start' }}
         >
           {!hasTransactions ? (
-            <div style={{ minWidth: 0 }}>{emptyHome}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+              <InboxCard />
+              {emptyHome}
+            </div>
           ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
             {overdueBanner}
@@ -459,6 +468,8 @@ export function DashboardScreen() {
               {periodLine}
               {flowGrid}
             </section>
+
+            <InboxCard />
 
             <section style={{ ...card, padding: '18px 18px 8px' }}>
               <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>{t('home.leftThisMonth')}</h2>
@@ -511,6 +522,8 @@ export function DashboardScreen() {
       </section>
 
       {flowGrid}
+
+      <InboxCard style={{ marginTop: 16 }} />
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '30px 0 10px' }}>
         <h2 style={{ fontSize: 19, fontWeight: 700, letterSpacing: '-0.015em', margin: 0 }}>
