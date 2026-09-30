@@ -75,6 +75,17 @@ button { font: inherit; color: inherit; }
   to { transform: rotate(360deg); }
 }
 
+/* Sign-in fields (§9f): the input inside has no outline of its own, so
+   the frame shows where the focus is. */
+.login-field:focus-within {
+  border-color: var(--q10) !important;
+}
+
+/* The typewriter cursor on the desktop sign-in (§9h). */
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
 /* Separador ENTRE filas de una lista, nunca después de la última. Con
    borderBottom en cada fila, la última dejaba una raya suelta al fondo de
    la tarjeta sin nada que separar (Calendario → movimientos del día). */

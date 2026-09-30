@@ -200,8 +200,9 @@ async function openBrowser(browser: Browser, backend: Backend) {
   });
   await page.goto('');
   await page.getByLabel('Correo').fill('sync-test@example.test');
-  await page.getByLabel('Contraseña').fill('test-password-123');
-  await syncAfter(page, backend, () => page.getByRole('button', { name: 'Entrar' }).click());
+  // exact: the eye next to it is "Mostrar contraseña".
+  await page.getByLabel('Contraseña', { exact: true }).fill('test-password-123');
+  await syncAfter(page, backend, () => page.getByRole('button', { name: 'Entrar', exact: true }).click());
   await expect(page.getByLabel('Correo')).toBeHidden();
   return { context, page };
 }
