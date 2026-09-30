@@ -42,4 +42,7 @@ jobs:
       # Keep these names in sync with playwright.config.ts. Renaming a
       # project there and not here fails the whole job with "Project(s) not
       # found", which reads like the suite broke rather than a stale name.
-      - run: npm run test:e2e -- --project=chromium --project=isolation
+      # 'cloud-sync' runs against a build with a fake Supabase host the specs
+      # answer themselves (two-browser sync, the login screen): nothing leaves
+      # the runner.
+      - run: npm run test:e2e -- --project=chromium --project=isolation --project=cloud-sync
