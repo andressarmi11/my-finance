@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
     const txIds = [...new Set(reminders.map((r) => r.transaction_id))];
     const [{ data: allSubs }, { data: allTx }] = await Promise.all([
       supabase.from('push_subscriptions').select('id, user_id, endpoint, p256dh, auth').in('user_id', userIds),
-      supabase.from('transactions').select('id, user_id, concept, amount').in('id', txIds),
+      supabase.from('transactions').select('id, user_id, concept, amount, status').in('id', txIds),
     ]);
     const subsByUser = new Map<string, SubscriptionRow[]>();
     for (const sub of (allSubs ?? []) as Array<SubscriptionRow & { user_id: string }>) {
@@ -168,10 +168,26 @@ Deno.serve(async (req) => {
     }
     // Keyed by owner as well: a reminder never reveals someone else's movement
     // (the FK enforces it too, since 0011).
-    const txById = new Map(((allTx ?? []) as Array<TransactionRow & { user_id: string }>)
+    const txById = new Map(((allTx ?? []) as Array<TransactionRow & { user_id: string; status?: string }>)
       .map((t) => [`${t.user_id}:${t.id}`, t]));
 
-    const delivered = await mapWithLimit(reminders, LIMITS.pushConcurrency, async (reminder) => {
+    // Already paid or cancelled since the reminder was scheduled: nothing to
+    // remind about. Dismissed, not sent — no push, no cost, no noise.
+    const settled = reminders.filter((r) => {
+      const status = (txById.get(`${r.user_id}:${r.transaction_id}`) as { status?: string } | undefined)?.status;
+      return status === 'paid' || status === 'cancelled';
+    });
+    if (settled.length > 0) {
+      await supabase
+        .from('reminders')
+        .update({ status: 'dismissed', updated_at: new Date().toISOString() })
+        .in('id', settled.map((r) => r.id))
+        .eq('status', 'sent');
+    }
+    const settledIds = new Set(settled.map((r) => r.id));
+    const toSend = reminders.filter((r) => !settledIds.has(r.id));
+
+    const delivered = await mapWithLimit(toSend, LIMITS.pushConcurrency, async (reminder) => {
       const subs = subsByUser.get(reminder.user_id) ?? [];
       const transaction = txById.get(`${reminder.user_id}:${reminder.transaction_id}`) ?? null;
       const payload = JSON.stringify(reminderPayload(transaction));
@@ -203,7 +219,7 @@ Deno.serve(async (req) => {
 
     // Not delivered anywhere: 'failed', never back to 'scheduled' (that
     // would retry — and possibly repeat — every 10 minutes).
-    const failedIds = reminders.filter((_, i) => !delivered[i]).map((r) => r.id);
+    const failedIds = toSend.filter((_, i) => !delivered[i]).map((r) => r.id);
     if (failedIds.length > 0) {
       await supabase
         .from('reminders')
@@ -211,7 +227,7 @@ Deno.serve(async (req) => {
         .in('id', failedIds)
         .eq('status', 'sent');
     }
-    sent += reminders.length - failedIds.length;
+    sent += toSend.length - failedIds.length;
     failed += failedIds.length;
   }
 
