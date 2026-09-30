@@ -107,18 +107,21 @@ test.describe('organizing charts', () => {
 
   test('hiding a chart removes it, and it survives a reload', async ({ page }) => {
     await page.goto('analisis');
-    await expect(page.getByText('DISTRIBUCIÓN DE GASTOS')).toBeVisible();
+    // Redesign §6: the donut and the balance bar are one "Gastos por categoría" card.
+    const card = page.getByRole('heading', { name: /Gastos por categoría/ });
+    await expect(card).toBeVisible();
 
     await page.getByRole('button', { name: /Organizar gráficos/ }).click();
     const sheet = page.getByRole('dialog', { name: 'Organizar gráficos' });
-    await sheet.getByRole('button', { name: 'Ocultar Distribución de gastos' }).click();
+    await sheet.getByRole('button', { name: 'Ocultar Gastos por categoría' }).click();
     // Scoped to the sheet: the install banner, which only shows on mobile
     // Safari, has another button with the same accessible name.
     await sheet.getByRole('button', { name: 'Cerrar' }).click();
 
-    await expect(page.getByText('DISTRIBUCIÓN DE GASTOS')).toBeHidden();
+    await expect(card).toBeHidden();
+    await expect(page.getByRole('button', { name: /Organizar gráficos · 1 oculto/ })).toBeVisible();
     await page.reload();
-    await expect(page.getByText('DISTRIBUCIÓN DE GASTOS')).toBeHidden();
+    await expect(card).toBeHidden();
   });
 
   test('"back to the original order" brings everything back', async ({ page }) => {
@@ -128,7 +131,7 @@ test.describe('organizing charts', () => {
     await sheet.getByRole('button', { name: 'Ocultar Fijos vs. variables' }).click();
     await sheet.getByRole('button', { name: 'Volver al orden original' }).click();
     await sheet.getByRole('button', { name: 'Cerrar' }).click();
-    await expect(page.getByText('FIJOS VS. VARIABLES')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Fijos vs\. variables/ })).toBeVisible();
   });
 });
 

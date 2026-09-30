@@ -35,10 +35,10 @@ export function ChartManager({ layout, titles, onChange }: {
         type="button"
         onClick={() => setAbierto(true)}
         style={{
-          width: '100%', minHeight: 'var(--tap)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', gap: 8, marginBottom: 14,
-          borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)',
-          background: 'var(--surface)', color: 'var(--text-muted)',
+          width: '100%', minHeight: 50, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', gap: 8, margin: '4px 0 14px',
+          borderRadius: 16, border: '1px solid var(--line-strong)',
+          background: 'transparent', color: 'var(--text)',
           fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
         }}
       >
@@ -88,15 +88,15 @@ export function ChartManager({ layout, titles, onChange }: {
           <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{t('analytics.organize')}</span>
         </div>
 
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
           {layout.order.map((id, i) => {
             const hidden = layout.hiddenIds.includes(id);
             return (
               <li
                 key={id}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 0',
-                  borderBottom: '1px solid var(--line)', opacity: hidden ? 0.55 : 1,
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '8px 8px 8px 14px',
+                  borderRadius: 14, background: 'var(--paper)', opacity: hidden ? 0.45 : 1,
                 }}
               >
                 <span style={{ flex: 1, minWidth: 0, fontWeight: 600, fontSize: 'var(--text-base)' }}>

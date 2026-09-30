@@ -1,5 +1,41 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 5: Análisis
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 5; §6, §9c;
+pending 9 and 10).
+
+### Changed
+- Period selector is the shared segmented control (Quincena · Mes ·
+  Trimestre · Año); the centred navigator stays under it.
+- Hero: "Balance de {periodo}" at 50px (`+$` green / `−$` red) with
+  "Ingresos $X · Gastos $Y" underneath.
+- "Gastos por categoría" merges the balance bar and the donut: one stacked
+  bar with 3px gaps and a row per category (avatar, amount, 5px bar, %).
+  Tapping a row opens the category detail, which is what the donut did.
+- "Débito vs. tarjeta" became "Por método de pago" with three slices
+  (Débito, Crédito, Efectivo).
+- Every card folds from its header, which shows a summary ("$ 2.029.900",
+  "89% usado", "87% fijos", "100% débito"); the state is kept in
+  `localStorage` (`analytics.collapsed`).
+- Budgets as columns (§9c): biggest limit first, 84px wide; the dashed
+  border is the limit (height proportional to it), the fill rises with the
+  spend in the category's colour and overflows up to 114% in `--danger`;
+  tapping a column opens Budgets. With none: a dashed card with "Definir".
+- "Organizar gráficos": outline button, rows on `--paper`, a hidden row at
+  45%.
+- The category detail sheet had hard-coded Spanish (and a literal
+  `{t('analytics.percentOfSpend')}` label); it's translated now.
+
+### Removed
+- "Ingresos vs. gastos" (the hero already says both) and the donut. Saved
+  layouts are migrated: old ids map onto the new cards.
+
+### Tests
+- Unit: layout migration and folded cards, spend by method, short amounts.
+- E2E updated: 25. New: 42 (balance hero, folding survives a reload, a row
+  opens its detail, "Definir" goes to Budgets).
+
 ## [Unreleased] — Redesign v4, phase 4: the new-transaction sheet
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 4; §5, §9b;
