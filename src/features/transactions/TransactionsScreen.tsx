@@ -527,11 +527,8 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
 
           {transactions.length === 0 ? (
             <div style={{ marginTop: 16 }}>
-              <EmptyState
-                title={t('transactions.emptyTitle')}
-                body={t('transactions.emptyBody')}
-                action={{ label: loadingDemo ? 'Cargando...' : 'Cargar datos de ejemplo', onClick: handleLoadDemo }}
-              />
+              {/* Inicio's column beside this one already offers the sample data. */}
+              <EmptyState title={t('transactions.emptyTitle')} body={t('transactions.emptyBody')} />
             </div>
           ) : groups.length === 0 ? (
             <div style={{ marginTop: 16 }}>

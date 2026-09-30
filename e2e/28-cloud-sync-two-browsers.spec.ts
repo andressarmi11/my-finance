@@ -191,7 +191,7 @@ async function syncAfter(page: Page, backend: Backend, action: () => Promise<unk
 
 /** A new browser: logs in through the real screen and waits for the first pull. */
 async function openBrowser(browser: Browser, backend: Backend) {
-  const context = await browser.newContext({ locale: 'es-CO' });
+  const context = await browser.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 } });
   await backend.handle(context);
   const page = await context.newPage();
   // The build carries a Content-Security-Policy: anything it blocks is a bug.

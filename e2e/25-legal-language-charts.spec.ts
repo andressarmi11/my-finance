@@ -1,6 +1,12 @@
 import { test as signedOut } from '@playwright/test';
 import { test, expect, switchLanguage } from './fixtures';
 
+// Written against the phone layout (the + and its sheets, the Movimientos
+// screen, the grouped Ajustes list). The default project is Desktop Chrome,
+// which since phase 9 gets the desktop layout (§9g) — covered by
+// 46-desktop-layout; this spec keeps checking the phone.
+test.use({ viewport: { width: 390, height: 844 } });
+
 /* Explicit locale: the app picks its language from navigator.language, and
    Playwright's browser comes in English. Without pinning it, these tests
    would check Spanish against an app that started in English. */

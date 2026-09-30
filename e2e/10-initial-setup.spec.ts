@@ -1,5 +1,11 @@
 import { test as base, expect } from '@playwright/test';
 
+// Written against the phone layout (the + and its sheets, the Movimientos
+// screen, the grouped Ajustes list). The default project is Desktop Chrome,
+// which since phase 9 gets the desktop layout (§9g) — covered by
+// 46-desktop-layout; this spec keeps checking the phone.
+base.use({ viewport: { width: 390, height: 844 } });
+
 /**
  * Uses Playwright's raw test, not the fixture: what's under test here is
  * precisely the screen the fixture skips.

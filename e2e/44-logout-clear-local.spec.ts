@@ -113,7 +113,7 @@ async function addExpense(page: Page, concept: string) {
 }
 
 test('change the password: re-authenticates with the current one, then updates', async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'es-CO' });
+  const context = await browser.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 } });
   const calls = await fakeBackend(context);
   const page = await context.newPage();
   await signIn(page);
@@ -148,7 +148,7 @@ test('change the password: re-authenticates with the current one, then updates',
 });
 
 test('sign out keeps this phone\'s data unless "erase it from this phone" is ticked', async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'es-CO' });
+  const context = await browser.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 } });
   const calls = await fakeBackend(context);
   const page = await context.newPage();
   const errors: string[] = [];

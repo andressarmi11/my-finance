@@ -42,6 +42,15 @@ export async function completeOnboarding(page: Page): Promise<void> {
  * list, pick the language and close it. Works from either language.
  */
 export async function switchLanguage(page: Page, name: 'English' | 'Español'): Promise<void> {
+  // Desktop (≥1100px, §9g 2c): Idioma and Tema share a panel beside the
+  // settings list instead of opening sheets.
+  if ((page.viewportSize()?.width ?? 0) >= 1100) {
+    await page.goto('ajustes/preferencias');
+    const panel = page.getByRole('region', { name: /^(Idioma|Language)$/ });
+    await panel.getByRole('button', { name, exact: true }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', name === 'English' ? 'en' : 'es-CO');
+    return;
+  }
   await page.goto('ajustes');
   await page.getByRole('button', { name: /^(Idioma|Language)/ }).click();
   const sheet = page.getByRole('dialog', { name: /^(Idioma|Language)$/ });

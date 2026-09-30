@@ -77,11 +77,11 @@ export function DashboardScreen() {
   ) ?? EMPTY;
   const hasTransactions = transactions.length > 0;
   useEffect(() => {
-    if (!desktop || !hasTransactions) return;
+    if (!desktop) return;
     const focus = () => { searchRef.current?.focus(); searchRef.current?.select(); };
     if (consumeSearchFocus()) focus();
     return onSearchFocusRequest(() => { consumeSearchFocus(); focus(); });
-  }, [desktop, hasTransactions]);
+  }, [desktop]);
 
   const resolved = useMemo(
     () => withResolvedPeriods(transactions, settings.payDays),
@@ -200,18 +200,24 @@ export function DashboardScreen() {
     </header>
   );
 
-  if (transactions.length === 0) {
+  // The same empty state as the phone; on desktop it goes in the left column,
+  // beside an (empty) Movimientos, so the header's actions stay reachable.
+  const emptyHome = (
+    <EmptyState
+      title={t('home.noTransactions')}
+      body={t('home.noTransactionsBody')}
+      action={{ label: loadingDemo ? t('home.loading') : t('home.loadSample'), onClick: handleLoadDemo }}
+    />
+  );
+
+  if (transactions.length === 0 && !desktop) {
     return (
       <HomeFrame>
         {header}
         <h1 style={{ margin: '0 0 16px', fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em' }}>
           {settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')}
         </h1>
-        <EmptyState
-          title={t('home.noTransactions')}
-          body={t('home.noTransactionsBody')}
-          action={{ label: loadingDemo ? t('home.loading') : t('home.loadSample'), onClick: handleLoadDemo }}
-        />
+        {emptyHome}
       </HomeFrame>
     );
   }
@@ -415,6 +421,9 @@ export function DashboardScreen() {
             type="button"
             onClick={() => { haptic('light'); setQuickOpen(true); }}
             style={{
+              // A fixed width: "New transaction" and "Nuevo movimiento" differ,
+              // and the month arrows beside it must not move with the language.
+              width: 196, justifyContent: 'center',
               height: 40, padding: '0 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
               background: 'var(--q10)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14,
               display: 'flex', alignItems: 'center', gap: 6,
@@ -429,6 +438,9 @@ export function DashboardScreen() {
           data-testid="home-columns"
           style={{ display: 'grid', gridTemplateColumns: '410px minmax(0, 1fr)', gap: 24, marginTop: 26, alignItems: 'start' }}
         >
+          {!hasTransactions ? (
+            <div style={{ minWidth: 0 }}>{emptyHome}</div>
+          ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
             {overdueBanner}
             <section style={{ ...card, padding: 24 }}>
@@ -461,6 +473,7 @@ export function DashboardScreen() {
               />
             </section>
           </div>
+          )}
 
           <TransactionsScreen embedded={{ year, month, query, onQueryChange: setQuery }} />
         </div>
