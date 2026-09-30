@@ -20,10 +20,18 @@
  * and push compares against (id, updated_at) instead of whole rows. They
  * used to be downloaded whole, twice, on every cycle — the cost grew with
  * the age of the account instead of with what changed.
+ *
+ * Push doesn't download the server's versions any more either (cost audit,
+ * C1): this device keeps the versions it knows the cloud has — from every
+ * pull and every successful push — and only asks for the few stamped after
+ * its cursor. The other lists (categories, methods, rules, settings,
+ * budgets, reminders) come from the pull that runs right before; they used
+ * to be downloaded a second time.
  */
 import { db } from '../db';
 import {
-  currentUserId, listTransactionsChangedSince, listTransactionVersions, supabaseRepository, upsertMany,
+  currentUserId, listTransactionsChangedSince, listTransactionVersions, listTransactionVersionsSince,
+  supabaseRepository, upsertMany,
 } from '../supabase/supabaseRepository';
 import {
   categoryToRow, paymentMethodToRow, recurringRuleToRow, reminderToRow, transactionToRow,
@@ -37,12 +45,26 @@ import { reconcileBudgets } from './budgets';
 import { remindersToUpload } from './reminders';
 import { newest as newer } from './newest';
 import { reconcileOccurrences } from './duplicateOccurrences';
-import type { Reminder, Settings, Transaction } from '@/domain/types';
+import type { Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction } from '@/domain/types';
 
 export interface SyncResult {
   pushed: number;
   pulled: number;
   deleted: number;
+}
+
+/**
+ * What the cloud had when the pull read it. The push that follows compares
+ * against this instead of downloading the same lists again: nothing else
+ * writes this account's rows in between (sync is one cycle at a time).
+ */
+export interface RemoteSnapshot {
+  categories: Category[];
+  methods: PaymentMethod[];
+  rules: RecurringRule[];
+  settings: Settings;
+  budgets: Budget[];
+  reminders: Reminder[];
 }
 
 /**
@@ -134,6 +156,47 @@ const REMINDER_KEEP_MS = 15 * 24 * 60 * 60_000;
 
 const TX_CURSOR = 'cursor:transactions';
 const TOMB_CURSOR = 'cursor:deletions';
+/** id → updated_at of the movements this device knows the cloud has. */
+const TX_VERSIONS = 'known:transactionVersions';
+/** Ids of the tombstones this device knows the cloud has. */
+const TOMB_IDS = 'known:tombstoneIds';
+
+async function readJSON<T>(key: string): Promise<T | null> {
+  const raw = (await db.meta.get(key))?.value;
+  if (!raw) return null;
+  try { return JSON.parse(raw) as T; } catch { return null; }
+}
+async function writeJSON(key: string, value: unknown): Promise<void> {
+  await db.meta.put({ id: key, value: JSON.stringify(value) });
+}
+
+/** Known versions, or null when this device never recorded them (seeds with the full list once). */
+export async function readKnownVersions(): Promise<Map<string, string> | null> {
+  const obj = await readJSON<Record<string, string>>(TX_VERSIONS);
+  return obj ? new Map(Object.entries(obj)) : null;
+}
+async function writeKnownVersions(map: Map<string, string>): Promise<void> {
+  await writeJSON(TX_VERSIONS, Object.fromEntries(map));
+}
+async function readKnownTombstones(): Promise<Set<string> | null> {
+  const ids = await readJSON<string[]>(TOMB_IDS);
+  return ids ? new Set(ids) : null;
+}
+async function writeKnownTombstones(ids: Set<string>): Promise<void> {
+  await writeJSON(TOMB_IDS, [...ids]);
+}
+
+/**
+ * Keeps the newer of each version: a row seen twice (a pull, then this
+ * device's own push) never goes back to an older stamp.
+ */
+export function mergeVersions(into: Map<string, string>, seen: Iterable<[string, string]>): Map<string, string> {
+  for (const [id, at] of seen) {
+    const prev = into.get(id);
+    if (prev === undefined || newer(at, prev)) into.set(id, at);
+  }
+  return into;
+}
 
 async function readCursor(key: string): Promise<string | null> {
   return (await db.meta.get(key))?.value ?? null;
@@ -175,7 +238,7 @@ function reminderExpired(r: Reminder, now = Date.now()): boolean {
   return now - Date.parse(r.remindAt) > REMINDER_KEEP_MS;
 }
 
-export async function pullCloudToLocal(): Promise<SyncResult> {
+export async function pullCloudToLocal(): Promise<SyncResult & { remote: RemoteSnapshot }> {
   const [txCursor, tombCursor] = await Promise.all([readCursor(TX_CURSOR), readCursor(TOMB_CURSOR)]);
   const stale = isStale(txCursor);
 
@@ -277,6 +340,22 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
   }
   if (toPut.length > 0) await saveTolerant(toPut);
 
+  // The versions the cloud has, as far as this device knows. A full
+  // download (first sync, or a stale device) replaces them; an
+  // incremental one adds what changed. Push compares against these.
+  const seenVersions: Array<[string, string]> = remoteTx.map((t) => [t.id, t.updatedAt]);
+  const fullDownload = stale || !txCursor;
+  const knownBefore = fullDownload ? null : await readKnownVersions();
+  if (fullDownload) await writeKnownVersions(new Map(seenVersions));
+  else if (knownBefore) await writeKnownVersions(mergeVersions(knownBefore, seenVersions));
+  // (No record yet and an incremental pull: push seeds it with one full list.)
+
+  const tombIds = await readKnownTombstones();
+  if (tombIds) {
+    for (const t of remoteTombstones) tombIds.add(t.id);
+    await writeKnownTombstones(tombIds);
+  }
+
   // Only now: everything up to here is merged locally.
   await advanceCursor(TX_CURSOR, txSeen);
   await advanceCursor(TOMB_CURSOR, tombSeen);
@@ -285,6 +364,7 @@ export async function pullCloudToLocal(): Promise<SyncResult> {
     pushed: 0,
     pulled: toPut.length + planBudgets.saveLocal.length + remindersToSave.length,
     deleted,
+    remote: { categories, methods, rules, settings, budgets: remoteBudgets, reminders: remoteReminders },
   };
 }
 
@@ -297,17 +377,22 @@ function newerThanRemote<T extends { id: string; updatedAt: string }>(local: T[]
   });
 }
 
-export async function pushLocalToCloud(): Promise<SyncResult> {
+export async function pushLocalToCloud(snapshot?: RemoteSnapshot): Promise<SyncResult> {
   const userId = await currentUserId();
 
   // 1. Deletions first: push the tombstone and delete over there. Only the
   //    ones the cloud doesn't have yet — re-sending the whole history on
   //    every cycle grew without limit, and the delete's id list, which
   //    travels in the URL, eventually got too long for the server.
-  const [tombstones, known] = await Promise.all([db.deletions.toArray(), listRemoteTombstoneIds()]);
+  //    Which ones it has: the ids this device recorded (from its pulls and
+  //    pushes), or the full list once, to start the record.
+  const [tombstones, recorded] = await Promise.all([db.deletions.toArray(), readKnownTombstones()]);
+  const known = recorded ?? await listRemoteTombstoneIds();
   const newTombstones = tombstones.filter((t) => !known.has(t.id));
   await saveRemoteTombstones(newTombstones);
   await applyRemoteDeletions(newTombstones);
+  for (const t of newTombstones) known.add(t.id);
+  await writeKnownTombstones(known);
 
   const deletedTx = deletedIdsOf(tombstones, 'transactions');
   const deletedCat = deletedIdsOf(tombstones, 'categories');
@@ -319,19 +404,19 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
     settings, remoteSettings, localBudgets, remoteBudgets, localReminders, remoteReminders,
   ] = await Promise.all([
     db.transactions.toArray(),
-    listTransactionVersions(),
+    currentRemoteVersions(),
     db.categories.toArray(),
-    supabaseRepository.listCategories(),
+    snapshot?.categories ?? supabaseRepository.listCategories(),
     db.paymentMethods.toArray(),
-    supabaseRepository.listPaymentMethods(),
+    snapshot?.methods ?? supabaseRepository.listPaymentMethods(),
     db.recurringRules.toArray(),
-    supabaseRepository.listRecurringRules(),
+    snapshot?.rules ?? supabaseRepository.listRecurringRules(),
     db.settings.get('singleton'),
-    supabaseRepository.getSettings(),
+    snapshot?.settings ?? supabaseRepository.getSettings(),
     db.budgets.toArray(),
-    listRemoteBudgets(),
+    snapshot?.budgets ?? listRemoteBudgets(),
     db.reminders.toArray(),
-    supabaseRepository.listReminders(),
+    snapshot?.reminders ?? supabaseRepository.listReminders(),
   ]);
 
   // Categories and methods before transactions: Postgres's FKs reject a
@@ -356,6 +441,9 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
     return remoteVersion === undefined || newer(tx.updatedAt, remoteVersion);
   });
   await upsertMany('transactions', txUp.map((tx) => transactionToRow(userId, tx)));
+  // Uploaded: the cloud now has these versions.
+  for (const id of deletedTx) remoteVersions.delete(id);
+  await writeKnownVersions(mergeVersions(remoteVersions, txUp.map((tx) => [tx.id, tx.updatedAt])));
 
   // Reminders LAST: their FK points to transactions, so the transaction
   // has to already exist over there. See recordatorios.ts for why orphans
@@ -371,9 +459,22 @@ export async function pushLocalToCloud(): Promise<SyncResult> {
   };
 }
 
+/**
+ * The versions of the cloud's movements a push compares against: the
+ * recorded ones plus whatever the server stamped after this device's
+ * cursor (normally nothing — the pull just ran). The first time, with no
+ * record yet, the full list, once.
+ */
+async function currentRemoteVersions(): Promise<Map<string, string>> {
+  const [known, cursor] = await Promise.all([readKnownVersions(), readCursor(TX_CURSOR)]);
+  const from = since(cursor);
+  if (!known || !from) return listTransactionVersions();
+  return mergeVersions(known, await listTransactionVersionsSince(from));
+}
+
 export async function syncBidirectional(): Promise<SyncResult> {
   const pull = await pullCloudToLocal();
-  const push = await pushLocalToCloud();
+  const push = await pushLocalToCloud(pull.remote);
   return { pushed: push.pushed, pulled: pull.pulled, deleted: pull.deleted };
 }
 
