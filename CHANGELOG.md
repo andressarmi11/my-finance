@@ -1,5 +1,49 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 3: Inicio and Movimientos
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 3; §3, §4;
+pending 6, 7 and 8).
+
+### Changed
+- Inicio (§3): its own header (logo + "Step up" and a compact month pill)
+  replaces the global brand bar. Centred hero with no coloured card: "Hola,
+  {name}. Te queda en {mes}", the amount at 56px with the `$` smaller and
+  grey, and one line with the active pay period and what's left in it
+  (replaces the period cards). The four flows sit in one card; "Falta pagar"
+  opens its breakdown (the separate breakdown button and the two "Esperas…"
+  cards are gone). "Falta este mes" gets a 19px title and "Ver todos"; a paid
+  row shows its amount struck through.
+- Movimientos (§4): "‹ Inicio" back link and "Seleccionar" on top, compact
+  month pill; filter chips in `--text`/`--paper`; group headers (dot, name,
+  range) outside the card, which only holds rows and "Restante".
+- Calendar view: selected day in a 34px `--text` circle, today in `--q10`,
+  dots for income / expense / card payment, and the day's net next to its
+  date.
+- `MonthNav` gains a `compact` pill variant; `Screen` a `backAction` slot.
+
+### Added
+- Folding period groups (pending 7): the header folds its group to "N mov. ·
+  Restante $X", remembered per period key in `localStorage`. Groups read
+  10 → 25; with one pay day there is a single month group.
+- Selection bar (pending 6): floating above the tab bar with "N
+  seleccionados · Todos · Pagado · Eliminar". The delete confirmation lists
+  the transactions and their total; deletes keep recording tombstones so
+  they sync.
+- Date chip with a mini calendar in the new-transaction sheet (pending 8):
+  "Hoy / Ayer / Mañana / 3 oct", month navigation, today ringed, the chosen
+  day filled; a past date counts as paid, a future one stays pending with
+  "Queda pendiente y te avisamos".
+- `BigAmount` (one big number with a small grey symbol) and `MiniCalendar`.
+
+### Removed
+- The global `BrandBar`.
+
+### Tests
+- E2E updated: 08, 10, 12, 18. New: 08 ("Falta pagar" opens the breakdown,
+  "Ver todos" → Movimientos → Inicio), 12 ("Todos", folding survives a
+  reload), 40 (date chip: tomorrow stays pending).
+
 ## [Unreleased] — Redesign v4, phase 2: navigation
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 2).

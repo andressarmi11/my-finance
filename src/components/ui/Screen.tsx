@@ -6,21 +6,25 @@ import { Link } from 'react-router-dom';
  *  (filter buttons, edit, etc). `back` puts a "‹ label" link above the title,
  *  for screens that hang from another one (Movimientos from Inicio, the
  *  Ajustes sub-screens from Ajustes). */
-export function Screen({ title, subtitle, right, back, children }: {
+export function Screen({ title, subtitle, right, back, backAction, children }: {
   title: string;
   subtitle?: string;
   right?: ReactNode;
   back?: { label: string; to: string };
+  /** An action on the same row as `back`, at the right ("Seleccionar"). */
+  backAction?: ReactNode;
   children?: ReactNode;
 }) {
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 var(--gap-l)' }}>
-      {back && (
+      {(back || backAction) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 2 }}>
+      {back ? (
         <Link
           to={back.to}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 2,
-            minHeight: 'var(--tap)', marginBottom: 2,
+            minHeight: 'var(--tap)',
             color: 'var(--q10-text)', fontSize: 'var(--text-md)', fontWeight: 500,
             textDecoration: 'none',
           }}
@@ -28,6 +32,9 @@ export function Screen({ title, subtitle, right, back, children }: {
           <span aria-hidden="true" style={{ fontSize: 24, lineHeight: 1, marginTop: -2 }}>‹</span>
           {back.label}
         </Link>
+      ) : <span />}
+          {backAction}
+        </div>
       )}
       <header
         style={{

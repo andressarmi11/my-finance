@@ -7,6 +7,8 @@ import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { Segmented } from '@/components/ui/Segmented';
+import { IconChevronDown } from '@tabler/icons-react';
+import { fill } from '@/lib/dateLabels';
 import { CalendarView } from '@/features/calendar/CalendarView';
 import { db } from '@/data/db';
 import { localRepository, DEFAULT_SETTINGS } from '@/data/local/localRepository';
@@ -187,6 +189,21 @@ export function TransactionsScreen() {
     setParams(updated, { replace: true });
   }
 
+  // Folded groups, by period key, remembered across reloads.
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsed);
+  function toggleCollapsed(key: string) {
+    setCollapsed((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      if (!next[key]) delete next[key];
+      saveCollapsed(next);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelection(new Set(visibleRows.map((tx) => tx.id)));
+  }
+
   function toggleSelection(id: string) {
     setSelection((prev) => {
       const next = new Set(prev ?? []);
@@ -287,6 +304,7 @@ export function TransactionsScreen() {
 
   const nav = (
     <MonthNav
+      compact
       label={`${monthName(cursor.m).slice(0, 3)} ${cursor.y}`}
       widthSample={widestMonthLabel(true)}
       todayIsAhead={cursor.y * 12 + cursor.m < todayYear * 12 + todayMonth}
@@ -304,9 +322,13 @@ export function TransactionsScreen() {
             .replace('{n}', String(selectedIds.length))
             .replace('{s}', selectedIds.length === 1 ? '' : 's')
         : t('transactions.title')}
-      right={inSelection ? (
-        <button type="button" onClick={() => setSelection(null)} style={buttonText}>Cancelar</button>
-      ) : (searching ? undefined : nav)}
+      back={inSelection ? undefined : { label: t('nav.home'), to: '/' }}
+      backAction={inSelection ? (
+        <button type="button" onClick={() => setSelection(null)} style={buttonText}>{t('action.cancel')}</button>
+      ) : (!calendarView && transactions.length > 0 ? (
+        <button type="button" onClick={() => setSelection(new Set())} style={buttonText}>{t('action.select')}</button>
+      ) : undefined)}
+      right={inSelection || searching ? undefined : nav}
     >
       {!inSelection && (
         <div style={{ marginBottom: 'var(--gap-m)' }}>
@@ -364,11 +386,6 @@ export function TransactionsScreen() {
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
               {monthTotal.count} {monthTotal.count === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
             </span>
-            {!inSelection && (
-              <button type="button" onClick={() => setSelection(new Set())} style={buttonText}>
-                {t('action.select')}
-              </button>
-            )}
           </div>
           <div style={{ display: 'flex', gap: 14, fontSize: 'var(--text-md)', fontWeight: 700, marginTop: 2 }}>
             <span className="figures" style={{ color: 'var(--positive-text)' }}>+ {formatMoney(monthTotal.income)}</span>
@@ -391,8 +408,55 @@ export function TransactionsScreen() {
             : `${t('transactions.noTransactionsThisMonth')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
         />
       ) : (
-        groups.map((group) => (
+        groups.map((group) => {
+          const isCollapsed = collapsed[group.key] === true;
+          return (
           <section key={group.key} style={{ marginBottom: 'var(--gap-l)' }}>
+            {/* The header sits OUTSIDE the card, so the card only holds
+                rows and "Restante". It's a button: tapping it folds the
+                group, and the fold survives a reload (by period key). */}
+            <button
+              type="button"
+              onClick={() => toggleCollapsed(group.key)}
+              aria-expanded={!isCollapsed}
+              aria-label={fill(t('transactions.collapseGroup'), { group: group.label })}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                minHeight: 'var(--tap)', padding: '0 4px', marginBottom: 4,
+                background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                color: 'var(--text)',
+              }}
+            >
+              <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />
+              <span style={{ fontWeight: 700, fontSize: 'var(--text-base)', color: `var(${group.colorVar}-text)` }}>{group.label}</span>
+              <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)', flex: 1, minWidth: 0 }}>{group.rangeLabel}</span>
+              <IconChevronDown
+                size={18}
+                stroke={2}
+                aria-hidden
+                style={{
+                  flex: 'none', color: 'var(--text-faint)',
+                  transform: isCollapsed ? 'rotate(-90deg)' : 'none',
+                  transition: 'transform var(--dur-fast) var(--ease-spring-out)',
+                }}
+              />
+            </button>
+
+            {isCollapsed ? (
+              <div
+                className="figures"
+                style={{
+                  background: 'var(--surface)', border: '1px solid var(--line)',
+                  borderRadius: 'var(--radius-card)', padding: '12px 16px',
+                  fontSize: 'var(--text-sm)', color: 'var(--text-muted)',
+                }}
+              >
+                {fill(t('transactions.collapsedSummary'), {
+                  n: group.transactions.length,
+                  amount: formatMoney(group.balance.remainder),
+                })}
+              </div>
+            ) : (
             <div
               style={{
                 // Neutral surface, not a tinted block: the pay period's
@@ -401,15 +465,10 @@ export function TransactionsScreen() {
                 // which are what you came here to read.
                 background: 'var(--surface)',
                 border: '1px solid var(--line)',
-                borderRadius: 'var(--radius-m)',
-                padding: '12px 14px 4px',
+                borderRadius: 'var(--radius-card)',
+                padding: '4px 14px 4px',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 4, background: `var(${group.colorVar})` }} />
-                <span style={{ fontWeight: 700, fontSize: 13, color: `var(${group.colorVar})` }}>{group.label}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{group.rangeLabel}</span>
-              </div>
 
               {group.transactions.map((tx) => (
                 <TransactionRow
@@ -425,14 +484,16 @@ export function TransactionsScreen() {
               ))}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 8px' }}>
-                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Restante</span>
+                <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('transactions.remaining')}</span>
                 <span className="figures" style={{ fontWeight: 700, color: group.balance.remainder >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
                   {formatMoney(group.balance.remainder)}
                 </span>
               </div>
             </div>
+            )}
           </section>
-        ))
+          );
+        })
       )}
       </>)}
 
@@ -441,23 +502,38 @@ export function TransactionsScreen() {
           role="toolbar"
           aria-label={t('transactions.selectionActions')}
           style={{
-            position: 'fixed', left: 0, right: 0,
-            // Right above the floating tab bar (12px gap + 62px) and its safe area.
+            position: 'fixed', left: 14, right: 14,
+            // Floating right above the tab bar pill (12px gap + 62px).
             bottom: 'calc(var(--safe-bottom) + 12px + var(--tabbar-h) + 10px)',
-            zIndex: 45, display: 'flex', gap: 8,
-            padding: '10px 16px',
-            background: 'var(--surface)',
-            borderTop: '1px solid var(--line)',
-            boxShadow: '0 -2px 12px rgb(0 0 0 / 0.08)',
+            maxWidth: 560, marginInline: 'auto',
+            zIndex: 45, display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 8px 8px 16px',
+            background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
+            backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--line-strong)',
+            borderRadius: 20,
+            boxShadow: 'var(--shadow-3)',
           }}
         >
+          <span className="figures" style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {t('transactions.nSelected')
+              .replace('{n}', String(selectedIds.length))
+              .replace('{s}', selectedIds.length === 1 ? '' : 's')}
+          </span>
+          <button
+            type="button"
+            onClick={selectAllVisible}
+            style={{ ...buttonText, padding: '0 8px' }}
+          >
+            {t('transactions.selectAll')}
+          </button>
           <button
             type="button"
             onClick={markSelectedPaid}
             disabled={selectedIds.length === 0 || applying}
             style={actionStyle(selectedIds.length > 0 && !applying, 'var(--positive)', 'var(--positive-text)')}
           >
-            Marcar pagados
+            {t('transactions.markPaidShort')}
           </button>
           <button
             type="button"
@@ -465,7 +541,7 @@ export function TransactionsScreen() {
             disabled={selectedIds.length === 0 || applying}
             style={actionStyle(selectedIds.length > 0 && !applying, 'var(--danger)', 'var(--danger-text)')}
           >
-            Eliminar
+            {t('action.delete')}
           </button>
         </div>
       )}
@@ -496,6 +572,21 @@ export function TransactionsScreen() {
                 .replace('{n}', String(selectedIds.length))
                 .replace('{noun}', selectedIds.length === 1 ? t('transactions.transaction') : t('transactions.transactionsPl'))}
             </h2>
+            <ul
+              className="divided"
+              style={{
+                listStyle: 'none', margin: '0 0 12px', padding: '0 14px',
+                maxHeight: 220, overflowY: 'auto',
+                background: 'var(--paper)', borderRadius: 14, border: '1px solid var(--line)',
+              }}
+            >
+              {selectedIds.map((tx) => (
+                <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', fontSize: 'var(--text-base)' }}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                  <span className="figures" style={{ flex: 'none', fontWeight: 600 }}>{formatMoney(tx.amount)}</span>
+                </li>
+              ))}
+            </ul>
             <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>
               {t('transactions.theyAddUpTo')} {formatMoney(selectedIds.reduce((a, tx) => a + tx.amount, 0))}.{' '}
               {t('transactions.deleteWarning')}
@@ -521,7 +612,7 @@ export function TransactionsScreen() {
                 fontSize: 'var(--text-base)', cursor: 'pointer',
               }}
             >
-              Cancelar
+              {t('action.cancel')}
             </button>
           </div>
         </div>
@@ -557,9 +648,9 @@ const buttonText: React.CSSProperties = {
  */
 function actionStyle(activeRecognizer: boolean, borde: string, text: string): React.CSSProperties {
   return {
-    flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)',
+    flex: 'none', minHeight: 40, padding: '0 14px', borderRadius: 12,
     border: `1px solid ${activeRecognizer ? borde : 'var(--line)'}`,
-    background: 'var(--surface)',
+    background: 'transparent',
     color: activeRecognizer ? text : 'var(--text-faint)',
     fontWeight: 600, fontSize: 'var(--text-base)',
     cursor: activeRecognizer ? 'pointer' : 'not-allowed',
@@ -577,9 +668,9 @@ function Chip({ activeRecognizer, onClick, children }: {
       aria-pressed={activeRecognizer}
       style={{
         flex: 'none', minHeight: 34, padding: '0 14px', borderRadius: 999,
-        border: `1px solid ${activeRecognizer ? 'var(--q10)' : 'var(--line-strong)'}`,
-        background: activeRecognizer ? 'var(--q10)' : 'var(--surface)',
-        color: activeRecognizer ? 'var(--on-accent)' : 'var(--text)',
+        border: `1px solid ${activeRecognizer ? 'var(--text)' : 'var(--line-strong)'}`,
+        background: activeRecognizer ? 'var(--text)' : 'transparent',
+        color: activeRecognizer ? 'var(--paper)' : 'var(--text)',
         fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
         whiteSpace: 'nowrap',
       }}
@@ -587,4 +678,25 @@ function Chip({ activeRecognizer, onClick, children }: {
       {children}
     </button>
   );
+}
+
+/** localStorage key of the folded period groups: { [periodKey]: true }. */
+const COLLAPSED_KEY = 'movimientos.collapsed';
+
+function readCollapsed(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveCollapsed(value: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify(value));
+  } catch {
+    // Private mode or storage full: folding just won't be remembered.
+  }
 }
