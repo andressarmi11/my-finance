@@ -1,9 +1,14 @@
 import { IconMoon } from '@tabler/icons-react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { Navigate } from 'react-router-dom';
+import { useBreakpoint } from '@/app/useBreakpoint';
+import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
 import { useT } from '@/i18n/language';
 import type { TextKey } from '@/i18n/texts';
 import type { Settings } from '@/domain/types';
-import { BottomSheet } from './ui';
+import { NavBarSection } from './NavBarSection';
+import { useSettingsBack } from './ui';
 
 type Theme = Settings['theme'];
 
@@ -25,20 +30,24 @@ const THEMES: Array<{ value: Theme; label: TextKey; note: TextKey; bg: string; i
 ];
 
 /**
- * Tema (redesign §9e): three thumbnails, a --q10 ring on the chosen one.
- * It applies at once — useTheme writes data-theme on <html> and every colour
- * is a CSS variable, with a 350ms transition (index.css) — and the sheet
- * stays open so the change is seen before closing.
+ * Tema y barra (redesign §9e, BARRA.md): on a phone or tablet its own screen
+ * under Ajustes — the three themes, then how see-through the tab bar is.
+ * Everything applies at once: useTheme writes data-theme on <html>, and the
+ * bar reads --nav-* from src/lib/navBar.ts. On desktop there's no tab bar:
+ * the theme lives in the Idioma y tema panel.
  */
-export function ThemeSheet({ settings, onClose }: { settings: Settings; onClose: () => void }) {
+export function ThemeScreen() {
   const t = useT();
+  const back = useSettingsBack();
+  const desktop = useBreakpoint() === 'desktop';
+  const settings = useLiveQuery(() => localRepository.getSettings(), []);
+  if (desktop) return <Navigate to="/ajustes/preferencias" replace />;
+  if (!settings) return null;
   return (
-    <BottomSheet label={t('settings.theme')} onClose={onClose}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('settings.theme')}</h2>
-      <p style={{ margin: '0 0 16px', fontSize: 'var(--text-base)', color: 'var(--text-muted)' }}>{t('set.themeInstant')}</p>
+    <Screen title={t('settings.themeAndBar')} subtitle={t('set.themeInstant')} back={back}>
       <ThemeOptions settings={settings} />
-      <DoneButton onClick={onClose} />
-    </BottomSheet>
+      <NavBarSection />
+    </Screen>
   );
 }
 

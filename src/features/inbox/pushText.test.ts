@@ -1,4 +1,3 @@
-import committed from '../../../supabase/functions/ingest/pushText.gen.js?raw';
 import { describe, expect, it } from 'vitest';
 import { pushText } from './pushText';
 
@@ -24,9 +23,26 @@ describe('pushText (BANDEJA.md, 3a)', () => {
     expect(body).toContain('4 to review. Tap to see them.');
   });
 
-  it('the committed bundle for the Edge Function is up to date (npm run build:push-text)', async () => {
-    // @ts-expect-error plain .mjs script, no types
-    const { bundlePushText } = await import('../../../scripts/build-push-text.mjs');
-    expect(committed === await bundlePushText(), 'run npm run build:push-text').toBe(true);
+  it('the committed bundle for the Edge Function says the same (npm run build:push-text)', async () => {
+    // Behaviour, not bytes: a text elsewhere in the dictionary changing must
+    // not force a rebuild; the parser or a push text changing must.
+    // @ts-expect-error generated plain JS, no types
+    const bundled = (await import('../../../supabase/functions/ingest/pushText.gen.js')) as { pushText: typeof pushText };
+    const samples = [
+      'Bancolombia: Compraste $500.000,00 en RESTAURANTE EL CIELO con tu T.Deb *4521',
+      'Bancolombia: Compra aprobada en UBER.',
+      'Nequi: Recibiste $120.000 de JUAN PEREZ.',
+      'gasté 20 dólares en efectivo en un taxi',
+      'Bancolombia: Se programó un débito automático de $44.900 a NETFLIX.COM para el 05/10/2026.',
+      '???',
+    ];
+    for (const text of samples) {
+      for (const language of ['es', 'en'] as const) {
+        for (const pending of [1, 3]) {
+          const opts = { ...base, language, pending };
+          expect(bundled.pushText(text, opts), `${text} / ${language} — run npm run build:push-text`).toEqual(pushText(text, opts));
+        }
+      }
+    }
   });
 });

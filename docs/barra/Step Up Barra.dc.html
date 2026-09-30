@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#E9E8E4;font-family:'Instrument Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}a{color:#2F4FE0}a:hover{color:#1d36b0}button,input{font:inherit;color:inherit}.ns::-webkit-scrollbar{display:none}</style></helmet>
+<section id="t5" style="padding:40px 44px 32px">
+<div style="display:flex;align-items:baseline;gap:10px;margin:0 0 20px"><a href="#t5" style="font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none">5</a><span style="font:600 13px system-ui,sans-serif;color:#1a1a1a">Transparencia de la barra de navegación</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">
+
+<div id="5a" style="display:flex;flex-direction:column;gap:9px">
+<div style="display:flex;gap:8px;align-items:center;font:11px system-ui;color:rgba(0,0,0,.55)"><a href="#5a" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none">5a</a>Interactivo · Inicio y Ajustes → Tema y barra</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{ jumps }}" as="j" hint-placeholder-count="5"><button onClick="{{ j.onClick }}" style="height:30px;padding:0 12px;border-radius:15px;border:1px solid {{ j.border }};background:{{ j.bg }};font-size:12px;font-weight:600;cursor:pointer;color:{{ j.color }}">{{ j.label }}</button></sc-for>
+</div>
+<div style="width:390px;height:844px;border-radius:56px;background:#000;padding:10px;box-shadow:0 30px 60px rgba(0,0,0,.25)">
+<div style="position:relative;width:100%;height:100%;border-radius:46px;overflow:hidden;background:{{ c.paper }};color:{{ c.text }};transition:background .25s">
+<div style="position:absolute;top:0;left:0;right:0;height:50px;display:flex;align-items:center;justify-content:space-between;padding:6px 30px 0;z-index:5;font-weight:600;font-size:15px"><span>9:41</span><span style="width:120px;height:34px;border-radius:20px;background:#000;position:absolute;left:50%;top:10px;transform:translateX(-50%)"></span><span style="width:24px;height:11px;border-radius:3px;border:1.5px solid currentColor"></span></div>
+<div class="ns" style="position:absolute;inset:0;overflow-y:auto;padding:56px 20px 120px;scrollbar-width:none">
+
+<sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;align-items:center;justify-content:space-between;height:44px"><div style="display:flex;align-items:center;gap:8px"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="2" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="3" y="2" width="5" height="12" rx="2" fill="#6B8AFF"></rect><rect x="3" y="9.5" width="18" height="5" rx="2" fill="#6B8AFF"></rect><rect x="16" y="9.5" width="5" height="12.5" rx="2" fill="#6B8AFF"></rect><rect x="7" y="17" width="14" height="5" rx="2" fill="#6B8AFF"></rect><rect x="18" y="2" width="3" height="5" rx="1.5" fill="#FFB340"></rect></svg><span style="font-weight:700;font-size:16px">Step up</span></div><span style="height:34px;padding:0 12px;border-radius:17px;background:{{ c.surface }};border:1px solid {{ c.line }};display:flex;align-items:center;font-size:13px;font-weight:600">‹  {{ t.month }}  ›</span></div>
+<div style="text-align:center;padding:30px 0 26px"><div style="font-size:15px;color:{{ c.muted }}">{{ t.hello }}</div><div style="font-size:54px;font-weight:700;letter-spacing:-.035em;margin-top:6px">$ 1.587.906</div><div style="font-size:14px;color:{{ c.muted }};margin-top:10px"><span style="color:#FFB340;font-weight:600">● {{ t.period }}</span> · {{ t.left }}</div></div>
+<div style="font-size:19px;font-weight:700;margin:6px 0 10px">{{ t.due }}</div>
+<div style="background:{{ c.surface }};border:1px solid {{ c.line }};border-radius:20px;overflow:hidden">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="10">
+<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:{{ r.divider }}"><span style="width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;background:{{ r.bg }};color:{{ r.c }}"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ r.icon }}"></path></svg></span><span style="flex:1"><span style="display:block;font-size:15px;font-weight:500">{{ r.t }}</span><span style="display:block;font-size:12px;color:{{ c.muted }}">{{ r.d }}</span></span><span style="font-weight:700;font-size:15px;color:{{ r.ac }}">{{ r.a }}</span></div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;align-items:center;height:44px"><span style="color:#6B8AFF;font-size:16px;font-weight:500">‹ {{ t.settings }}</span></div>
+<h1 style="margin:4px 0 4px;font-size:32px;font-weight:700;letter-spacing:-.025em">{{ t.themeBar }}</h1>
+<p style="margin:0 0 18px;font-size:14px;color:{{ c.muted }}">{{ t.instant }}</p>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+<sc-for list="{{ themeOpts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.onClick }}" style="border:none;background:none;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px"><span style="display:block;width:100%;aspect-ratio:3/4;border-radius:18px;border:2px solid {{ o.ring }};padding:4px;box-sizing:border-box"><span style="display:flex;flex-direction:column;gap:5px;width:100%;height:100%;border-radius:13px;background:{{ o.bg }};padding:10px 8px;box-sizing:border-box"><span style="height:6px;width:50%;border-radius:3px;background:{{ o.ink }};opacity:.5"></span><span style="height:12px;width:78%;border-radius:4px;background:{{ o.ink }}"></span><span style="flex:1;border-radius:8px;background:{{ o.card }}"></span><span style="height:14px;border-radius:7px;background:{{ o.card }}"></span></span></span><span style="font-size:14px;font-weight:600;color:{{ o.label }}">{{ o.name }}</span></button></sc-for>
+</div>
+<div style="font-size:13px;font-weight:600;color:{{ c.faint }};margin:26px 6px 8px">{{ t.navBar }}</div>
+<div style="background:{{ c.surface }};border:1px solid {{ c.line }};border-radius:20px;padding:14px">
+<div style="position:relative;height:150px;border-radius:14px;overflow:hidden;background:{{ c.paper }}">
+<div style="position:absolute;inset:0;padding:10px 12px;display:flex;flex-direction:column;gap:8px"><sc-for list="{{ previewRows }}" as="r" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:10px"><span style="width:30px;height:30px;border-radius:9px;background:{{ r.bg }};color:{{ r.c }};display:grid;place-items:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="{{ r.icon }}"></path></svg></span><span style="flex:1;font-size:14px;font-weight:600">{{ r.t }}</span><span style="font-size:14px;font-weight:700;color:{{ r.ac }}">{{ r.a }}</span></div></sc-for></div>
+<div style="position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px">
+<div style="flex:1;height:46px;border-radius:23px;background:{{ b.bg }};backdrop-filter:{{ b.filter }};-webkit-backdrop-filter:{{ b.filter }};border:1px solid {{ b.border }};box-shadow:{{ b.shadow }};display:grid;grid-template-columns:repeat(3,1fr);padding:3px"><span style="border-radius:20px;background:{{ b.active }};display:grid;place-items:center;font-size:11px;font-weight:600">{{ t.home }}</span><span style="display:grid;place-items:center;font-size:11px;font-weight:600;color:{{ c.muted }}">{{ t.analysis }}</span><span style="display:grid;place-items:center;font-size:11px;font-weight:600;color:{{ c.muted }}">{{ t.settings }}</span></div>
+<span style="width:46px;height:46px;border-radius:23px;border:1px solid {{ b.fabBorder }};background:{{ b.fabBg }};color:{{ b.fabColor }};backdrop-filter:{{ b.filter }};-webkit-backdrop-filter:{{ b.filter }};display:grid;place-items:center;flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></span>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);background:{{ c.paper }};border-radius:12px;padding:3px;margin-top:14px"><sc-for list="{{ styleTabs }}" as="m" hint-placeholder-count="3"><button onClick="{{ m.onClick }}" style="height:34px;border:none;border-radius:9px;background:{{ m.bg }};color:{{ m.color }};font-weight:600;font-size:13px;cursor:pointer">{{ m.label }}</button></sc-for></div>
+<div style="display:flex;align-items:center;gap:12px;margin-top:16px"><span style="font-size:14px;flex:none">{{ t.opacity }}</span><input type="range" min="15" max="100" step="1" value="{{ opacity }}" onChange="{{ onOpacity }}" style="flex:1;accent-color:#6B8AFF"></input><span style="font-size:14px;font-weight:700;color:{{ c.muted }};width:42px;text-align:right;font-variant-numeric:tabular-nums">{{ opacityTxt }}</span></div>
+<div onClick="{{ toggleFab }}" style="display:flex;align-items:center;gap:12px;margin-top:14px;cursor:pointer"><span style="flex:1"><span style="display:block;font-size:14px">{{ t.fab }}</span><span style="display:block;font-size:12px;color:{{ c.muted }}">{{ t.fabSub }}</span></span><span style="width:46px;height:28px;border-radius:14px;background:{{ fabToggleBg }};position:relative;flex:none;transition:background .2s"><span style="position:absolute;top:3px;left:{{ fabToggleX }};width:22px;height:22px;border-radius:11px;background:#fff;transition:left .2s"></span></span></div>
+<div style="font-size:12px;color:{{ c.faint }};margin-top:12px;line-height:1.45">{{ note }}</div>
+</div>
+</sc-if>
+</div>
+
+<div style="position:absolute;left:14px;right:14px;bottom:24px;display:flex;gap:10px;z-index:3">
+<div style="flex:1;height:62px;border-radius:31px;background:{{ b.bg }};backdrop-filter:{{ b.filter }};-webkit-backdrop-filter:{{ b.filter }};border:1px solid {{ b.border }};box-shadow:{{ b.shadow }};display:grid;grid-template-columns:repeat(3,1fr);padding:4px;box-sizing:border-box;transition:background .25s">
+<sc-for list="{{ tabs }}" as="tb" hint-placeholder-count="3"><button onClick="{{ tb.onClick }}" style="border:none;border-radius:27px;background:{{ tb.bg }};color:{{ tb.color }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:11px;font-weight:600"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ tb.icon }}"></path></svg>{{ tb.label }}</button></sc-for>
+</div>
+<button aria-label="{{ t.add }}" style="width:62px;height:62px;border-radius:31px;border:1px solid {{ b.fabBorder }};background:{{ b.fabBg }};color:{{ b.fabColor }};backdrop-filter:{{ b.filter }};-webkit-backdrop-filter:{{ b.filter }};box-shadow:{{ b.fabShadow }};display:grid;place-items:center;cursor:pointer"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg></button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="5b" style="display:flex;flex-direction:column;gap:9px;width:320px">
+<div style="display:flex;gap:8px;align-items:baseline;font:11px system-ui;color:rgba(0,0,0,.55)"><a href="#5b" style="font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none">5b</a>Notas</div>
+<div style="background:#fff;border-radius:14px;padding:18px;border:1px solid rgba(0,0,0,.08);font-size:13px;line-height:1.5;color:#3A4250;display:flex;flex-direction:column;gap:10px">
+<div><b style="color:#151B28">Dónde vive:</b> Ajustes → "Tema y barra", debajo de los 3 temas.</div>
+<div><b style="color:#151B28">3 atajos + slider:</b> Sólida (100 %), Translúcida (88 %, la actual) y Cristal (40 %). El slider va de 15 a 100 %.</div>
+<div><b style="color:#151B28">Cristal</b> añade desenfoque más fuerte, borde claro y un brillo interior arriba, como la referencia.</div>
+<div><b style="color:#151B28">Para probarlo:</b> elige Cristal y ve a Inicio. Desplaza la lista y mira cómo pasa por detrás de la barra.</div>
+<div><b style="color:#151B28">Idioma:</b> los botones ES / EN cambian todos los textos, incluidas las notas de cada modo.</div>
+</div>
+</div>
+
+</div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const IC = {
+  home: 'M5 12l-2 0l9 -9l9 9l-2 0 M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7', chart: 'M5 20V11M12 20V4M19 20v-7', sliders: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4',
+  heart: 'M19.5 13.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572', tv: 'M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z M16 3l-4 4l-4 -4',
+  cash: 'M9 9h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2z M12 14a2 2 0 1 0 4 0a2 2 0 1 0 -4 0', pig: 'M15 11v.01 M16 4v3.8a6 6 0 0 1 2.66 3.2h1.34a1 1 0 0 1 1 1v2a1 1 0 0 1 -1 1h-1.34c-.34 .95 -.9 1.8 -1.66 2.47v2.03a1.5 1.5 0 0 1 -3 0v-.58a6 6 0 0 1 -1 .08h-4a6 6 0 0 1 -1 -.08v.58a1.5 1.5 0 0 1 -3 0v-2.03a6 6 0 0 1 4 -10.47h2.5l4.5 -3z',
+  food: 'M4 3h8l-1 9h-6z M7 18h2v3h-2z M20 3v12h-5c0 -3.7 .2 -7.4 5 -12z M8 12v6', car: 'M4 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M16 17a2 2 0 1 0 4 0a2 2 0 1 0 -4 0 M4 17h-2v-11a1 1 0 0 1 1 -1h14a5 7 0 0 1 5 7v5h-2m-4 0h-8',
+};
+const PAL = {
+  oscuro: { paper: '#0B0D12', surface: '#151922', line: '#232936', lines: '#2B323E', text: '#F4F6FA', muted: '#A3ABBA', faint: '#7C8595', dim: '#3A4250' },
+  claro: { paper: '#F2F4F7', surface: '#FFFFFF', line: '#E4E8EE', lines: '#D5DAE2', text: '#151B28', muted: '#4A5263', faint: '#6B7383', dim: '#C6CCD6' },
+};
+const TX = {
+  es: { month: 'Sep 2026', hello: 'Hola, Andres. Te queda en septiembre', period: 'Quincena del 25', left: 'quedan $ 324.906', due: 'Este mes', settings: 'Ajustes', themeBar: 'Tema y barra', instant: 'Se aplica al instante.', navBar: 'Barra de navegación', home: 'Inicio', analysis: 'Análisis', opacity: 'Opacidad', fab: 'Botón + también transparente', fabSub: 'Si lo apagas, el + queda de color sólido.', add: 'Agregar movimiento',
+    solid: 'Sólida', transl: 'Translúcida', glass: 'Cristal', system: 'Sistema', light: 'Claro', dark: 'Oscuro',
+    nSolid: 'Sólida: no deja ver nada detrás. Es la más legible.', nTransl: 'Translúcida: un poco de lo que hay detrás, casi sin afectar la lectura.', nGlass: 'Cristal: se ve lo que hay detrás, con desenfoque. Los íconos mantienen el contraste.',
+    jHome: 'Inicio', jSet: 'Tema y barra', jGlass: 'Probar cristal' },
+  en: { month: 'Sep 2026', hello: 'Hi, Andres. Left for September', period: 'Pay period 25', left: '$ 324,906 left', due: 'This month', settings: 'Settings', themeBar: 'Theme & bar', instant: 'Applies instantly.', navBar: 'Navigation bar', home: 'Home', analysis: 'Insights', opacity: 'Opacity', fab: 'Make the + button transparent too', fabSub: 'If off, the + stays a solid color.', add: 'Add transaction',
+    solid: 'Solid', transl: 'Translucent', glass: 'Glass', system: 'System', light: 'Light', dark: 'Dark',
+    nSolid: 'Solid: nothing shows through. The most readable.', nTransl: 'Translucent: a hint of what\'s behind, barely affects reading.', nGlass: 'Glass: what\'s behind shows through, blurred. Icons keep their contrast.',
+    jHome: 'Home', jSet: 'Theme & bar', jGlass: 'Try glass' },
+};
+const ROWS = {
+  es: [['GYM', '1 oct · Salud', '$ 100.000', 'heart', '#00CCC6'], ['Apple Music', '4 oct · Entretenimiento', '$ 9.900', 'tv', '#A4BE50'], ['Coomeva', '5 oct · Ahorro', '$ 175.094', 'pig', '#EB8CCD'], ['Salario', '10 oct · Salario', '+ $ 4.370.000', 'cash', '#3DD16B'], ['Arriendo', '25 oct · Hogar', '$ 2.500.000', 'home', '#F889AD'], ['Rappi', '29 sep · Alimentación', '$ 36.400', 'food', '#F7945A'], ['Uber', '28 sep · Transporte', '$ 18.200', 'car', '#C5B337'], ['Icloud', '22 sep · Suscripciones', '$ 13.000', 'tv', '#00C8E3'], ['DGO', '23 sep · Entretenimiento', '$ 94.000', 'tv', '#A4BE50'], ['Ahorro', '10 sep · Ahorro', '$ 3.000.000', 'pig', '#EB8CCD']],
+  en: [['GYM', 'Oct 1 · Health', '$ 100,000', 'heart', '#00CCC6'], ['Apple Music', 'Oct 4 · Entertainment', '$ 9,900', 'tv', '#A4BE50'], ['Coomeva', 'Oct 5 · Savings', '$ 175,094', 'pig', '#EB8CCD'], ['Salary', 'Oct 10 · Salary', '+ $ 4,370,000', 'cash', '#3DD16B'], ['Rent', 'Oct 25 · Home', '$ 2,500,000', 'home', '#F889AD'], ['Rappi', 'Sep 29 · Food', '$ 36,400', 'food', '#F7945A'], ['Uber', 'Sep 28 · Transport', '$ 18,200', 'car', '#C5B337'], ['Icloud', 'Sep 22 · Subscriptions', '$ 13,000', 'tv', '#00C8E3'], ['DGO', 'Sep 23 · Entertainment', '$ 94,000', 'tv', '#A4BE50'], ['Savings', 'Sep 10 · Savings', '$ 3,000,000', 'pig', '#EB8CCD']],
+};
+
+class Component extends DCLogic {
+  state = { lang: 'es', theme: 'oscuro', screen: 'home', style: 'translucida', opacity: 88, fabGlass: false };
+  renderVals() {
+    const s = this.state; const t = TX[s.lang]; const c = PAL[s.theme === 'claro' ? 'claro' : 'oscuro']; const dark = s.theme !== 'claro';
+    const o = s.opacity; const glass = o < 100; const crystal = o <= 55;
+    const hi = dark ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
+    const bg = glass ? `color-mix(in srgb, ${c.surface} ${o}%, transparent)` : c.surface;
+    const border = crystal ? hi + (dark ? '.14)' : '.08)') : c.lines;
+    const shadow = crystal ? `inset 0 1px 0 ${dark ? 'rgba(255,255,255,.10)' : 'rgba(255,255,255,.6)'}, 0 10px 30px rgba(0,0,0,${dark ? '.35' : '.12'})` : `0 10px 30px rgba(0,0,0,${dark ? '.4' : '.1'})`;
+    const fg = s.fabGlass && glass;
+    const b = { bg, filter: !glass ? 'none' : crystal ? 'blur(26px) saturate(180%)' : 'blur(20px) saturate(140%)', border, shadow,
+      active: glass ? `color-mix(in srgb, ${c.lines} ${Math.max(o, 60)}%, transparent)` : c.lines,
+      fabBg: fg ? bg : '#6B8AFF', fabColor: fg ? '#6B8AFF' : '#0B0D12', fabBorder: fg ? border : 'transparent', fabShadow: fg ? shadow : '0 10px 30px rgba(107,138,255,.35)' };
+    const row = (r, i) => ({ t: r[0], d: r[1], a: r[2], icon: IC[r[3]], c: r[4], bg: `color-mix(in srgb, ${r[4]} 16%, ${c.surface})`, ac: r[2].startsWith('+') ? '#3DD16B' : c.text, divider: i ? `1px solid ${c.line}` : 'none' });
+    const set = (p) => this.setState(p);
+    const presets = [['solida', t.solid, 100], ['translucida', t.transl, 88], ['cristal', t.glass, 40]];
+    const chip = (on) => ({ bg: on ? '#151B28' : '#FAFAF8', color: on ? '#fff' : '#151B28', border: on ? '#151B28' : '#DDD' });
+    return {
+      t, c, b,
+      isHome: s.screen === 'home', isSettings: s.screen === 'settings',
+      rows: ROWS[s.lang].map(row), previewRows: ROWS[s.lang].slice(0, 4).map(row),
+      tabs: [['home', t.home, IC.home], ['analysis', t.analysis, IC.chart], ['settings', t.settings, IC.sliders]].map(([k, l, icon]) => { const on = s.screen === k || (k === 'analysis' && false); return { label: l, icon, bg: on ? b.active : 'transparent', color: on ? c.text : c.faint, onClick: () => k !== 'analysis' && set({ screen: k }) }; }),
+      themeOpts: [['sistema', t.system, 'linear-gradient(135deg,#f2f4f7 50%,#0b0d12 50%)', 'linear-gradient(135deg,#ffffff 50%,#1d222c 50%)', '#7c8595'], ['claro', t.light, '#F2F4F7', '#FFFFFF', '#C6CCD6'], ['oscuro', t.dark, '#0B0D12', '#1D222C', '#3A4250']].map(([k, name, bgc, card, ink]) => { const on = s.theme === k; return { name, bg: bgc, card, ink, ring: on ? '#6B8AFF' : c.line, label: on ? c.text : c.muted, onClick: () => set({ theme: k }) }; }),
+      styleTabs: presets.map(([k, l, v]) => { const on = s.style === k; return { label: l, bg: on ? c.lines : 'transparent', color: on ? c.text : c.faint, onClick: () => set({ style: k, opacity: v, fabGlass: k === 'cristal' ? true : k === 'solida' ? false : s.fabGlass }) }; }),
+      opacity: o, opacityTxt: o + '%',
+      onOpacity: (e) => { const v = +e.target.value; set({ opacity: v, style: v === 100 ? 'solida' : v === 88 ? 'translucida' : v === 40 ? 'cristal' : 'custom' }); },
+      toggleFab: () => set({ fabGlass: !s.fabGlass }), fabToggleBg: s.fabGlass ? '#3DD16B' : c.dim, fabToggleX: s.fabGlass ? '21px' : '3px',
+      note: !glass ? t.nSolid : crystal ? t.nGlass : t.nTransl,
+      jumps: [
+        { label: 'ES', on: s.lang === 'es', onClick: () => set({ lang: 'es' }) }, { label: 'EN', on: s.lang === 'en', onClick: () => set({ lang: 'en' }) },
+        { label: t.jHome, on: s.screen === 'home', onClick: () => set({ screen: 'home' }) }, { label: t.jSet, on: s.screen === 'settings', onClick: () => set({ screen: 'settings' }) },
+        { label: t.jGlass, on: false, onClick: () => set({ style: 'cristal', opacity: 40, fabGlass: true, screen: 'home' }) },
+      ].map((j) => ({ ...j, ...chip(j.on) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

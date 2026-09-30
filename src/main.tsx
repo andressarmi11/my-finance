@@ -6,6 +6,10 @@ import { LanguageProvider } from './i18n/language';
 import { ensureSeedData } from './data/local/seed';
 import { materializeRecurringRules } from './data/local/materialize';
 import './styles/index.css';
+import { applyNavBar } from './lib/navBar';
+
+// The tab bar's transparency (BARRA.md), before React paints anything.
+applyNavBar();
 
 void ensureSeedData().then(() => materializeRecurringRules());
 // The default window covers last month and ~3 ahead. When the

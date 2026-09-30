@@ -78,10 +78,10 @@ test('the grouped Settings, its sub-screens and sheets have no Spanish in Englis
   await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
   await scan('settings');
 
-  await page.getByRole('button', { name: /^Theme/ }).click();
-  await expect(page.getByRole('dialog', { name: 'Theme' })).toBeVisible();
-  await scan('theme sheet');
-  await page.getByRole('dialog', { name: 'Theme' }).getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('link', { name: /^Theme & bar/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Theme & bar' })).toBeVisible();
+  await scan('theme & bar screen');
+  await page.goto('ajustes');
 
   await page.getByRole('button', { name: /^Language/ }).click();
   await scan('language sheet');

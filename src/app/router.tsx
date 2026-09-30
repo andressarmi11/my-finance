@@ -7,6 +7,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { DashboardScreen } from '@/features/dashboard/DashboardScreen';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 import { LegalRedirect, PreferencesScreen, SettingsIndex, SettingsLayout } from '@/features/settings/SettingsLayout';
+import { ThemeScreen } from '@/features/settings/ThemeSheet';
 import { ProfileScreen } from '@/features/settings/ProfileScreen';
 import { ChangePasswordScreen } from '@/features/settings/ChangePasswordScreen';
 import { CurrencyScreen } from '@/features/settings/CurrencyScreen';
@@ -69,6 +70,7 @@ export const router = createBrowserRouter(
             { path: 'cuenta', element: <ProfileScreen /> },
             { path: 'cuenta/contrasena', element: <ChangePasswordScreen /> },
             { path: 'preferencias', element: <PreferencesScreen /> },
+            { path: 'tema', element: <ThemeScreen /> },
             { path: 'moneda', element: <CurrencyScreen /> },
             { path: 'pagos', element: <PayDaysScreen /> },
             { path: 'recordatorios', element: <RemindersScreen /> },

@@ -50,6 +50,9 @@ const SPANISH_ONLY = [
   'Monedas rápidas', 'Vista previa', 'Primer pago', 'Avisarme', 'Exportar',
   'Restaurar', 'Cómo armarlo', 'Perfil', 'Tu nombre', 'Contraseña',
   'Coinciden', 'Categorías', 'Métodos de pago', 'Recurrentes', 'Entran al mes',
+  // Ajustes → Tema y barra (BARRA.md).
+  'Tema y barra', 'Barra de navegación', 'Sólida', 'Translúcida', 'Cristal', 'Opacidad',
+  'también transparente', 'Se aplica al instante',
 ];
 
 /** Everything the switch has to reach, and how to get there. */
@@ -71,6 +74,7 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'reminders', path: 'ajustes/recordatorios' },
   { name: 'shortcuts', path: 'ajustes/atajos' },
   { name: 'your data', path: 'ajustes/datos' },
+  { name: 'theme and bar', path: 'ajustes/tema' },
 ];
 
 test('switching to English leaves no Spanish behind', async ({ page }) => {
