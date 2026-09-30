@@ -191,7 +191,7 @@ export const supabaseRepository: Repository = {
     const supabase = await getSupabase();
     const { data, error } = await supabase.from('budgets').select('*').eq('year', year).eq('month', month);
     if (error) throw error;
-    return (data as BudgetRow[]).map(budgetFromRow);
+    return (data as BudgetRow[]).map(budgetFromRow).filter((b) => b.amount > 0); // 0 = deleted
   },
   async saveBudget(budget) {
     const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);

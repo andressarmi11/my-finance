@@ -16,9 +16,8 @@
  * the id that survives is always the cloud's: it's the only one both
  * devices can agree on.
  *
- * There are no tombstones because there's no way to delete a budget in
- * the app — you just edit the amount. If deleting is ever added, one
- * will be needed.
+ * There are no tombstones: deleting a budget is saving amount 0, which
+ * travels as a normal edit (newest wins) and is hidden by listBudgets.
  */
 import type { Budget } from '@/domain/types';
 import { newest } from './newest';

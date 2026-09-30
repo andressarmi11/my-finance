@@ -3,7 +3,7 @@ import { IconCurrencyDollar, IconMicrophone, IconRefresh, IconRepeat, IconTrendi
 import { refreshApp } from '@/components/ui/PullToRefresh';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
 import { haptic } from '@/lib/haptic';
 
@@ -23,8 +23,8 @@ export function TabBar() {
   const [hablarOpen, setHablarOpen] = useState(false);
   const [fabHidden, setFabHidden] = useState(false);
 
-  // FAB hides when scrolling down, appears when scrolling back
-  // up. Small threshold to avoid flicker from micro-scrolls.
+  // The buttons hide on scroll DOWN and come back on any scroll UP. Small
+  // threshold to avoid flicker from micro-scrolls.
   useEffect(() => {
     let lastY = window.scrollY;
     let ticking = false;
@@ -32,29 +32,31 @@ export function TabBar() {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(() => {
-        const y = window.scrollY;
-        const delta = y - lastY;
-        // Only hide it when there is a real list to get out of the way
-        // of. The FAB hides so it stops covering content you are reading;
-        // on a page that barely scrolls there is nothing to uncover, and
-        // hiding it there only takes away the main action.
-        //
-        // This is not hypothetical: adding the legal footer made short
-        // screens scrollable by a couple of hundred pixels, and since a
-        // hidden FAB also sets pointer-events: none, the + button became
-        // unclickable after the smallest scroll.
-        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-        if (Math.abs(delta) > 6) {
-          if (delta > 0 && y > 40 && scrollable > 320) setFabHidden(true);
-          else setFabHidden(false);
-          lastY = y;
-        }
         ticking = false;
+        const y = window.scrollY;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        // iOS rubber-band: past the top or the bottom the scroll position
+        // bounces back, which would read as a fake "scroll up" and flicker
+        // the buttons. Ignore it and keep the last real position.
+        if (y < 0 || y > max) return;
+        const delta = y - lastY;
+        if (Math.abs(delta) <= 6) return;
+        // Hide only if the page scrolls more than the area the buttons cover
+        // (~120px: 56 + 44 + gaps). Below that there is nothing to uncover
+        // and hiding just removes the main action. A hidden button also has
+        // pointer-events: none, so it must always be able to come back: any
+        // upward scroll, the top of the page, or a short page shows it.
+        setFabHidden(delta > 0 && y > 40 && max > 120);
+        lastY = y;
       });
     }
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // A new screen starts with the buttons visible, whatever the last one did.
+  const { pathname } = useLocation();
+  useEffect(() => setFabHidden(false), [pathname]);
 
   return (
     <>
@@ -160,11 +162,12 @@ export function TabBar() {
  * Tap opens a quick menu with Expense/Income/Recurring.
  */
 function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean }) {
+  const t = useT();
   const [pressed, setPressed] = useState(false);
   return (
     <button
       type="button"
-      aria-label="Agregar movimiento"
+      aria-label={t('action.addTransaction')}
       // The action lives in onClick, not onPointerUp. Pointer events
       // only arrive with a finger or mouse: with the keyboard (Enter/Space) and
       // with VoiceOver —which activates by sending a click— this button did
@@ -316,7 +319,7 @@ function QuickActionSheet({
             cursor: 'pointer',
           }}
         >
-          Cancelar
+          {t('action.cancel')}
         </button>
       </div>
     </div>

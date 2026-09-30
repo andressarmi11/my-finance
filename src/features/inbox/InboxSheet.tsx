@@ -1,4 +1,4 @@
-import { IconBolt, IconMessage, IconMicrophone, type IconProps } from '@tabler/icons-react';
+import { IconBolt, IconCalendar, IconMessage, IconMicrophone, type IconProps } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
 import { useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
@@ -14,6 +14,8 @@ import { haptic } from '@/lib/haptic';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { EMPTY } from '@/lib/empty';
 import { useT } from '@/i18n/language';
+import { dateLabel, fill } from '@/lib/dateLabels';
+import { formatMoney } from '@/domain/money/format';
 
 const ICON_SOURCE: Record<string, ComponentType<IconProps>> = {
   sms: IconMessage,
@@ -109,7 +111,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
     <div
       ref={dialogRef}
       role="dialog"
-      aria-label="Por confirmar"
+      aria-label={t('inbox.ariaLabel')}
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
@@ -127,19 +129,23 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
         }}
       >
         <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 14px' }} />
-        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>Llegaron solos</h2>
+        <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>{t('inbox.title')}</h2>
         <p style={{ margin: '0 0 16px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
           {t('inbox.checkAmount')}
         </p>
 
         {entradas.length === 0 && (
-          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>Nada pendiente.</p>
+          <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>{t('inbox.nothingPending')}</p>
         )}
 
         {entradas.map((e) => {
           const { parsed, desc } = interpret(e);
           const full = parsed.amount != null && parsed.concept.length > 0;
           const busy = processing === e.id;
+          // Future-dated: it will NOT count today, and the user has to know,
+          // or "Anotar" reads as "it's already been charged".
+          const scheduled = !parsed.yaOcurrio;
+          const income = parsed.type === 'income';
           return (
             <div
               key={e.id}
@@ -152,6 +158,23 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
                 {(() => { const I = ICON_SOURCE[e.origen] ?? IconBolt; return <I size={17} stroke={1.75} aria-hidden />; })()}
                 <span style={{ flex: 1, fontSize: 'var(--text-md)', fontWeight: 600 }}>{desc.summary}</span>
               </div>
+              {scheduled && full && (
+                <>
+                  <p
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 6px', padding: '4px 10px',
+                      borderRadius: 999, background: 'var(--q10-soft)', color: 'var(--q10-text)',
+                      fontSize: 'var(--text-sm)', fontWeight: 700,
+                    }}
+                  >
+                    <IconCalendar size={15} stroke={2} aria-hidden />
+                    {fill(t(income ? 'inbox.expected' : 'inbox.scheduled'), { date: dateLabel(parsed.date, t) })}
+                  </p>
+                  <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+                    {fill(t(income ? 'inbox.notCountedToday' : 'inbox.notTakenToday'), { date: dateLabel(parsed.date, t, 'long') })}
+                  </p>
+                </>
+              )}
               {desc.missing && (
                 <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>
                   {desc.missing} {t('inbox.couldNotRead')}
@@ -172,6 +195,9 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
                 <button
                   type="button"
                   onClick={() => record(e)}
+                  aria-label={scheduled && full
+                    ? fill(t('inbox.scheduleAria'), { amount: formatMoney(parsed.amount ?? 0), date: dateLabel(parsed.date, t, 'long') })
+                    : undefined}
                   disabled={!full || busy}
                   style={{
                     flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
@@ -181,7 +207,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
                     fontSize: 'var(--text-base)',
                   }}
                 >
-                  {busy ? '…' : 'Anotar'}
+                  {busy ? '…' : t(scheduled ? 'inbox.schedule' : 'inbox.record')}
                 </button>
                 <button
                   type="button"
@@ -194,7 +220,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
                     fontSize: 'var(--text-base)',
                   }}
                 >
-                  Descartar
+                  {t('inbox.discard')}
                 </button>
               </div>
             </div>
@@ -210,7 +236,7 @@ export function InboxSheet({ entradas, onClose, onCambio }: {
             fontWeight: 600, fontSize: 'var(--text-base)', cursor: 'pointer',
           }}
         >
-          Cerrar
+          {t('action.close')}
         </button>
       </div>
     </div>

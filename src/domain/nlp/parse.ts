@@ -12,7 +12,7 @@
  * Whatever it learns, it learns from the user's own history
  * (domain/inference/conceptInference.ts), not from a model.
  */
-import { addDays, clampDay, parseISO, toISO } from '../dates';
+import { addDays, clampDay, parseISO, shiftMonth, toISO } from '../dates';
 import type { ISODate, PaymentMethodType, TransactionType } from '../types';
 import { guessCategory } from './categories';
 import { findAmount, normalizeText } from './numbers';
@@ -42,6 +42,35 @@ const EXPENSE_VERBS = [
   'compra', 'retiraste', 'retire', 'saque',
 ];
 
+// Future tense = scheduled, not happened yet (yaOcurrio false). They live in
+// their own lists so "recibire" is income instead of falling to the expense default.
+const FUTURE_INCOME_VERBS = [
+  'recibire', 'me van a pagar', 'me llega', 'me llegara', 'cobrare', 'me consignan',
+];
+const FUTURE_EXPENSE_VERBS = ['pagare', 'voy a pagar', 'tengo que pagar', 'debo pagar'];
+
+// Normalised (no accents). Longest first so "septiembre" wins over "sep".
+const MONTHS: Record<string, number> = {
+  enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8,
+  septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12,
+  ene: 1, feb: 2, mar: 3, abr: 4, may: 5, jun: 6, jul: 7, ago: 8,
+  sept: 9, sep: 9, set: 9, oct: 10, nov: 11, dic: 12,
+};
+const MONTH_ALT = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join('|');
+// Every quantifier below is bounded or a fixed alternation: this text comes
+// from a public endpoint (see extractConcept), so no nested/unbounded repeats.
+const END = String.raw`(?=[\s.,;]|$)`;
+const DATE_MONTH_NAME = new RegExp(
+  String.raw`(^|\s)(?:el\s+)?(?:dia\s+)?(\d{1,2})\s+de(?:l)?\s+(${MONTH_ALT})(?:\s+de(?:l)?\s+(\d{4}))?${END}`,
+);
+const DATE_NEXT_MONTH = new RegExp(
+  String.raw`(^|\s)el\s+(?:dia\s+)?(\d{1,2})\s+de(?:l)?\s+(?:(?:proximo|siguiente)\s+mes|mes\s+(?:que\s+viene|proximo|siguiente|entrante))${END}`,
+);
+// The scale guard keeps "el 200 mil" from being read as a day.
+const DATE_DAY = new RegExp(
+  String.raw`(^|\s)el\s+(?:dia\s+)?(\d{1,2})(?!\d)(?!\s+(?:mil|millon|millones|k|lucas?|palos?)\b)${END}`,
+);
+
 const METHOD_KEYWORDS: Array<{ type: PaymentMethodType; keywords: string[] }> = [
   { type: 'credit', keywords: ['tarjeta de credito', 'con la tarjeta', 'con tarjeta', 'tc', 'credito', 'visa', 'mastercard', 't.cred'] },
   { type: 'cash', keywords: ['efectivo', 'en efectivo', 'cash', 'billete'] },
@@ -65,7 +94,7 @@ function contains(text: string, frases: string[]): string | null {
 }
 
 /** Spoken relative dates. Returns the date and the text that produced it. */
-function findDate(text: string, today: ISODate): { date: ISODate; text: string | null } {
+function findDate(text: string, today: ISODate, future: boolean, past: boolean): { date: ISODate; text: string | null } {
   const h = parseISO(today);
 
   if (/(^|\s)anteayer(\s|$)/.test(text)) return { date: toISO(addDays(h, -2)), text: 'anteayer' };
@@ -75,12 +104,42 @@ function findDate(text: string, today: ISODate): { date: ISODate; text: string |
   const ago = /hace\s+(\d+)\s+dias?/.exec(text);
   if (ago) return { date: toISO(addDays(h, -Number(ago[1]))), text: ago[0] };
 
-  // "el 15" / "el 3" -> that day of the current month. Two digits max,
+  // "el 15 del proximo mes" / "el 15 del mes que viene"
+  const nextMonth = DATE_NEXT_MONTH.exec(text);
+  if (nextMonth) {
+    const d = Number(nextMonth[2]);
+    if (d >= 1 && d <= 31) {
+      const ym = shiftMonth(h.y, h.m, 1);
+      return { date: toISO({ ...ym, d: clampDay(ym.y, ym.m, d) }), text: nextMonth[0].trim() };
+    }
+  }
+
+  // "15 de noviembre", "el 15 de nov". No year: a past verb ("gasté") means the
+  // MOST RECENT occurrence (already happened); otherwise the NEXT one, so a
+  // month already gone this year means next year.
+  const named = DATE_MONTH_NAME.exec(text);
+  if (named) {
+    const d = Number(named[2]);
+    const m = MONTHS[named[3]!]!;
+    if (d >= 1 && d <= 31) {
+      const at = (y: number) => toISO({ y, m, d: clampDay(y, m, d) });
+      let date = at(named[4] ? Number(named[4]) : h.y);
+      if (!named[4] && past && date > today) date = at(h.y - 1);
+      else if (!named[4] && !past && date < today) date = at(h.y + 1);
+      return { date, text: named[0].trim() };
+    }
+  }
+
+  // "el 15" / "el dia 3" -> that day of the current month; with a future verb
+  // ("recibire ... el 15") a day already gone means next month. Two digits max,
   // to avoid being confused with an amount.
-  const day = /(^|\s)el\s+(\d{1,2})(\s|$)/.exec(text);
+  const day = DATE_DAY.exec(text);
   if (day) {
     const d = Number(day[2]);
-    if (d >= 1 && d <= 31) return { date: toISO({ y: h.y, m: h.m, d: clampDay(h.y, h.m, d) }), text: day[0].trim() };
+    if (d >= 1 && d <= 31) {
+      const ym = future && d < h.d ? shiftMonth(h.y, h.m, 1) : { y: h.y, m: h.m };
+      return { date: toISO({ ...ym, d: clampDay(ym.y, ym.m, d) }), text: day[0].trim() };
+    }
   }
 
   // Explicit SMS date: 18/09/2026 or 18/09/26
@@ -155,14 +214,18 @@ function pretty(s: string): string {
 export function parseUtterance(originalText: string, today: ISODate): Parsed {
   const text = normalizeText(originalText);
 
-  const income = contains(text, INCOME_VERBS);
-  const expense = contains(text, EXPENSE_VERBS);
+  const futureVerb = contains(text, [...FUTURE_INCOME_VERBS, ...FUTURE_EXPENSE_VERBS]);
+  const income = contains(text, [...INCOME_VERBS, ...FUTURE_INCOME_VERBS]);
+  const expense = contains(text, [...EXPENSE_VERBS, ...FUTURE_EXPENSE_VERBS]);
   // If it says both, whichever appears first wins.
   let type: TransactionType = 'expense';
   if (income && (!expense || text.indexOf(income) < text.indexOf(expense))) type = 'income';
 
-  const amount = findAmount(originalText);
-  const date = findDate(text, today);
+  const date = findDate(text, today, futureVerb !== null, futureVerb === null && (income !== null || expense !== null));
+  // The date text goes BEFORE the amount search: "el 15" must never be read
+  // as the amount, nor steal digits from "200 mil".
+  const rest = date.text ? text.replace(date.text, ' ') : text;
+  const amount = findAmount(rest);
 
   let method: PaymentMethodType | null = null;
   let methodText: string | null = null;
@@ -175,9 +238,8 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     }
   }
 
-  const concept = bankConcept(text) ?? extractConcept(text, [
+  const concept = bankConcept(text) ?? extractConcept(rest, [
     amount ? normalizeText(amount.text) : null,
-    date.text,
     methodText,
     income,
     expense,
@@ -197,8 +259,8 @@ export function parseUtterance(originalText: string, today: ISODate): Parsed {
     method,
     categoryIdSugerida: guessCategory(concept || text),
     // A bank SMS always reports something that already happened. In
-    // speech, "gasté" and "me llegó" are also past tense; "voy a pagar"
-    // isn't handled.
-    yaOcurrio: date.date <= today,
+    // speech, "gasté" and "me llegó" are also past tense. A future verb
+    // ("pagaré", "recibiré") or a future date means scheduled, even for today.
+    yaOcurrio: date.date <= today && futureVerb === null,
   };
 }

@@ -14,7 +14,7 @@ export type Id = string;
 export type TransactionType = 'income' | 'expense';
 export type TransactionStatus = 'paid' | 'pending' | 'scheduled' | 'cancelled';
 export type PaymentMethodType = 'debit' | 'credit' | 'cash' | 'transfer';
-export type Frequency = 'monthly' | 'biweekly' | 'weekly' | 'yearly';
+export type Frequency = 'monthly' | 'biweekly' | 'weekly' | 'yearly' | 'custom';
 
 /** E.g.: '2026-09-Q1' (the 10th-of-the-month payday) | '2026-09-Q2' (the 25th) */
 export type PeriodKey = string;
@@ -149,6 +149,13 @@ export interface RecurringRule {
   frequency: Frequency;
   dayOfMonth?: number;
   dayOfWeek?: number;
+  /**
+   * Only for frequency 'custom' (exactly one of interval | months).
+   * interval: every N months (1-12) or weeks (1-26), anchored to startDate.
+   */
+  interval?: { every: number; unit: 'months' | 'weeks' };
+  /** Only for 'custom': specific months (1-12, sorted, unique), on dayOfMonth. */
+  months?: number[];
   startDate: ISODate;
   endDate?: ISODate;
   isActive: boolean;

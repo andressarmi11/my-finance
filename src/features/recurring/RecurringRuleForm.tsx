@@ -1,13 +1,21 @@
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useT } from '@/i18n/language';
 import { IconX } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category, Frequency, PaymentMethod, RecurringRule, TransactionType } from '@/domain/types';
 import { parseMoney } from '@/domain/money/format';
 import { todayISO } from '@/lib/todayISO';
 import { Field, FieldGroup } from '@/components/ui/Field';
 import type { TextKey } from '@/i18n/texts';
+import { MoreOptions } from '@/components/ui/MoreOptions';
+import { MonthChipGrid } from '@/components/ui/MonthChipGrid';
+import { nextOccurrences } from '@/domain/recurring/expansion';
+import { previewRuleSave } from '@/data/local/recurringEdit';
+import { dateLabel, fill } from '@/lib/dateLabels';
+
+/** Advanced repetition, behind "More options". 'none' = the simple frequency row. */
+type Repeat = 'none' | 'interval' | 'months';
 
 const FREQUENCIES: Array<{ value: Frequency; label: TextKey }> = [
   { value: 'monthly', label: 'recurring.monthly' },
@@ -29,10 +37,17 @@ export function RecurringRuleForm({
   const t = useT();
   const [type, setType] = useState<TransactionType>(existing?.type ?? 'expense');
   const [name, setName] = useState(existing?.name ?? '');
-  const [amountText, setAmountText] = useState(existing ? String(existing.amount) : '');
+  const [amountText, setAmountText] = useState(existing ? String(Math.round(existing.amount)) : '');
   const [categoryId, setCategoryId] = useState<string | null>(existing?.categoryId ?? null);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(existing?.paymentMethodId ?? paymentMethods[0]?.id ?? null);
-  const [frequency, setFrequency] = useState<Frequency>(existing?.frequency ?? 'monthly');
+  // 'custom' is not a button in the simple row: it lives in `repeat` below.
+  const [frequency, setFrequency] = useState<Frequency>(existing?.frequency === 'custom' ? 'monthly' : existing?.frequency ?? 'monthly');
+  const [repeat, setRepeat] = useState<Repeat>(
+    existing?.frequency !== 'custom' ? 'none' : existing.months ? 'months' : 'interval',
+  );
+  const [every, setEvery] = useState(existing?.interval?.every ?? 2);
+  const [unit, setUnit] = useState<'months' | 'weeks'>(existing?.interval?.unit ?? 'months');
+  const [monthSet, setMonthSet] = useState<Set<string>>(new Set((existing?.months ?? []).map(String)));
   const [dayOfMonth, setDayOfMonth] = useState(existing?.dayOfMonth ?? 1);
   const [startDate, setStartDate] = useState(existing?.startDate ?? todayISO());
   const [hasEnd, setHasEnd] = useState(Boolean(existing?.endDate));
@@ -41,27 +56,58 @@ export function RecurringRuleForm({
   const [touched, setTouched] = useState(false);
 
   const amount = parseMoney(amountText);
-  const canSave = name.trim().length > 0 && amount !== null && amount > 0 && !!startDate;
-  const needsDayOfMonth = frequency === 'monthly';
+  const canSave = name.trim().length > 0 && amount !== null && amount > 0 && !!startDate
+    && (repeat !== 'months' || monthSet.size > 0);
+  const needsDayOfMonth = repeat === 'none' ? frequency === 'monthly' : repeat === 'months' || unit === 'months';
+  const maxEvery = unit === 'months' ? 12 : 26;
+
+  function buildRule(): RecurringRule {
+    const custom = repeat !== 'none';
+    return {
+      id: existing?.id ?? crypto.randomUUID(),
+      name: name.trim(),
+      type,
+      amount: amount ?? 0,
+      categoryId,
+      paymentMethodId,
+      frequency: custom ? 'custom' : frequency,
+      dayOfMonth: needsDayOfMonth ? dayOfMonth : undefined,
+      interval: repeat === 'interval' ? { every, unit } : undefined,
+      months: repeat === 'months' ? [...monthSet].map(Number).sort((a, b) => a - b) : undefined,
+      startDate,
+      endDate: hasEnd && endDate ? endDate : undefined,
+      isActive,
+      // The real date gets stamped by the repository on save.
+      updatedAt: existing?.updatedAt ?? '',
+    };
+  }
+
+  // What an edit would touch among the already-generated pending payments,
+  // so the button can say it BEFORE the tap instead of surprising afterwards.
+  const [impact, setImpact] = useState<{ affected: number; from: string | null }>({ affected: 0, from: null });
+  // The name never changes WHICH occurrences move (matching is by id/period),
+  // so typing it must not re-run the preview; the rest is debounced.
+  const draftKey = existing && canSave ? JSON.stringify({ ...buildRule(), name: '', updatedAt: '' }) : '';
+  useEffect(() => {
+    if (!draftKey) { setImpact({ affected: 0, from: null }); return; }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      previewRuleSave(buildRule()).then((r) => { if (alive) setImpact(r); });
+    }, 300);
+    return () => { alive = false; window.clearTimeout(timer); };
+    // buildRule reads exactly what draftKey serialises.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  // Only the schedule has to be valid, not the name or amount.
+  const scheduleValid = repeat === 'interval' || (repeat === 'months' && monthSet.size > 0);
+  const thisYear = todayISO().slice(0, 4);
+  const upcoming = scheduleValid ? nextOccurrences(buildRule(), todayISO(), 3) : [];
 
   function handleSubmit() {
     setTouched(true);
     if (!canSave || amount === null) return;
-    onSave({
-      id: existing?.id ?? crypto.randomUUID(),
-      name: name.trim(),
-      type,
-      amount,
-      categoryId,
-      paymentMethodId,
-      frequency,
-      dayOfMonth: needsDayOfMonth ? dayOfMonth : undefined,
-      startDate,
-      endDate: hasEnd && endDate ? endDate : undefined,
-      isActive,
-      // The real date gets stamped by localRepository.saveRecurringRule.
-      updatedAt: existing?.updatedAt ?? '',
-    });
+    onSave(buildRule());
   }
 
   const dialogRef = useDialogo(onCancel);
@@ -110,12 +156,12 @@ export function RecurringRuleForm({
         </div>
 
         <Field label={t('form.name')} htmlFor="rr-nombre">
-          <input id="rr-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Arriendo" style={inputStyle} />
+          <input id="rr-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('recurring.namePlaceholder')} style={inputStyle} />
         </Field>
         {touched && !name.trim() && <p style={errorText}>{t('recurring.giveItAName')}</p>}
 
         <Field label={t('form.amount')} htmlFor="rr-valor">
-          <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value)} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
+          <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value.replace(/-/g, ''))} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
         </Field>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>{t('transactions.enterValidAmount')}</p>}
 
@@ -136,26 +182,81 @@ export function RecurringRuleForm({
           ))}
         </FieldGroup>
 
-        <FieldGroup label="Frecuencia" id="rr-frecuencia" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+        <FieldGroup label={t('recurring.frequency')} id="rr-frecuencia" style={{ display: 'flex', gap: 6, marginBottom: repeat === 'none' ? 14 : 4, opacity: repeat === 'none' ? 1 : 0.45 }}>
           {FREQUENCIES.map((f) => (
-            <button key={f.value} type="button" onClick={() => setFrequency(f.value)} aria-pressed={frequency === f.value} style={segmentStyle(frequency === f.value)}>
+            <button key={f.value} type="button" onClick={() => setFrequency(f.value)} disabled={repeat !== 'none'} aria-pressed={repeat === 'none' && frequency === f.value} style={segmentStyle(repeat === 'none' && frequency === f.value)}>
               {t(f.label)}
             </button>
           ))}
         </FieldGroup>
+
+        {repeat !== 'none' && (
+          <p style={{ margin: '0 0 14px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{t('recurring.setInMore')}</p>
+        )}
 
         {needsDayOfMonth && (
           <>
             <Field label={t('recurring.dayOfMonth')} htmlFor="rr-dia">
               <input
                 id="rr-dia"
-                type="number" min={1} max={31} value={dayOfMonth}
+                type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth}
                 onChange={(e) => setDayOfMonth(Math.min(31, Math.max(1, Number(e.target.value) || 1)))}
                 style={inputStyle}
               />
             </Field>
           </>
         )}
+
+        <MoreOptions startOpen={repeat !== 'none'}>
+          <FieldGroup label={t('recurring.howRepeats')} id="rr-repite" style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            {([['none', 'recurring.standard'], ['interval', 'recurring.everySoOften'], ['months', 'recurring.specificMonths']] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setRepeat(value)} aria-pressed={repeat === value} style={segmentStyle(repeat === value)}>
+                {t(label)}
+              </button>
+            ))}
+          </FieldGroup>
+
+          {repeat === 'interval' && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <button type="button" aria-label={t('recurring.less')} disabled={every <= 1} onClick={() => setEvery((n) => Math.max(1, n - 1))} style={stepperButton}>−</button>
+                <span aria-live="polite" className="figures" style={{ minWidth: 44, textAlign: 'center', fontSize: 18, fontWeight: 700 }}>{every}</span>
+                <button type="button" aria-label={t('recurring.more')} disabled={every >= maxEvery} onClick={() => setEvery((n) => Math.min(maxEvery, n + 1))} style={stepperButton}>+</button>
+                <div role="group" aria-label={t('recurring.everySoOften')} style={{ flex: 1, display: 'flex', gap: 6, marginLeft: 6 }}>
+                  {(['weeks', 'months'] as const).map((u) => (
+                    <button
+                      key={u} type="button" aria-pressed={unit === u} style={segmentStyle(unit === u)}
+                      onClick={() => { setUnit(u); setEvery((n) => Math.min(n, u === 'months' ? 12 : 26)); }}
+                    >
+                      {t(u === 'weeks' ? 'recurring.weeksUnit' : 'recurring.monthsUnit')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>{t('recurring.everyHint')}</p>
+            </div>
+          )}
+
+          {repeat === 'months' && (
+            <MonthChipGrid
+              items={Array.from({ length: 12 }, (_, i) => ({ key: String(i + 1), month: i + 1 }))}
+              selected={monthSet}
+              onToggle={(k) => setMonthSet((prev) => {
+                const next = new Set(prev);
+                if (!next.delete(k)) next.add(k);
+                return next;
+              })}
+            />
+          )}
+          {repeat === 'months' && monthSet.size === 0 && (
+            <p style={{ margin: '-6px 0 10px', fontSize: 'var(--text-sm)', color: 'var(--danger-text)' }}>{t('recurring.pickMonths')}</p>
+          )}
+          {upcoming.length > 0 && (
+            <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+              {fill(t('recurring.next'), { dates: upcoming.map((d) => dateLabel(d, t) + (d.slice(0, 4) !== thisYear ? ` ${d.slice(0, 4)}` : '')).join(' · ') })}
+            </p>
+          )}
+        </MoreOptions>
 
         <Field label={t('recurring.startsOn')} htmlFor="rr-inicio">
           <input id="rr-inicio" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
@@ -180,11 +281,18 @@ export function RecurringRuleForm({
           aria-pressed={isActive}
           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 'var(--tap)', padding: '0 4px', margin: '4px 0 20px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}
         >
-          <span>Activo</span>
+          <span>{t('recurring.active')}</span>
           <ToggleDot on={isActive} activeColor="var(--positive)" />
         </button>
 
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>Guardar</button>
+        {impact.affected > 0 && impact.from && (
+          <p role="status" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 'var(--radius-s)', background: 'var(--q10-soft)', color: 'var(--text)', fontSize: 'var(--text-sm)' }}>
+            {fill(t('recurring.willUpdate'), { n: impact.affected, date: dateLabel(impact.from, t) })}
+          </p>
+        )}
+        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>
+          {impact.affected > 0 ? fill(t('recurring.saveAndUpdate'), { n: impact.affected }) : t('action.save')}
+        </button>
 
         {existing && onDelete && (
           <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
@@ -205,6 +313,7 @@ function ToggleDot({ on, activeColor = 'var(--text)' }: { on: boolean; activeCol
 }
 
 const inputStyle: React.CSSProperties = { width: '100%', minHeight: 'var(--tap)', padding: '0 12px', marginBottom: 14, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontSize: 16 };
+const stepperButton: React.CSSProperties = { width: 44, height: 44, flex: 'none', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontSize: 20, fontWeight: 600, cursor: 'pointer' };
 const errorText: React.CSSProperties = { margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' };
 function segmentStyle(active: boolean): React.CSSProperties {
   return { flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 13 };

@@ -15,10 +15,11 @@
 import { addDays, daysInMonth, parseISO, toISO } from '@/domain/dates';
 import { calculateCreditCardCycle } from '@/domain/credit-card/cycle';
 import { expandRecurringRule } from '@/domain/recurring/expansion';
+import { staleCustomOccurrences } from '@/domain/recurring/propagate';
 import type { ISODate, RecurringRule, Transaction } from '@/domain/types';
 import { nowISO, todayISO } from '@/lib/todayISO';
 import { db } from '../db';
-import { deletedIdsOf } from '../sync/tombstones';
+import { deletedIdsOf, makeTombstone } from '../sync/tombstones';
 
 const WINDOW_BEFORE_DAYS = 31; // in case a rule was left unmaterialized last month
 const WINDOW_AFTER_DAYS = 95; // ~3 months ahead, for "upcoming payments"
@@ -133,9 +134,27 @@ export async function materializeRecurringRules(requested: Range = defaultRange(
   // and before that meant 12 round-trips to IndexedDB per rule, on every
   // month change.
   const existing = new Set<string>();
+  const customRuleIds = new Set(rules.filter((r) => r.frequency === 'custom').map((r) => r.id));
+  const pendingCustom: Transaction[] = [];
   await db.transactions.each((tx) => {
     if (tx.recurringRuleId && tx.periodKey) existing.add(`${tx.recurringRuleId}|${tx.periodKey}`);
+    if (tx.recurringRuleId && customRuleIds.has(tx.recurringRuleId) && tx.status === 'pending') pendingCustom.push(tx);
   });
+
+  // An old cached client expands 'custom' as yearly (ruleId:YYYY). Clean up
+  // those untouched ghosts, with tombstones so they don't come back via sync.
+  const ghosts = rules.flatMap((r) => staleCustomOccurrences(r, pendingCustom, range));
+  if (ghosts.length > 0) {
+    const at = nowISO();
+    await db.transaction('rw', [db.transactions, db.reminders, db.deletions], async () => {
+      for (const g of ghosts) {
+        await db.transactions.delete(g.id);
+        await db.reminders.where('transactionId').equals(g.id).delete();
+        await db.deletions.put(makeTombstone('transactions', g.id, at));
+        existing.delete(`${g.recurringRuleId}|${g.periodKey}`);
+      }
+    });
+  }
 
   // And what the user DELETED. Without this, materializing becomes a
   // resurrection machine: the deleted instance is no longer among the

@@ -9,15 +9,14 @@ import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav'
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
-import { formatShortDate } from '@/lib/formatShortDate';
+import { dateLabel } from '@/lib/dateLabels';
 import { todayISO } from '@/lib/todayISO';
 import { buildCalendarGrid, shiftMonthISO } from './calendarGrid';
 import { EMPTY } from '@/lib/empty';
 
-const WEEKDAYS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-
 export function CalendarScreen() {
   const t = useT();
+  const weekdays = t('calendar.weekdays').split(',');
   const today = todayISO();
   const [year, month] = today.split('-').map(Number) as [number, number];
   const [view, setView] = useState({ year, month });
@@ -71,7 +70,7 @@ export function CalendarScreen() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
-        {WEEKDAYS.map((w, i) => (
+        {weekdays.map((w, i) => (
           <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', fontWeight: 600 }}>{w}</div>
         ))}
       </div>
@@ -106,7 +105,7 @@ export function CalendarScreen() {
       </div>
 
       <h2 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>
-        {formatShortDate(selected).day} de {formatShortDate(selected).month}
+        {dateLabel(selected, t, 'long')}
       </h2>
 
       {dayTransactions.length === 0 && dayPayments.length === 0 ? (
@@ -141,7 +140,7 @@ export function CalendarScreen() {
                 <IconCreditCard size={17} stroke={1.75} />
               </span>
               <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--q25-text)' }}>
-                Pago TC: {tx.concept}
+                {t('calendar.cardPayment')}: {tx.concept}
               </span>
               <span className="figures" style={{ fontWeight: 600 }}>{formatMoney(tx.amount)}</span>
             </div>

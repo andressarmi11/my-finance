@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.3.0] — Scheduling by voice, flexible budgets and recurring items
+
+### Added
+- Voice/Shortcut entries understand the future: "Pagaré 200 mil el 15 de
+  noviembre", "Recibiré 300 mil el 15" are scheduled as pending on that date
+  (the inbox shows "Programado · 15 nov" and a "Programar" button). "Recibiré"
+  used to be classified as an expense.
+- Budgets for several months at once (this month, 3 months, whole year or
+  chosen months, amount per month), month navigation on the Budgets screen,
+  and editing/removing a budget with a confirmation. Removing = amount 0, which
+  syncs between devices by (category, year, month).
+- Recurring items: advanced schedule behind "Más opciones" — every N months or
+  weeks ("mes y medio" = 6 semanas) or specific months, with a preview of the
+  next dates. Editing a recurring item now updates its pending future copies
+  (paid and past ones keep their history; hand-edited values are kept).
+  Deleting a recurring item asks for confirmation and removes its pending
+  future copies.
+- Supabase migration 0012: `custom` frequency and the interval/months columns.
+
+### Fixed
+- The + and refresh buttons now hide on scroll on every screen, Calendar
+  included.
+- Hard-coded Spanish in Calendar, Budgets, Recurring and the inbox moved to the
+  dictionary (English everywhere).
+
+### Known limitation
+- Switching a recurring item's pattern back and forth doesn't regenerate the
+  pending months removed in between; add them by hand. Planned for 1.3.1.
+
 ## [0.2.0] — Phase 2: financial logic + tests
 
 ### Added

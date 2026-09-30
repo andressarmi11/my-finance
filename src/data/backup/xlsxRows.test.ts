@@ -132,3 +132,33 @@ describe('the other sheets', () => {
     expect(cell(rows[1], 1).value).toBe('Gasto');
   });
 });
+
+import { BackupSchema } from './schema';
+
+describe('custom recurrence in backups', () => {
+  const rule = (o: object) => ({
+    id: 'r', name: 'Seguro', type: 'expense', amount: 1, categoryId: null, paymentMethodId: null,
+    frequency: 'custom', dayOfMonth: 5, startDate: '2026-01-01', isActive: true, updatedAt: '', ...o,
+  });
+  const parse = (r: object) => BackupSchema.safeParse({ ...backup(), recurringRules: [r] }).success;
+
+  it('zod mirrors the migration CHECKs', () => {
+    expect(parse(rule({ interval: { every: 26, unit: 'weeks' } }))).toBe(true);
+    expect(parse(rule({ months: [1, 12] }))).toBe(true);
+    expect(parse(rule({ interval: { every: 13, unit: 'months' } }))).toBe(false);
+    expect(parse(rule({ interval: { every: 27, unit: 'weeks' } }))).toBe(false);
+    expect(parse(rule({ months: [13] }))).toBe(false);
+    expect(parse(rule({ months: [] }))).toBe(false);
+    expect(parse(rule({}))).toBe(false); // custom with no pattern
+    expect(parse(rule({ months: [1], interval: { every: 2, unit: 'months' } }))).toBe(false);
+    expect(parse(rule({ frequency: 'monthly', months: [1] }))).toBe(false);
+    expect(parse(rule({ frequency: 'monthly' }))).toBe(true);
+  });
+
+  it('the recurrentes sheet exports the pattern', () => {
+    const data = BackupSchema.parse({ ...backup(), recurringRules: [rule({ interval: { every: 2, unit: 'months' } })] });
+    const [, row] = recurringRows(data);
+    expect(cell(row, 3).value).toBe('Personalizada');
+    expect(cell(row, 10).value).toBe('2m');
+  });
+});

@@ -120,7 +120,7 @@ export function budgetRows(backup: Backup): SheetData {
   const cats = new Map(backup.categories.map((c) => [c.id, c.name]));
   return [
     ['Año', 'Mes', 'Categoría', 'Monto'].map(text),
-    ...backup.budgets.map((b) => [
+    ...backup.budgets.filter((b) => b.amount > 0).map((b) => [
       integer(b.year),
       integer(b.month),
       text(nameOf(cats, b.categoryId)),
@@ -129,14 +129,21 @@ export function budgetRows(backup: Backup): SheetData {
   ];
 }
 
+/** Machine-readable so the sheet round-trips the custom pattern: '3m', '2w' or 'm:1,4,7'. */
+function patternLabel(r: Backup['recurringRules'][number]): string {
+  if (r.interval) return `${r.interval.every}${r.interval.unit === 'months' ? 'm' : 'w'}`;
+  if (r.months) return `m:${r.months.join(',')}`;
+  return '';
+}
+
 export function recurringRows(backup: Backup): SheetData {
   const cats = new Map(backup.categories.map((c) => [c.id, c.name]));
   const methodRows = new Map(backup.paymentMethods.map((m) => [m.id, m.name]));
   const frequencies: Record<string, string> = {
-    monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', yearly: 'Anual',
+    monthly: 'Mensual', biweekly: 'Quincenal', weekly: 'Semanal', yearly: 'Anual', custom: 'Personalizada',
   };
   return [
-    ['Nombre', 'Tipo', 'Valor', 'Frecuencia', 'Día', 'Categoría', 'Método', 'Activa', 'Desde', 'Hasta'].map(text),
+    ['Nombre', 'Tipo', 'Valor', 'Frecuencia', 'Día', 'Categoría', 'Método', 'Activa', 'Desde', 'Hasta', 'Patrón'].map(text),
     ...backup.recurringRules.map((r) => [
       text(r.name),
       text(r.type === 'income' ? 'Ingreso' : 'Gasto'),
@@ -148,6 +155,7 @@ export function recurringRows(backup: Backup): SheetData {
       text(r.isActive ? 'Sí' : 'No'),
       date(r.startDate),
       date(r.endDate),
+      text(patternLabel(r)),
     ]),
   ];
 }

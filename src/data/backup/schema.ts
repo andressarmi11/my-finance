@@ -96,13 +96,25 @@ export const RecurringRuleSchema = z.object({
   amount: z.number(),
   categoryId: z.string().nullable(),
   paymentMethodId: z.string().nullable(),
-  frequency: z.enum(['monthly', 'weekly', 'biweekly', 'yearly']),
+  frequency: z.enum(['monthly', 'weekly', 'biweekly', 'yearly', 'custom']),
   dayOfMonth: z.number().int().min(1).max(31).optional(),
   dayOfWeek: z.number().int().min(0).max(6).optional(),
+  // Mirrors the CHECKs of migration 0012.
+  interval: z.discriminatedUnion('unit', [
+    z.object({ every: z.number().int().min(1).max(12), unit: z.literal('months') }),
+    z.object({ every: z.number().int().min(1).max(26), unit: z.literal('weeks') }),
+  ]).optional(),
+  months: z.array(z.number().int().min(1).max(12)).min(1).max(12).optional(),
   startDate: isoDate,
   endDate: isoDate.optional(),
   isActive: z.boolean(),
   updatedAt: z.string().default(''),
+}).superRefine((r, ctx) => {
+  // custom <=> exactly one pattern; any other frequency carries none.
+  const patterns = (r.interval ? 1 : 0) + (r.months ? 1 : 0);
+  if (patterns !== (r.frequency === 'custom' ? 1 : 0)) {
+    ctx.addIssue({ code: 'custom', message: 'custom recurrence needs exactly one of interval | months' });
+  }
 });
 
 export const BudgetSchema = z.object({

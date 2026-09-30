@@ -73,6 +73,32 @@ describe('recurringRule round-trip', () => {
     };
     expect(recurringRuleFromRow(recurringRuleToRow(USER, rule))).toEqual(rule);
   });
+
+  it('round-trips custom patterns (interval and months)', () => {
+    const base: RecurringRule = {
+      id: 'r2', name: 'Seguro', type: 'expense', amount: 90_000, categoryId: null,
+      paymentMethodId: null, frequency: 'custom', dayOfMonth: 5, startDate: '2026-01-01',
+      isActive: true, updatedAt: '2026-09-18T12:00:00.000Z',
+    };
+    const interval = { ...base, interval: { every: 3, unit: 'weeks' as const } };
+    const months = { ...base, months: [1, 7] };
+    expect(recurringRuleFromRow(recurringRuleToRow(USER, interval))).toEqual(interval);
+    expect(recurringRuleFromRow(recurringRuleToRow(USER, months))).toEqual(months);
+    expect(recurringRuleToRow(USER, months)).toMatchObject({ interval_every: null, interval_unit: null, months: [1, 7] });
+  });
+});
+
+describe('recurringRule from a hostile row', () => {
+  it('drops out-of-range patterns', () => {
+    const row = recurringRuleToRow(USER, {
+      id: 'r3', name: 'x', type: 'expense', amount: 1, categoryId: null, paymentMethodId: null,
+      frequency: 'custom', startDate: '2026-01-01', isActive: true, updatedAt: '',
+    });
+    const bad = recurringRuleFromRow({ ...row, interval_every: 0, interval_unit: 'weeks', months: [0, 13] });
+    expect(bad.interval).toBeUndefined();
+    expect(bad.months).toBeUndefined();
+    expect(recurringRuleFromRow({ ...row, months: [7, 3, 7] }).months).toEqual([3, 7]);
+  });
 });
 
 describe('budget round-trip', () => {

@@ -178,3 +178,74 @@ describe('SMS noise that is not the merchant', () => {
     expect(r.concept.toLowerCase()).toBe('exito');
   });
 });
+
+describe('scheduled — future verbs and dates (today = 2026-09-29)', () => {
+  const f = (t: string) => parseUtterance(t, '2026-09-29');
+
+  it('"Pagaré 200 mil el 15 de noviembre"', () => {
+    const r = f('Pagaré 200 mil el 15 de noviembre');
+    expect(r).toMatchObject({ type: 'expense', amount: 200_000, date: '2026-11-15', yaOcurrio: false });
+    expect(r.concept.toLowerCase()).not.toMatch(/noviembre|día|dia/);
+  });
+  it('"Recibiré 1.5 millones el 5 de octubre" is income, not the expense default', () => {
+    expect(f('Recibiré 1.5 millones el 5 de octubre'))
+      .toMatchObject({ type: 'income', amount: 1_500_000, date: '2026-10-05', yaOcurrio: false });
+  });
+  it('a day already gone + future verb -> next month', () => {
+    expect(f('Recibiré 300 mil el 15')).toMatchObject({ type: 'income', amount: 300_000, date: '2026-10-15', yaOcurrio: false });
+  });
+  it('a day already gone + past verb -> this month, already happened', () => {
+    expect(f('Gasté 20 mil el 15')).toMatchObject({ amount: 20_000, date: '2026-09-15', yaOcurrio: true });
+  });
+  it('a month already past -> next year', () => {
+    expect(f('Pagaré 80 mil el 3 de enero')).toMatchObject({ amount: 80_000, date: '2027-01-03', yaOcurrio: false });
+  });
+  it('past verb + month already gone -> most recent occurrence, already happened', () => {
+    expect(f('Gasté 20 mil el 3 de enero')).toMatchObject({ amount: 20_000, date: '2026-01-03', yaOcurrio: true });
+  });
+  it('past verb + month still ahead this year -> last year', () => {
+    expect(f('Gasté 20 mil el 3 de diciembre')).toMatchObject({ date: '2025-12-03', yaOcurrio: true });
+  });
+  it('"el 15 del próximo mes" and "del mes que viene"', () => {
+    expect(f('Pagaré 50 mil el 15 del próximo mes').date).toBe('2026-10-15');
+    expect(f('Pagaré 50 mil el 15 del mes que viene').date).toBe('2026-10-15');
+  });
+  it('"el día 15" and abbreviated month', () => {
+    expect(f('Pagaré 50 mil el día 15 de nov').date).toBe('2026-11-15');
+    expect(f('Voy a pagar 50 mil el día 30').date).toBe('2026-09-30');
+  });
+  it('clamps nonexistent days', () => {
+    expect(f('Pagaré 50 mil el 31 de noviembre').date).toBe('2026-11-30');
+    expect(f('Pagaré 50 mil el 31 del próximo mes').date).toBe('2026-10-31');
+  });
+  it('a future verb alone is scheduled even for today', () => {
+    expect(f('Me van a pagar 2 millones')).toMatchObject({ type: 'income', date: '2026-09-29', yaOcurrio: false });
+    expect(f('Tengo que pagar 90 mil de arriendo').yaOcurrio).toBe(false);
+  });
+  it('the other future verbs', () => {
+    for (const t of ['me llegará', 'cobraré', 'me consignan', 'me llega']) {
+      expect(f(`${t} 100 mil`).type).toBe('income');
+    }
+    expect(f('Debo pagar 100 mil').type).toBe('expense');
+  });
+  it('"el 200 mil" is not a day', () => {
+    expect(f('pagué el 200 mil').date).toBe('2026-09-29');
+  });
+  it('stays fast on pathological input', () => {
+    const t0 = Date.now();
+    f(`el ${'dia '.repeat(5000)}15 de`);
+    f('el 1 '.repeat(3000));
+    expect(Date.now() - t0).toBeLessThan(500);
+  });
+});
+
+describe('round-3 regressions', () => {
+  it('"$1.500.000" still parses', () => {
+    expect(parseUtterance('Gasté $1.500.000 en mercado', '2026-09-29').amount).toBe(1_500_000);
+  });
+  it('scheduled phrase keeps the concept clean and is pending', () => {
+    const r = parseUtterance('Pagaré 200 mil el 15 de noviembre', '2026-09-29');
+    expect(r.concept.toLowerCase()).not.toMatch(/noviembre|día|dia/);
+    expect(r.yaOcurrio).toBe(false);
+  });
+});

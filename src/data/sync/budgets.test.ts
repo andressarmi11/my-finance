@@ -132,3 +132,21 @@ describe('conciliarPresupuestos — several months and categories at once', () =
     expect(plan.subir).toHaveLength(3);
   });
 });
+
+describe('deleting = saving amount 0 (newest wins)', () => {
+  it('a delete on device A beats an older edit on device B', () => {
+    const remoteDeleted = p({ id: 'r1', amount: 0, updatedAt: '2026-09-20T10:00:00.000Z' });
+    const localOlderEdit = p({ id: 'l1', amount: 700_000, updatedAt: '2026-09-19T10:00:00.000Z' });
+    const plan = reconcileBudgets([localOlderEdit], [remoteDeleted]);
+    expect(plan.saveLocal).toEqual([remoteDeleted]);
+    expect(plan.subir).toEqual([]);
+    expect(plan.deleteLocal).toEqual(['l1']);
+  });
+
+  it('a newer edit on device B beats an older delete', () => {
+    const remoteDeleted = p({ id: 'r1', amount: 0, updatedAt: '2026-09-19T10:00:00.000Z' });
+    const localNewer = p({ id: 'l1', amount: 700_000, updatedAt: '2026-09-20T10:00:00.000Z' });
+    const plan = reconcileBudgets([localNewer], [remoteDeleted]);
+    expect(plan.subir).toEqual([{ ...localNewer, id: 'r1' }]);
+  });
+});

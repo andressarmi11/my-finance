@@ -3,6 +3,7 @@
  * (snake_case). Pure functions — without this we couldn't test any of the
  * mapping without spinning up a real database.
  */
+import { cleanInterval, cleanMonths } from '@/domain/recurring/expansion';
 import type {
   Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction,
 } from '@/domain/types';
@@ -131,12 +132,17 @@ export interface RecurringRuleRow {
   id: string; user_id: string; name: string; type: string; amount: number;
   category_id: string | null; payment_method_id: string | null; frequency: string;
   day_of_month: number | null; day_of_week: number | null; start_date: string; end_date: string | null; is_active: boolean; updated_at: string;
+  interval_every: number | null; interval_unit: string | null; months: number[] | null;
 }
 export function recurringRuleFromRow(row: RecurringRuleRow): RecurringRule {
   return {
     id: row.id, name: row.name, type: row.type as RecurringRule['type'], amount: row.amount,
     categoryId: row.category_id, paymentMethodId: row.payment_method_id, frequency: row.frequency as RecurringRule['frequency'],
     dayOfMonth: row.day_of_month ?? undefined, dayOfWeek: row.day_of_week ?? undefined,
+    // Rows saved before 0012 come back without these columns (undefined).
+    // Sanitized: a bad server row must not reach Dexie and loop the expansion.
+    interval: cleanInterval({ every: row.interval_every, unit: row.interval_unit }),
+    months: cleanMonths(row.months),
     startDate: row.start_date, endDate: row.end_date ?? undefined, isActive: row.is_active,
     updatedAt: row.updated_at,
   };
@@ -146,6 +152,8 @@ export function recurringRuleToRow(userId: string, r: RecurringRule): RecurringR
     id: r.id, user_id: userId, name: r.name, type: r.type, amount: r.amount,
     category_id: r.categoryId, payment_method_id: r.paymentMethodId, frequency: r.frequency,
     day_of_month: r.dayOfMonth ?? null, day_of_week: r.dayOfWeek ?? null,
+    interval_every: r.interval?.every ?? null, interval_unit: r.interval?.unit ?? null,
+    months: r.months?.length ? r.months : null,
     start_date: r.startDate, end_date: r.endDate ?? null, is_active: r.isActive,
     updated_at: r.updatedAt || new Date().toISOString(),
   };

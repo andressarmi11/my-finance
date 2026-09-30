@@ -5,6 +5,8 @@ import { importBackup } from '../backup/exportImport';
 import { BackupSchema } from '../backup/schema';
 import { normalize } from '@/domain/inference/conceptInference';
 import { makeTombstone, type DeletableEntity } from '../sync/tombstones';
+import { removableOnRuleDelete } from '@/domain/recurring/propagate';
+import { todayISO } from '@/lib/todayISO';
 import { requestSyncSoon } from '../sync/useCloudSync';
 
 /**
@@ -142,10 +144,27 @@ const baseRepository: Repository = {
 
   listRecurringRules: () => db.recurringRules.toArray(),
   saveRecurringRule: async (rule) => { await db.recurringRules.put(seal(rule)); },
-  deleteRecurringRule: async (id) => { await db.recurringRules.delete(id); await deleteWithTombstone('recurringRules', id); },
+  deleteRecurringRule: async (id) => {
+    // The confirmation promises: pending ones go, paid/past/hand-edited stay.
+    // Tombstones keep the removed ids from coming back through sync.
+    const now = new Date().toISOString();
+    await db.transaction('rw', [db.recurringRules, db.transactions, db.reminders, db.deletions], async () => {
+      const occurrences = await db.transactions
+        .where('[recurringRuleId+periodKey]').between([id, ''], [id, '\uffff'], true, true).toArray();
+      const rule = await db.recurringRules.get(id);
+      for (const t of rule ? removableOnRuleDelete(rule, occurrences, todayISO()) : []) {
+        await db.transactions.delete(t.id);
+        await db.reminders.where('transactionId').equals(t.id).delete();
+        await db.deletions.put(makeTombstone('transactions', t.id, now));
+      }
+      await db.recurringRules.delete(id);
+      await db.deletions.put(makeTombstone('recurringRules', id, now));
+    });
+  },
 
-  listBudgets: (year, month) =>
-    db.budgets.where('[year+month]').equals([year, month]).toArray(),
+  // amount 0 = deleted (see data/local/budgetMonths.ts); hidden from every reader.
+  listBudgets: async (year, month) =>
+    (await db.budgets.where('[year+month]').equals([year, month]).toArray()).filter((b) => b.amount > 0),
   // sellar like everything else: without updatedAt there's nothing to
   // decide which copy wins when syncing between devices.
   saveBudget: async (budget) => { await db.budgets.put(seal(budget)); },
@@ -157,7 +176,8 @@ const baseRepository: Repository = {
     const [settings, categories, paymentMethods, transactions, recurringRules, budgets, reminders] =
       await Promise.all([
         db.settings.toArray(), db.categories.toArray(), db.paymentMethods.toArray(),
-        db.transactions.toArray(), db.recurringRules.toArray(), db.budgets.toArray(),
+        db.transactions.toArray(), db.recurringRules.toArray(),
+        db.budgets.filter((b) => b.amount > 0).toArray(), // 0 = deleted
         db.reminders.toArray(),
       ]);
     return {

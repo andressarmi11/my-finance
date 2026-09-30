@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { expandRecurringRule } from './expansion';
+import { expandRecurringRule, nextOccurrences } from './expansion';
 import type { RecurringRule } from '../types';
 
 function rule(overrides: Partial<RecurringRule>): RecurringRule {
@@ -98,5 +98,70 @@ describe('expandRecurringRule — anual', () => {
       { from: '2024-01-01', to: '2027-12-31' },
     );
     expect(occ.map((o) => o.date)).toEqual(['2024-02-29', '2025-02-28', '2026-02-28', '2027-02-28']);
+  });
+});
+
+describe('custom recurrence', () => {
+  const dates = (r: Partial<RecurringRule>, from: string, to: string) =>
+    expandRecurringRule(rule({ frequency: 'custom', ...r }), { from, to }).map((o) => o.date);
+
+  it('every 2 months from the start month, day clamped', () => {
+    expect(dates({ interval: { every: 2, unit: 'months' }, dayOfMonth: 31, startDate: '2026-01-15' }, '2026-01-01', '2026-08-31'))
+      .toEqual(['2026-01-31', '2026-03-31', '2026-05-31', '2026-07-31']);
+    expect(dates({ interval: { every: 1, unit: 'months' }, dayOfMonth: 31, startDate: '2026-01-15' }, '2026-02-01', '2026-02-28'))
+      .toEqual(['2026-02-28']);
+  });
+  it('every 3 months anchored to a non-January month keeps its phase', () => {
+    expect(dates({ interval: { every: 3, unit: 'months' }, dayOfMonth: 10, startDate: '2026-02-01' }, '2026-06-01', '2027-03-31'))
+      .toEqual(['2026-08-10', '2026-11-10', '2027-02-10']);
+  });
+  it('every 3 weeks from startDate; periodKey is the date', () => {
+    const occ = expandRecurringRule(rule({ frequency: 'custom', interval: { every: 3, unit: 'weeks' }, startDate: '2026-09-01' }),
+      { from: '2026-09-10', to: '2026-11-10' });
+    expect(occ).toEqual([
+      { periodKey: '2026-09-22', date: '2026-09-22' },
+      { periodKey: '2026-10-13', date: '2026-10-13' },
+      { periodKey: '2026-11-03', date: '2026-11-03' },
+    ]);
+  });
+  it('specific months, YYYY-MM keys, clamped day, honors endDate', () => {
+    const occ = expandRecurringRule(rule({ frequency: 'custom', months: [2, 6, 12], dayOfMonth: 30, startDate: '2026-01-01', endDate: '2026-12-15' }),
+      { from: '2026-01-01', to: '2027-12-31' });
+    expect(occ).toEqual([
+      { periodKey: '2026-02', date: '2026-02-28' },
+      { periodKey: '2026-06', date: '2026-06-30' },
+    ]);
+  });
+  it('a custom rule with no pattern produces nothing', () => {
+    expect(dates({}, '2026-01-01', '2026-12-31')).toEqual([]);
+  });
+  it('nextOccurrences returns the next n on or after today', () => {
+    const r = rule({ frequency: 'custom', months: [1, 7], dayOfMonth: 5, startDate: '2026-01-01' });
+    expect(nextOccurrences(r, '2026-07-05', 3)).toEqual(['2026-07-05', '2027-01-05', '2027-07-05']);
+    expect(nextOccurrences(rule({ dayOfMonth: 15 }), '2026-09-29', 2)).toEqual(['2026-10-15', '2026-11-15']);
+  });
+  it('nextOccurrences respects endDate (fewer than n)', () => {
+    expect(nextOccurrences(rule({ endDate: '2026-11-30' }), '2026-09-29', 5)).toEqual(['2026-10-01', '2026-11-01']);
+  });
+});
+
+describe('custom recurrence — hostile patterns never loop or throw', () => {
+  const run = (r: Partial<RecurringRule>) =>
+    expandRecurringRule(rule({ frequency: 'custom', ...r }), { from: '2026-01-01', to: '2027-12-31' });
+  it('bad interval.every gives []', () => {
+    for (const every of [0, 1.5, -1, 999, NaN, Infinity]) {
+      expect(run({ interval: { every, unit: 'months' } })).toEqual([]);
+      expect(run({ interval: { every, unit: 'weeks' } })).toEqual([]);
+    }
+    expect(run({ interval: { every: 13, unit: 'months' } })).toEqual([]);
+    expect(run({ interval: { every: 27, unit: 'weeks' } })).toEqual([]);
+    expect(run({ interval: { every: 2, unit: 'days' as never } })).toEqual([]);
+  });
+  it('bad months gives []', () => {
+    for (const months of [[0], [13], [1, 'x'], [], [1.5]] as unknown as number[][]) expect(run({ months })).toEqual([]);
+  });
+  it('months are deduped and sorted', () => {
+    expect(run({ months: [6, 2, 6], dayOfMonth: 1 }).map((o) => o.periodKey))
+      .toEqual(['2026-02', '2026-06', '2027-02', '2027-06']);
   });
 });
