@@ -1,10 +1,12 @@
-import { useT } from '@/i18n/language';
-import { payPeriodLabel } from '@/i18n/periodLabels';
-import { IconCheck, IconCreditCardOff } from '@tabler/icons-react';
+import { useLanguage } from '@/i18n/language';
+import { monthFromLabel, payPeriodLabel } from '@/i18n/periodLabels';
+import { fill } from '@/lib/dateLabels';
+import { Logo } from '@/components/ui/Logo';
+import { BigAmount } from '@/components/ui/BigAmount';
+import { IconCheck, IconChevronRight, IconCreditCardOff } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { db } from '@/data/db';
@@ -23,8 +25,7 @@ import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { formatShortDate } from '@/lib/formatShortDate';
 import { todayISO, nowISO } from '@/lib/todayISO';
-import { selectUpcoming, upcomingTotals, relevantDate } from './upcoming';
-import { AnimatedNumber } from './AnimatedNumber';
+import { selectUpcoming, relevantDate } from './upcoming';
 import { ToPaySheet } from './ToPaySheet';
 import { haptic } from '@/lib/haptic';
 import type { Transaction } from '@/domain/types';
@@ -32,7 +33,7 @@ import { EMPTY } from '@/lib/empty';
 
 
 export function DashboardScreen() {
-  const t = useT();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [loadingDemo, setLoadingDemo] = useState(false);
   const [porPagarOpen, setPorPagarOpen] = useState(false);
@@ -106,7 +107,6 @@ export function DashboardScreen() {
   // Upcoming: the SAME month list that feeds the hero, so "left to pay"
   // up top and "expect to spend" down below always agree.
   const upcoming = useMemo(() => selectUpcoming(monthTransactions, 8), [monthTransactions]);
-  const totals = useMemo(() => upcomingTotals(monthTransactions), [monthTransactions]);
 
   // Active pay period: asked from the domain instead of recalculated
   // here. The by-hand version (`dia < quincenaStartDays[1] ? 0 : 1`) was
@@ -119,8 +119,17 @@ export function DashboardScreen() {
     [today, settings.payDays],
   );
   const activePeriodIdx = monthKeys.indexOf(todayKey);
-  const heroTintVar = activePeriodIdx === 1 ? '--q25-soft' : '--q10-soft';
-  const heroAccentVar = activePeriodIdx === 1 ? '--q25' : '--q10';
+  // The period the context line talks about: today's, or the month's first
+  // one when you're looking at another month.
+  const linePeriodIdx = activePeriodIdx >= 0 ? activePeriodIdx : 0;
+  const linePeriod = monthBalance.periods[linePeriodIdx];
+  const lineColorVar = linePeriodIdx % 2 === 1 ? '--q25-text' : '--q10-text';
+
+  // "septiembre" inside a Spanish sentence, "September" in English.
+  const monthInSentence = language === 'es' ? monthName(month).toLowerCase() : monthName(month);
+  const heroLine = settings.displayName
+    ? fill(t('home.heroLine'), { name: settings.displayName, month: monthInSentence })
+    : fill(t('home.heroLineNoName'), { month: monthInSentence });
 
   async function handleLoadDemo() {
     setLoadingDemo(true);
@@ -142,8 +151,9 @@ export function DashboardScreen() {
 
   const nav = (
     <MonthNav
-      label={`${monthName(month)} ${year}`}
-      widthSample={widestMonthLabel()}
+      compact
+      label={`${monthName(month).slice(0, 3)} ${year}`}
+      widthSample={widestMonthLabel(true)}
       todayIsAhead={year * 12 + month < todayYear * 12 + todayMonth}
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
       onNext={() => setCursor((c) => shiftMonth(c.y, c.m, 1))}
@@ -151,20 +161,41 @@ export function DashboardScreen() {
     />
   );
 
+  // Inicio's own header (§3): the brand on the left and the month on the
+  // right. It replaces the global brand bar; the other screens are
+  // oriented by their large title.
+  const header = (
+    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 24 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <Logo size={24} />
+        <span className="figures" style={{ fontSize: 'var(--text-md)', fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap' }}>
+          Step up
+        </span>
+      </span>
+      {transactions.length > 0 && nav}
+    </header>
+  );
+
   if (transactions.length === 0) {
     return (
-      <Screen title={settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')} subtitle={`${monthName(month)} ${year}`}>
+      <HomeFrame>
+        {header}
+        <h1 style={{ margin: '0 0 16px', fontSize: 32, fontWeight: 700, letterSpacing: '-0.025em' }}>
+          {settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')}
+        </h1>
         <EmptyState
           title={t('home.noTransactions')}
           body={t('home.noTransactionsBody')}
           action={{ label: loadingDemo ? t('home.loading') : t('home.loadSample'), onClick: handleLoadDemo }}
         />
-      </Screen>
+      </HomeFrame>
     );
   }
 
   return (
-    <Screen title={settings.displayName ? `${t('home.hello')}, ${settings.displayName}` : t('home.title')} right={nav}>
+    <HomeFrame>
+      {header}
+
       {/* Only if there is something to warn about. Everything being up
           to date is not news — same rule as SyncIndicator. */}
       {overdue.length > 0 && (
@@ -176,7 +207,8 @@ export function DashboardScreen() {
             display: 'flex', alignItems: 'center', gap: 12,
             background: 'var(--danger-soft)',
             border: '1px solid color-mix(in srgb, var(--danger) 30%, var(--line))',
-            borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: 12,
+            borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: 16,
+            color: 'var(--text)',
           }}
         >
           <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
@@ -196,114 +228,63 @@ export function DashboardScreen() {
         </button>
       )}
 
-      {/* Hero: how the month ends up if everything goes as planned. */}
-      <div
-        style={{
-          background: `color-mix(in srgb, var(${heroTintVar}) 65%, var(--surface))`,
-          border: `1px solid color-mix(in srgb, var(${heroAccentVar}) 20%, var(--line))`,
-          borderRadius: 'var(--radius-l)',
-          padding: '20px 20px 16px',
-          marginBottom: 12,
-          boxShadow: 'var(--shadow-1)',
-        }}
-      >
-        <p style={{ margin: '0 0 6px', fontSize: 'var(--text-sm)', color: `var(${heroAccentVar})`, fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-          {t('home.youHaveLeft')}
-        </p>
-        <AnimatedNumber
+      {/* Hero: how the month ends up if everything goes as planned. No
+          coloured card — the one big number is the whole point. */}
+      <section style={{ textAlign: 'center', margin: '8px 0 28px' }}>
+        <h1 style={{ margin: '0 0 10px', fontSize: 15, fontWeight: 500, color: 'var(--text-muted)' }}>
+          {heroLine}
+        </h1>
+        <BigAmount
           value={monthBalance.leftover}
-          format={(n) => formatMoney(n)}
-          className="figures"
-          style={{
-            display: 'block',
-            fontSize: 'var(--text-3xl)',
-            fontWeight: 700,
-            lineHeight: 'var(--lh-tight)',
-            letterSpacing: '-0.022em',
-            color: monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)',
-          }}
+          size={56}
+          color={monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)'}
         />
-        <p style={{ margin: '4px 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-          {t('home.explanation')}
-        </p>
+        {linePeriod && (
+          <p style={{ margin: '12px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 'var(--text-base)' }}>
+            <span aria-hidden style={{ width: 7, height: 7, borderRadius: 4, background: `var(${lineColorVar})` }} />
+            <span style={{ color: `var(${lineColorVar})`, fontWeight: 600 }}>
+              {periodLabel(settings.payDays, linePeriodIdx, month)}
+            </span>
+            <span className="figures" style={{ color: 'var(--text-muted)' }}>
+              · {fill(t('home.periodLeft'), { amount: formatMoney(linePeriod.remainder) })}
+            </span>
+          </p>
+        )}
+      </section>
 
-        {/* The four numbers that make it up. None of them can be negative. */}
-        <div
-          style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
-            marginTop: 14, borderRadius: 'var(--radius-s)', overflow: 'hidden',
-            background: `color-mix(in srgb, var(${heroAccentVar}) 12%, var(--line))`,
-          }}
-        >
-          <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
-          <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
-          <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
-          <FlowCell label={t('home.leftToPay')} value={flow.toPay} tone="danger-soft" />
-        </div>
-      </div>
-
-      {/* One box per period: two if you're paid biweekly, one if once a month. */}
+      {/* The four numbers that make it up, in one card. None can be
+          negative. "Falta pagar" opens its breakdown. */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${monthBalance.periods.length}, 1fr)`,
-          gap: 10,
-          marginBottom: 14,
+          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
+          borderRadius: 'var(--radius-card)', overflow: 'hidden',
+          background: 'var(--line)', border: '1px solid var(--line)',
+          marginBottom: 28,
         }}
       >
-        {monthBalance.periods.map((p, i) => (
-          <PeriodCard
-            key={p.key}
-            label={periodLabel(settings.payDays, i, month)}
-            remainder={p.remainder}
-            colorVar={i % 2 === 1 ? '--q25' : '--q10'}
-            softVar={i % 2 === 1 ? '--q25-soft' : '--q10-soft'}
-            isActive={activePeriodIdx === i}
-          />
-        ))}
+        <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
+        <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
+        <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
+        <FlowCell
+          label={t('home.leftToPay')}
+          value={flow.toPay}
+          tone="danger-soft"
+          onClick={toPay.count > 0 ? () => setPorPagarOpen(true) : undefined}
+        />
       </div>
-
-      {toPay.count > 0 && (
-        <button
-          type="button"
-          onClick={() => setPorPagarOpen(true)}
-          style={{
-            width: '100%', background: 'var(--surface)', border: '1px solid var(--line)',
-            borderRadius: 'var(--radius-m)', padding: '14px 16px', marginBottom: 20,
-            cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center',
-            gap: 12, color: 'var(--text)', boxShadow: 'var(--shadow-1)',
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 2 }}>
-              {t('home.breakdownOfLeftToPay')}
-            </div>
-            <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              {toPay.count} · {formatMoney(toPay.amount)}
-            </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)', marginTop: 2 }}>
-              {toPay.pending.length} {toPay.pending.length === 1 ? t('home.pending') : t('home.pendingPl')}
-              {' · '}{toPay.scheduled.length} {toPay.scheduled.length === 1 ? t('home.scheduled') : t('home.scheduledPl')}
-              {' · '}{toPay.onCard.length} {t('home.onCard')}
-            </div>
-          </div>
-          <span style={{ color: 'var(--text-faint)', fontSize: 22 }}>›</span>
-        </button>
-      )}
 
       {/* Upcoming transactions FOR THE visible month: income and expenses. */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 10px' }}>
-        <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>
           {t('home.leftThisMonth')}
         </h2>
-        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-          {monthName(month).toLowerCase()}
-        </span>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-        <ExpectCard label={t('home.expectToReceive')} value={totals.income} color="var(--positive)" sign="+" />
-        <ExpectCard label={t('home.expectToSpend')} value={totals.expense} color="var(--danger)" sign="−" />
+        <button
+          type="button"
+          onClick={() => navigate('/movimientos')}
+          style={{ background: 'none', border: 'none', padding: '8px 0', color: 'var(--q10-text)', fontSize: 'var(--text-base)', fontWeight: 600, cursor: 'pointer' }}
+        >
+          {t('home.seeAllShort')}
+        </button>
       </div>
 
       {upcoming.length === 0 ? (
@@ -311,7 +292,7 @@ export function DashboardScreen() {
           {t('home.nothingPending')} — {monthName(month).toLowerCase()}.
         </p>
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
           {upcoming.map((tx, idx) => {
             const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
             const { day, month: monthLabel } = formatShortDate(relevantDate(tx));
@@ -366,7 +347,11 @@ export function DashboardScreen() {
                 </button>
                 <span
                   className="figures"
-                  style={{ fontWeight: 600, fontSize: 'var(--text-md)', color: isIncome ? 'var(--positive-text)' : 'var(--text)' }}
+                  style={{
+                    fontWeight: 600, fontSize: 'var(--text-md)',
+                    color: isPaid ? 'var(--text-faint)' : isIncome ? 'var(--positive-text)' : 'var(--text)',
+                    textDecoration: isPaid ? 'line-through' : 'none',
+                  }}
                 >
                   {isIncome ? '+ ' : ''}{formatMoney(tx.amount)}
                 </span>
@@ -379,7 +364,7 @@ export function DashboardScreen() {
       <button
         type="button"
         onClick={() => navigate('/movimientos')}
-        style={{ marginTop: 16, width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-base)' }}
+        style={{ marginTop: 16, width: '100%', minHeight: 50, borderRadius: 16, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--text)', fontWeight: 600, cursor: 'pointer', fontSize: 'var(--text-base)' }}
       >
         {t('home.seeAll')}
       </button>
@@ -387,37 +372,45 @@ export function DashboardScreen() {
       {porPagarOpen && (
         <ToPaySheet toPay={toPay} onClose={() => setPorPagarOpen(false)} />
       )}
-    </Screen>
+    </HomeFrame>
   );
 }
 
-function FlowCell({ label, value, tone }: { label: string; value: number; tone: 'positive' | 'positive-soft' | 'plain' | 'danger-soft' }) {
+/** Same width and gutter as Screen, without its title row: Inicio has its own header. */
+function HomeFrame({ children }: { children: React.ReactNode }) {
+  return <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 var(--gap-l)' }}>{children}</div>;
+}
+
+function FlowCell({ label, value, tone, onClick }: {
+  label: string; value: number; tone: 'positive' | 'positive-soft' | 'plain' | 'danger-soft'; onClick?: () => void;
+}) {
   const color =
-    tone === 'positive' ? 'var(--positive)'
-    : tone === 'positive-soft' ? 'color-mix(in srgb, var(--positive) 70%, var(--text-muted))'
-    : tone === 'danger-soft' ? 'color-mix(in srgb, var(--danger) 70%, var(--text-muted))'
+    tone === 'positive' ? 'var(--positive-text)'
+    : tone === 'positive-soft' ? 'color-mix(in srgb, var(--positive-text) 70%, var(--text-muted))'
+    : tone === 'danger-soft' ? 'color-mix(in srgb, var(--danger-text) 70%, var(--text-muted))'
     : 'var(--text)';
-  return (
-    <div style={{ background: 'var(--surface)', padding: '10px 12px' }}>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 2 }}>{label}</div>
-      <div className="figures" style={{ fontSize: 'var(--text-md)', fontWeight: 700, color }}>{formatMoney(value)}</div>
-    </div>
+  const body = (
+    <>
+      <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
+      <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color }}>{formatMoney(value)}</div>
+    </>
   );
-}
-
-function ExpectCard({ label, value, color, sign }: { label: string; value: number; color: string; sign: string }) {
+  const cell: React.CSSProperties = { background: 'var(--surface)', padding: '14px 16px', textAlign: 'left' };
+  if (!onClick) return <div style={cell}>{body}</div>;
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '12px 14px' }}>
-      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginBottom: 3 }}>{label}</div>
-      <div className="figures" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: value > 0 ? color : 'var(--text-faint)' }}>
-        {value > 0 ? `${sign} ` : ''}{formatMoney(value)}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...cell, border: 'none', cursor: 'pointer', color: 'inherit', font: 'inherit', display: 'flex', alignItems: 'center', gap: 6 }}
+    >
+      <span style={{ flex: 1, minWidth: 0 }}>{body}</span>
+      <IconChevronRight size={18} stroke={2} aria-hidden style={{ color: 'var(--text-faint)', flex: 'none' }} />
+    </button>
   );
 }
 
 /**
- * What a period is called in the box. With two or more pay days it's the
+ * What a period is called in the hero's context line. With two or more pay days it's the
  * word the person already uses; with just one, calling it a "pay period"
  * would be a lie, so it names the month instead — or when it starts from,
  * if their month isn't the calendar one.
@@ -429,37 +422,5 @@ function periodLabel(payDays: number[], index: number, month: number): string {
     const n = monthName(month);
     return n.charAt(0).toUpperCase() + n.slice(1);
   }
-  return `Desde el ${day}`;
-}
-
-function PeriodCard({ label, remainder, colorVar, softVar, isActive }: {
-  label: string; remainder: number; colorVar: string; softVar: string; isActive: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: `var(${softVar})`,
-        borderRadius: 'var(--radius-m)',
-        padding: '14px 16px',
-        border: isActive ? `2px solid var(${colorVar})` : '2px solid transparent',
-        position: 'relative',
-      }}
-    >
-      {isActive && (
-        <span
-          aria-label="Periodo activo"
-          style={{
-            position: 'absolute', top: 8, right: 10, width: 6, height: 6,
-            borderRadius: 3, background: `var(${colorVar})`,
-          }}
-        />
-      )}
-      <p style={{ margin: '0 0 6px', fontSize: 'var(--text-xs)', fontWeight: 700, color: `var(${colorVar})`, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-        {label}
-      </p>
-      <p className="figures" style={{ margin: 0, fontSize: 'var(--text-lg)', fontWeight: 700, color: remainder >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
-        {formatMoney(remainder)}
-      </p>
-    </div>
-  );
+  return `${monthFromLabel()} ${day}`;
 }

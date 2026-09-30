@@ -14,9 +14,13 @@ import { test, expect } from './fixtures';
 // With no animation, the hero's number reads immediately instead of counting up.
 test.use({ reducedMotion: 'reduce' });
 
-/** "Te queda este mes", in pesos. */
+/** The hero's "te queda" number, in pesos: the element right after the greeting heading. */
 async function teQueda(page: Page): Promise<number> {
-  const value = page.getByText('Te queda este mes').locator('xpath=following-sibling::*[1]');
+  // Wait for the populated hero: while the data loads, Inicio briefly shows
+  // its empty state, whose heading has no number next to it.
+  const heading = page.getByRole('heading', { level: 1, name: /Te queda en/ });
+  await heading.waitFor();
+  const value = heading.locator('xpath=following-sibling::*[1]');
   const text = (await value.textContent()) ?? '';
   const digitos = text.replace(/[^\d-]/g, '');
   return Number(digitos);

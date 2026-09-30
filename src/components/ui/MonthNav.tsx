@@ -70,7 +70,7 @@ const TODAY_IN_EVERY_LANGUAGE = ['Hoy', 'Today'];
  * the same as no affordance.
  */
 export function MonthNav({
-  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false,
+  label, widthSample, onPrev, onNext, onToday, todayIsAhead, unit = 'month', centered = false, busy = false, compact = false,
 }: {
   label: string;
   /**
@@ -111,6 +111,11 @@ export function MonthNav({
    * instead of a delay the user can't explain.
    */
   busy?: boolean;
+  /**
+   * Redesign §3/§4: the arrows and the label inside a 34px `--surface` pill,
+   * for headers where the navigator sits beside a title or the logo.
+   */
+  compact?: boolean;
 }) {
   const t = useT();
   const loadingText = t('home.loading');
@@ -174,8 +179,16 @@ export function MonthNav({
   );
 
   const arrowsAndLabel = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <Arrow dir="prev" unit={unit} disabled={busy} onClick={onPrev} />
+    <div
+      style={{
+        display: 'flex', alignItems: 'center', gap: 2,
+        ...(compact ? {
+          height: 34, padding: '0 2px', borderRadius: 17,
+          background: 'var(--surface)', border: '1px solid var(--line)',
+        } : {}),
+      }}
+    >
+      <Arrow dir="prev" unit={unit} disabled={busy} onClick={onPrev} compact={compact} />
 
       {/* Every span shares one grid cell: the hidden ones set the width from
           the longest possible label (and from "Loading…", so swapping to it
@@ -185,7 +198,7 @@ export function MonthNav({
       <span
         style={{
           display: 'inline-grid',
-          minHeight: 'var(--tap)',
+          minHeight: compact ? 32 : 'var(--tap)',
           alignItems: 'center',
           justifyItems: 'center',
           padding: '0 4px',
@@ -219,7 +232,7 @@ export function MonthNav({
         </span>
       </span>
 
-      <Arrow dir="next" unit={unit} disabled={busy} onClick={onNext} />
+      <Arrow dir="next" unit={unit} disabled={busy} onClick={onNext} compact={compact} />
     </div>
   );
 
@@ -250,8 +263,8 @@ export function MonthNav({
   );
 }
 
-function Arrow({ dir, unit, disabled = false, onClick }: {
-  dir: 'prev' | 'next'; unit: 'month' | 'period'; disabled?: boolean; onClick: () => void;
+function Arrow({ dir, unit, disabled = false, onClick, compact = false }: {
+  dir: 'prev' | 'next'; unit: 'month' | 'period'; disabled?: boolean; onClick: () => void; compact?: boolean;
 }) {
   const t = useT();
   const label = unit === 'period'
@@ -267,7 +280,7 @@ function Arrow({ dir, unit, disabled = false, onClick }: {
       // the actual blocking.
       aria-disabled={disabled || undefined}
       style={{
-        width: 'var(--tap)', height: 'var(--tap)', display: 'grid', placeItems: 'center',
+        width: compact ? 32 : 'var(--tap)', height: compact ? 32 : 'var(--tap)', display: 'grid', placeItems: 'center',
         border: 'none', background: 'none', color: 'var(--q10-text)', fontSize: 20,
         cursor: disabled ? 'default' : 'pointer', borderRadius: 'var(--radius-s)',
         opacity: disabled ? 0.35 : 1,

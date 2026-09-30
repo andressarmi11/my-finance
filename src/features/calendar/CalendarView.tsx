@@ -57,6 +57,11 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
 
   const dayTransactions = transactions.filter((t) => t.date === selected);
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
+  // The day's net: what came in minus what went out (cancelled ones aside).
+  const dayNet = dayTransactions.reduce(
+    (sum, tx) => (tx.status === 'cancelled' ? sum : sum + (tx.type === 'income' ? tx.amount : -tx.amount)),
+    0,
+  );
 
   return (
     <>
@@ -66,7 +71,7 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 20 }}>
         {cells.map((cell) => {
           const marker = markersByDate.get(cell.date);
           const isSelected = cell.date === selected;
@@ -77,32 +82,49 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
               key={cell.date}
               type="button"
               onClick={() => setSelected(cell.date)}
+              aria-pressed={isSelected}
               style={{
-                aspectRatio: '1', borderRadius: 10, border: isToday ? '1.5px solid var(--text)' : '1px solid transparent',
-                background: isSelected ? 'var(--text)' : 'transparent', color: isSelected ? 'var(--surface)' : (cell.inMonth ? 'var(--text)' : 'var(--text-faint)'),
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, cursor: 'pointer',
+                minHeight: 48, border: 'none', background: 'transparent', padding: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, cursor: 'pointer',
                 opacity: cell.inMonth ? 1 : 0.35,
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: isToday ? 700 : 500 }}>{dayNum}</span>
-              <span style={{ display: 'flex', gap: 2, height: 4 }}>
-                {marker?.income && <Dot color={isSelected ? 'var(--surface)' : 'var(--positive-text)'} />}
-                {marker?.expense && <Dot color={isSelected ? 'var(--surface)' : 'var(--text-muted)'} />}
-                {marker?.tcPayment && <Dot color={isSelected ? 'var(--surface)' : 'var(--q25)'} />}
+              <span
+                style={{
+                  width: 34, height: 34, borderRadius: 17, display: 'grid', placeItems: 'center',
+                  background: isSelected ? 'var(--text)' : 'transparent',
+                  color: isSelected ? 'var(--paper)' : isToday ? 'var(--q10-text)' : (cell.inMonth ? 'var(--text)' : 'var(--text-faint)'),
+                  fontSize: 15, fontWeight: isToday || isSelected ? 700 : 500,
+                }}
+              >
+                {dayNum}
+              </span>
+              {/* At most three dots: income, expense, card payment. */}
+              <span style={{ display: 'flex', gap: 3, height: 4 }}>
+                {marker?.income && <Dot color="var(--positive)" />}
+                {marker?.expense && <Dot color="var(--text-faint)" />}
+                {marker?.tcPayment && <Dot color="var(--q25)" />}
               </span>
             </button>
           );
         })}
       </div>
 
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>
-        {dateLabel(selected, t, 'long')}
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '0 0 10px' }}>
+        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>
+          {dateLabel(selected, t, 'long')}
+        </h2>
+        {dayTransactions.length > 0 && (
+          <span className="figures" style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: dayNet >= 0 ? 'var(--positive-text)' : 'var(--text-muted)' }}>
+            {dayNet > 0 ? '+ ' : dayNet < 0 ? '− ' : ''}{formatMoney(Math.abs(dayNet))}
+          </span>
+        )}
+      </div>
 
       {dayTransactions.length === 0 && dayPayments.length === 0 ? (
         <p style={{ color: 'var(--text-faint)', fontSize: 13 }}>{t('calendar.noTransactionsToday')}</p>
       ) : (
-        <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px' }}>
+        <div className="divided" style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', padding: '4px 14px' }}>
           {dayTransactions.map((tx) => {
             const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
             return (

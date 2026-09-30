@@ -32,10 +32,12 @@ base('the initial setup asks for name, currency, pay periods and categories', as
   // It's in the app, greets by name and already uses the chosen currency.
   await expect(page.getByRole('heading', { name: 'Hola, Andrés' })).toBeVisible();
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
-  await expect(page.getByText('Te queda este mes')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Te queda en');
   await expect(page.getByText('$2,', { exact: false }).first()).toBeVisible();
 
-  // The chosen pay period wins, and the removed category is nowhere to be seen.
+  // The chosen pay period wins (Home names only today's period now, so the
+  // list is where both show), and the removed category is nowhere to be seen.
+  await page.goto('movimientos');
   await expect(page.getByText('Quincena del 5')).toBeVisible();
   await page.goto('movimientos?nuevo=1');
   await expect(page.getByRole('button', { name: /Viajes/ })).toBeHidden();
@@ -79,7 +81,7 @@ base('you can choose to be paid once a month', async ({ page }) => {
 
   // Home shows ONE period, named after the month, not two pay periods.
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
-  await expect(page.getByText('Te queda este mes')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Te queda en');
   await expect(page.getByText(/Quincena del/)).toBeHidden();
   // Count the boxes, not just check they don't say "quincena": the real
   // bug was that TWO came out, both called "Septiembre" and the second at

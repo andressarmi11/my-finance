@@ -1,6 +1,8 @@
 import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { useT } from '@/i18n/language';
-import { IconX } from '@tabler/icons-react';
+import { IconCalendar, IconX } from '@tabler/icons-react';
+import { MiniCalendar, relativeDayLabel } from '@/components/ui/MiniCalendar';
+import { dateLabel, fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -113,6 +115,7 @@ export function TransactionForm({
     initialValue(existing, prefill, defaultPaymentMethodId),
   );
   const [touched, setTouched] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
   const [inferredKey, setInferredKey] = useState<string | null>(null);
   const debounceRef = useRef<number | null>(null);
 
@@ -436,15 +439,40 @@ export function TransactionForm({
           </>
         )}
 
-        <Field label={t('form.date')} htmlFor="tx-fecha">
-          <input
-            id="tx-fecha"
-            type="date"
+        {/* The date as a chip ("Hoy", "Ayer", "3 oct") that opens a month
+            grid right in the sheet. A past date means it already happened
+            (paid/received); a future one stays pending. The pay period is
+            still resolved from the date by calculatePeriod, as before. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', fontWeight: 600 }}>{t('form.date')}</span>
+          <button
+            type="button"
+            onClick={() => setDateOpen((o) => !o)}
+            aria-expanded={dateOpen}
+            aria-label={fill(t('form.chooseDate'), { date: dateLabel(value.date, t, 'long') })}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, minHeight: 36, padding: '0 14px',
+              borderRadius: 999, cursor: 'pointer', fontSize: 'var(--text-base)', fontWeight: 600,
+              border: `1px solid ${dateOpen ? 'var(--q10)' : 'var(--line-strong)'}`,
+              background: 'var(--surface)', color: 'var(--text)',
+            }}
+          >
+            <IconCalendar size={16} stroke={1.8} aria-hidden />
+            {relativeDayLabel(value.date, todayISO(), t)}
+          </button>
+        </div>
+        {dateOpen && (
+          <MiniCalendar
             value={value.date}
-            onChange={(e) => setValue((v) => ({ ...v, date: e.target.value }))}
-            style={inputStyle}
+            today={todayISO()}
+            onChange={(iso) => setValue((v) => ({ ...v, date: iso, markPaidNow: iso <= todayISO() }))}
           />
-        </Field>
+        )}
+        {value.date > todayISO() && !value.markPaidNow && (
+          <p style={{ margin: '0 0 10px', fontSize: 'var(--text-sm)', color: 'var(--q25-text)', fontWeight: 600 }}>
+            {t('form.datePendingNote')}
+          </p>
+        )}
 
         <button
           type="button"

@@ -25,7 +25,7 @@ test('marks several as paid at once', async ({ page }) => {
   await page.getByRole('button', { name: /^Seleccionar Cine$/ }).click();
   await expect(page.getByRole('heading', { name: '2 seleccionados' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Marcar pagados' }).click();
+  await page.getByRole('button', { name: 'Pagado', exact: true }).click();
 
   // It leaves selection mode and both end up paid.
   await expect(page.getByRole('heading', { name: 'Movimientos' })).toBeVisible();
@@ -43,6 +43,9 @@ test('deleting several asks for confirmation and says how much money they add up
   await expect(dialogo).toBeVisible();
   await expect(dialogo.getByText(/¿Eliminar 1 movimiento\?/)).toBeVisible();
   await expect(dialogo.getByText(/no se puede deshacer/)).toBeVisible();
+  // It lists what is about to go, not just how many.
+  await expect(dialogo.getByRole('listitem')).toHaveCount(1);
+  await expect(dialogo.getByRole('listitem')).toContainText('Mercado');
 
   await dialogo.getByRole('button', { name: 'Sí, eliminar' }).click();
   await expect(page.getByText('Mercado')).toBeHidden();
@@ -65,7 +68,7 @@ test('can be cancelled without touching anything', async ({ page }) => {
 
 test('with nothing selected, the actions are disabled', async ({ page }) => {
   await enterSelectionMode(page);
-  await expect(page.getByRole('button', { name: 'Marcar pagados' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Pagado', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Eliminar' })).toBeDisabled();
 });
 
@@ -77,4 +80,25 @@ test('the 10th pay period reads before the 25th', async ({ page }) => {
     const payDays = titles.map((t) => Number(t.replace(/\D/g, '')));
     expect(payDays).toEqual([...payDays].sort((a, b) => a - b));
   }
+});
+
+test('"Todos" selects every visible transaction', async ({ page }) => {
+  await enterSelectionMode(page);
+  // Scoped to the toolbar: the filter chips also have a "Todos".
+  const toolbar = page.getByRole('toolbar', { name: 'Acciones sobre lo seleccionado' });
+  await toolbar.getByRole('button', { name: 'Todos', exact: true }).click();
+  await expect(toolbar).not.toContainText(/^0 seleccionados/);
+  await expect(page.getByRole('button', { name: 'Pagado', exact: true })).toBeEnabled();
+});
+
+test('a period group folds, shows its summary, and stays folded after a reload', async ({ page }) => {
+  await conDatos(page);
+  const header = page.getByRole('button', { name: /^Plegar o desplegar Quincena del/ }).first();
+  await header.click();
+  await expect(header).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText(/mov\. · Restante/).first()).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Plegar o desplegar Quincena del/ }).first())
+    .toHaveAttribute('aria-expanded', 'false');
 });
