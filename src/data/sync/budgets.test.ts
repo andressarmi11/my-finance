@@ -58,6 +58,18 @@ describe('conciliarPresupuestos — who wins', () => {
     expect(plan.saveLocal).toEqual([]);
   });
 
+  it('already in sync (same stamp): nothing goes up or down on a forced sync', () => {
+    const plan = reconcileBudgets([p()], [p()]);
+    expect(plan).toEqual({ saveLocal: [], subir: [], deleteLocal: [] });
+  });
+
+  it('same stamp but another id: adopts the cloud id without uploading', () => {
+    const plan = reconcileBudgets([p({ id: 'local' })], [p({ id: 'cloud' })]);
+    expect(plan.subir).toEqual([]);
+    expect(plan.saveLocal).toEqual([p({ id: 'cloud' })]);
+    expect(plan.deleteLocal).toEqual(['local']);
+  });
+
   it('a local row with no date does not beat a real one', () => {
     const local = p({ id: 'x', amount: 1, updatedAt: '' });
     const remoteRow = p({ id: 'x', amount: 900 });

@@ -106,6 +106,19 @@ async function keepNewest<T extends { id: string; updatedAt: string }>(
   return result;
 }
 
+/** The remote rows that beat their local copy (or have none): what a pull really brings. */
+export async function newerThanLocal<T extends { id: string; updatedAt: string }>(
+  remotas: T[],
+  findLocal: (id: string) => Promise<T | undefined>,
+): Promise<T[]> {
+  const result: T[] = [];
+  for (const remoteRow of remotas) {
+    const local = await findLocal(remoteRow.id);
+    if (!local || newer(remoteRow.updatedAt, local.updatedAt)) result.push(remoteRow);
+  }
+  return result;
+}
+
 export function chooseSettings(local: Settings | undefined, remoteRow: Settings): Settings {
   if (!local) return remoteRow;
   return newer(remoteRow.updatedAt, local.updatedAt) ? remoteRow : local;
@@ -302,7 +315,9 @@ export async function pullCloudToLocal(): Promise<SyncResult & { remote: RemoteS
   const expired = (await db.reminders.toArray()).filter((r) => reminderExpired(r)).map((r) => r.id);
   if (expired.length > 0) await db.reminders.bulkDelete(expired);
   const liveReminders = remoteReminders.filter((r) => !deletedTx.has(r.transactionId) && !reminderExpired(r));
-  const remindersToSave = await keepNewest(liveReminders, (id) => db.reminders.get(id));
+  // Only the ones the cloud has newer: keepNewest returns every row, and
+  // counting those made each sync report every reminder as "downloaded".
+  const remindersToSave = await newerThanLocal(liveReminders, (id) => db.reminders.get(id));
   if (remindersToSave.length > 0) await db.reminders.bulkPut(remindersToSave);
 
   let localAll = await db.transactions.toArray();

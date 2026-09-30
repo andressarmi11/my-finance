@@ -14,6 +14,12 @@ Audit: `docs/auditoria/COSTOS.md`.
   for everyone. A missing or old row (more than 2 days) falls back to
   open.er-api, as before.
 
+### Fixed
+- "Sync now" always said "3 uploaded, 14 downloaded" even with nothing
+  changed. A budget with the same timestamp on both sides was re-uploaded on
+  every sync, and every reminder in the cloud was counted (and rewritten) as
+  downloaded. Now only what actually changed travels and is counted.
+
 ### Database
 - `0016_rls_select_auth_uid.sql` (C2): re-runnable; rewrites any RLS policy
   still using `auth.uid()` as `(select auth.uid())`, as 0009 did.
