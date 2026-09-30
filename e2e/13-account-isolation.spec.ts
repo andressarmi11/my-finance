@@ -139,7 +139,14 @@ test('"also erase it from this phone" leaves no data and no preferences', async 
 
     await clearLocalDevice();
 
-    const counts = await Promise.all(db.tables.map((t: Tabla) => t.count()));
+    // Per table. The app on the page re-seeds its defaults (settings,
+    // categories, payment methods) as soon as the database reopens, and
+    // that can land before this count: those are factory defaults, not the
+    // account's data, so they don't count as "left behind".
+    const SEEDED_BY_APP = new Set(['settings', 'categories', 'paymentMethods']);
+    const counts = await Promise.all(
+      db.tables.filter((t: Tabla) => !SEEDED_BY_APP.has(t.name)).map((t: Tabla) => t.count()),
+    );
     // Still usable after the wipe: the app keeps its handle on `db`.
     await db.transactions.put({
       id: 'tx-nueva', type: 'expense', concept: 'Nueva', amount: 1, date: '2026-09-02',
