@@ -1,11 +1,10 @@
 import { Suspense, lazy } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { Navigate, createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
 import { LegalLayout } from './LegalLayout';
 import { ErrorBoundary } from './ErrorBoundary';
 import { DashboardScreen } from '@/features/dashboard/DashboardScreen';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
-import { CalendarScreen } from '@/features/calendar/CalendarScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
 import { CategoriesScreen } from '@/features/categories/CategoriesScreen';
 import { PaymentMethodsScreen } from '@/features/payment-methods/PaymentMethodsScreen';
@@ -32,7 +31,9 @@ export const router = createBrowserRouter(
       children: [
         { index: true, element: <DashboardScreen /> },
         { path: 'movimientos', element: <TransactionsScreen /> },
-        { path: 'calendario', element: <CalendarScreen /> },
+        // The calendar is a view of Movimientos now. The old path stays so
+        // bookmarks and notifications that point to it keep working.
+        { path: 'calendario', element: <Navigate to="/movimientos?vista=calendario" replace /> },
         { path: 'analisis', element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary> },
         { path: 'ajustes', element: <SettingsScreen /> },
         { path: 'ajustes/categorias', element: <CategoriesScreen /> },

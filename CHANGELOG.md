@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 2: navigation
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 2).
+
+### Changed
+- Tab bar (§2): three tabs — Inicio, Análisis, Ajustes — in a floating pill,
+  with the + as a 62px circle beside it (same line, never over the list).
+  Inicio stays active on `/movimientos`. The + still hides on scroll down and
+  while a dialog is open.
+- Calendar is no longer a screen: its body moved to `CalendarView`, shown by
+  Movimientos behind a Lista | Calendario control that lives in the URL
+  (`?vista=calendario`). `/calendario` redirects there.
+- The legal footer left the app screens; it stays in the legal pages and in
+  Ajustes → Legal.
+- Main content, the selection toolbar and the sync indicator are spaced for
+  the floating bar.
+
+### Added
+- `Segmented`: the single segmented control of the redesign (§0).
+
+### Removed
+- The floating refresh button over the +. Pull-to-refresh (home-screen app)
+  and Ajustes → "Sincronizar ahora" remain.
+
+### Tests
+- E2E updated: 24 (plus: `/calendario` redirects), 25, 29 (no floating
+  refresh; pull-to-refresh proves a real reload), 31, 32.
+- New E2E 39: three tabs, Inicio lit on Movimientos, + beside the pill.
+
 ## [Unreleased] — Redesign v4, phase 1: foundations
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 1).

@@ -54,8 +54,14 @@ test.describe('transactions', () => {
 });
 
 test.describe('calendar', () => {
-  test('14 months away, it returns to the current month AND leaves today selected', async ({ page }) => {
+  test('the old /calendario path opens the Calendar view of Movimientos', async ({ page }) => {
     await page.goto('calendario');
+    await expect(page).toHaveURL(/\/movimientos\?vista=calendario$/);
+    await expect(page.getByRole('button', { name: 'Calendario', pressed: true })).toBeVisible();
+  });
+
+  test('14 months away, it returns to the current month AND leaves today selected', async ({ page }) => {
+    await page.goto('movimientos?vista=calendario');
     const inicial = await page.getByRole('button', { name: 'Mes anterior' })
       .locator('xpath=following-sibling::*[1]').textContent();
 

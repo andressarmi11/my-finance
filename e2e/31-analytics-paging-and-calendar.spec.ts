@@ -69,7 +69,9 @@ test('the day list in the calendar has separators between rows, none after the l
     await expect(dialog).toBeHidden();
   }
 
-  await page.getByRole('link', { name: 'Calendario' }).click();
+  // The calendar is a view of Movimientos now, behind Lista | Calendario.
+  await page.getByRole('button', { name: 'Calendario' }).click();
+  await expect(page).toHaveURL(/vista=calendario/);
   const rows = page.locator('.divided > *');
   await expect(rows).toHaveCount(2);
   const borders = await rows.evaluateAll((els) =>

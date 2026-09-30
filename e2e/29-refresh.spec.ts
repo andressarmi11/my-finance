@@ -2,16 +2,16 @@ import { test, expect } from './fixtures';
 
 /**
  * Refresh used to mean closing the app and opening it again — the only
- * way to see what the Shortcuts had just sent in. Now there's a button
- * over the +, and in the home-screen app, pulling down from the top.
+ * way to see what the Shortcuts had just sent in. The floating button over
+ * the + is gone with the redesign (§2): in the home-screen app you pull
+ * down from the top, and with an account there's Ajustes → "Sincronizar
+ * ahora".
  */
 
-test('the refresh button over the + reloads the app', async ({ page }) => {
+test('there is no floating refresh button over the + any more', async ({ page }) => {
   await page.goto('');
-  const reloaded = page.waitForEvent('load');
-  await page.getByRole('button', { name: 'Actualizar' }).click();
-  await reloaded;
   await expect(page.getByRole('button', { name: 'Agregar movimiento' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Actualizar' })).toHaveCount(0);
 });
 
 test('pulling down from the top reloads the home-screen app', async ({ page, browserName }) => {
@@ -21,6 +21,8 @@ test('pulling down from the top reloads the home-screen app', async ({ page, bro
   });
   await page.goto('');
   await expect(page.locator('main')).toBeVisible();
+  // Proof it reloaded: an in-memory marker that only a real load erases.
+  await page.evaluate(() => { (window as unknown as { beforePull?: boolean }).beforePull = true; });
 
   const reloaded = page.waitForEvent('load');
   await page.evaluate(async () => {
@@ -42,4 +44,5 @@ test('pulling down from the top reloads the home-screen app', async ({ page, bro
     if (!String(e).includes('Execution context was destroyed')) throw e;
   });
   await reloaded;
+  expect(await page.evaluate(() => (window as unknown as { beforePull?: boolean }).beforePull)).toBeUndefined();
 });

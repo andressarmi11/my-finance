@@ -1,17 +1,19 @@
 import { useT } from '@/i18n/language';
-import { IconCurrencyDollar, IconMicrophone, IconRefresh, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
-import { refreshApp } from '@/components/ui/PullToRefresh';
+import { IconCurrencyDollar, IconMicrophone, IconRepeat, IconTrendingDown, type IconProps } from '@tabler/icons-react';
 import { useEffect, useState, type ComponentType } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
 import { haptic } from '@/lib/haptic';
 
-const TABS = [
+/**
+ * Three tabs (redesign §2). Movimientos hangs from Inicio and the calendar
+ * is a view of Movimientos, so neither needs a tab of its own. Exported
+ * so the desktop sidebar can reuse the same list.
+ */
+export const TABS = [
   // The KEY is stored, not the text: the text depends on the active language.
   { to: '/', key: 'nav.home', icon: 'M3 10.5 12 3l9 7.5V21H3z' },
-  { to: '/movimientos', key: 'nav.transactions', icon: 'M4 7h16M4 12h16M4 17h10' },
-  { to: '/calendario', key: 'nav.calendar', icon: 'M4 6h16v15H4zM4 10h16M8 3v4M16 3v4' },
   { to: '/analisis', key: 'nav.analytics', icon: 'M5 20V10M12 20V4M19 20v-7' },
   { to: '/ajustes', key: 'nav.settings', icon: 'M4 7h16M4 17h16M9 7v0M15 17v0' },
 ] as const;
@@ -41,8 +43,8 @@ export function TabBar() {
         if (y < 0 || y > max) return;
         const delta = y - lastY;
         if (Math.abs(delta) <= 6) return;
-        // Hide only if the page scrolls more than the area the buttons cover
-        // (~120px: 56 + 44 + gaps). Below that there is nothing to uncover
+        // Hide only if the page scrolls more than the area the button covers
+        // (~120px with its margins). Below that there is nothing to uncover
         // and hiding just removes the main action. A hidden button also has
         // pointer-events: none, so it must always be able to come back: any
         // upward scroll, the top of the page, or a short page shows it.
@@ -60,29 +62,78 @@ export function TabBar() {
 
   return (
     <>
-      <nav
-        aria-label={t('nav.mainNavigation')}
+      {/* A floating pill plus the + as its sibling, not a full-width bar:
+          the content shows around it and the main action sits on the same
+          line as the tabs, where the thumb already is. */}
+      <div
         style={{
           position: 'fixed',
-          insetInline: 0,
-          bottom: 0,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
-          alignItems: 'center',
-          // Opaque on purpose: with --material-thin (72% white) the
-          // content showed through the bar and you couldn't tell where
-          // it started. The blur is only noticeable when supported, but the
-          // color underneath is already solid.
-          background: 'var(--surface)',
-          backdropFilter: 'saturate(180%) blur(20px)',
-          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
-          boxShadow: '0 -1px 12px rgb(0 0 0 / 0.06)',
-          borderTop: '1px solid var(--line)',
-          paddingBottom: 'var(--safe-bottom)',
+          left: 14,
+          right: 14,
+          bottom: 'calc(var(--safe-bottom) + 12px)',
+          display: 'flex',
+          gap: 10,
           zIndex: 40,
+          maxWidth: 560,
+          marginInline: 'auto',
         }}
       >
-        <RefreshButton hidden={fabHidden} label={t('action.refresh')} />
+        <nav
+          aria-label={t('nav.mainNavigation')}
+          style={{
+            flex: 1,
+            height: 'var(--tabbar-h)',
+            borderRadius: 31,
+            padding: 4,
+            display: 'grid',
+            gridTemplateColumns: `repeat(${TABS.length}, 1fr)`,
+            background: 'color-mix(in srgb, var(--surface) 88%, transparent)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid var(--line-strong)',
+            boxShadow: 'var(--shadow-3)',
+          }}
+        >
+          {TABS.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.to === '/'}
+              onClick={() => {
+                if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              style={({ isActive }) => {
+                // Movimientos hangs from Inicio: it keeps Inicio lit.
+                const active = isActive || (tab.to === '/' && pathname.startsWith('/movimientos'));
+                return {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  borderRadius: 27,
+                  textDecoration: 'none',
+                  background: active ? 'var(--line-strong)' : 'transparent',
+                  color: active ? 'var(--text)' : 'var(--text-faint)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  transition: 'background var(--dur-fast) var(--ease-spring-out), color var(--dur-fast) var(--ease-spring-out)',
+                };
+              }}
+            >
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d={tab.icon}
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {t(tab.key)}
+            </NavLink>
+          ))}
+        </nav>
         <AddButton
           hidden={fabHidden}
           onClick={() => {
@@ -90,43 +141,7 @@ export function TabBar() {
             setLongPressOpen(true);
           }}
         />
-        {TABS.map((tab) => (
-          <div key={tab.to} style={{ display: 'contents' }}>
-            <NavLink
-              to={tab.to}
-              end={tab.to === '/'}
-              onClick={() => {
-                if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              style={({ isActive }) => ({
-                minHeight: 'var(--tap)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 3,
-                padding: '8px 0 10px',
-                textDecoration: 'none',
-                color: isActive ? 'var(--q10)' : 'var(--text-faint)',
-                fontSize: 10,
-                fontWeight: isActive ? 600 : 500,
-                transition: 'color var(--dur-fast) var(--ease-spring-out)',
-              })}
-            >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d={tab.icon}
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              {t(tab.key)}
-            </NavLink>
-          </div>
-        ))}
-      </nav>
+      </div>
       {longPressOpen && (
         <QuickActionSheet
           onClose={() => setLongPressOpen(false)}
@@ -155,11 +170,11 @@ export function TabBar() {
 }
 
 /**
- * The "+" isn't a tab: it's an action. It floats ABOVE the tab bar, not
- * inside it — with a small bottom offset it ate into the middle tab (Calendar).
- * It sits on the RIGHT, not centered: centered it sat right on top of the
- * middle row of the list and covered the description and amount.
- * Tap opens a quick menu with Expense/Income/Recurring.
+ * The "+" isn't a tab: it's an action. It sits NEXT TO the tab pill, a
+ * 62px circle on the same line, so it never covers the list above it.
+ * Tap opens a quick menu with Speak/Expense/Income/Recurring. It still
+ * hides on scroll down (see TabBar) — index.css also hides it while a
+ * dialog is open, by its aria-label.
  */
 function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean }) {
   const t = useT();
@@ -178,65 +193,27 @@ function AddButton({ onClick, hidden }: { onClick: () => void; hidden?: boolean 
       onPointerUp={() => setPressed(false)}
       onPointerLeave={() => setPressed(false)}
       style={{
-        position: 'absolute',
-        right: 16,
-        bottom: 'calc(100% + 14px)',
+        flex: 'none',
         transform: `scale(${hidden ? 0 : pressed ? 0.94 : 1})`,
         opacity: hidden ? 0 : 1,
         pointerEvents: hidden ? 'none' : 'auto',
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 'var(--tabbar-h)',
+        height: 'var(--tabbar-h)',
+        borderRadius: 31,
         border: 'none',
+        display: 'grid',
+        placeItems: 'center',
         background: 'var(--q10)',
         color: 'var(--on-accent)',
-        fontSize: 28,
-        fontWeight: 400,
-        lineHeight: 1,
         cursor: 'pointer',
-        boxShadow: 'var(--shadow-3)',
+        boxShadow: '0 10px 30px color-mix(in srgb, var(--q10) 35%, transparent)',
         transition: 'transform var(--dur-med) var(--ease-spring-out), opacity var(--dur-med) var(--ease-spring-out)',
         touchAction: 'none',
       }}
     >
-      +
-    </button>
-  );
-}
-
-/**
- * Sits on top of the +, and hides and comes back with it. Reloads the app
- * — what the user had to do by closing and reopening it to see what the
- * Shortcuts had just sent in.
- */
-function RefreshButton({ hidden, label }: { hidden: boolean; label: string }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={refreshApp}
-      style={{
-        position: 'absolute',
-        // Centred over the + (56 wide, right: 16) with a 12px gap above it.
-        right: 22,
-        bottom: 'calc(100% + 14px + 56px + 12px)',
-        transform: `scale(${hidden ? 0 : 1})`,
-        opacity: hidden ? 0 : 1,
-        pointerEvents: hidden ? 'none' : 'auto',
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        display: 'grid',
-        placeItems: 'center',
-        border: '1px solid var(--line-strong)',
-        background: 'var(--surface)',
-        color: 'var(--q10)',
-        cursor: 'pointer',
-        boxShadow: 'var(--shadow-2)',
-        transition: 'transform var(--dur-med) var(--ease-spring-out), opacity var(--dur-med) var(--ease-spring-out)',
-      }}
-    >
-      <IconRefresh size={20} stroke={2} aria-hidden />
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
     </button>
   );
 }

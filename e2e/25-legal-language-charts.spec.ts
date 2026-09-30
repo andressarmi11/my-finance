@@ -52,8 +52,8 @@ test.describe.configure({ retries: 2 });
 test.describe('legal from inside the app', () => {
   test('reachable from Settings', async ({ page }) => {
     await page.goto('ajustes');
-    // exact: the legal footer, present on every screen, also has an
-    // "Aviso legal" link that matched a loose search for "Legal".
+    // exact: the legal footer (now only in the legal pages, not under every
+    // screen) has an "Aviso legal" link that a loose search would match.
     await page.getByRole('link', { name: 'Legal', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Legal');
   });

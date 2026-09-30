@@ -1,15 +1,16 @@
 import { test, expect } from './fixtures';
 
 /**
- * The + and refresh buttons used to hide only on pages that scroll more than
- * 320px, so the Calendar (shorter than that) never got them out of the way.
- * New rule: hide on scroll down whenever the page scrolls more than the area
- * the buttons cover, and come back on ANY scroll up.
+ * The + used to hide only on pages that scroll more than 320px, so the
+ * Calendar (shorter than that) never got it out of the way. Rule: hide on
+ * scroll down whenever the page scrolls more than the area the button
+ * covers, and come back on ANY scroll up. The Calendar is now the
+ * ?vista=calendario view of Movimientos.
  */
 test('the + button hides scrolling down on the Calendar and comes back scrolling up', async ({ page }) => {
   // Short viewport so the page is guaranteed to scroll, whatever the content.
   await page.setViewportSize({ width: 390, height: 420 });
-  await page.goto('calendario');
+  await page.goto('movimientos?vista=calendario');
   // The onboarding leaves the short viewport scrolled; start from the top.
   await page.evaluate(() => window.scrollTo(0, 0));
   const add = page.getByRole('button', { name: 'Agregar movimiento' });
@@ -29,7 +30,7 @@ test('on a page too short to scroll past the buttons, they never hide', async ({
   // Tall viewport: the Calendar barely scrolls (or not at all), so hiding
   // would only remove the main action.
   await page.setViewportSize({ width: 390, height: 1400 });
-  await page.goto('calendario');
+  await page.goto('movimientos?vista=calendario');
   await page.evaluate(() => window.scrollTo(0, 0));
   const add = page.getByRole('button', { name: 'Agregar movimiento' });
   const max = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
