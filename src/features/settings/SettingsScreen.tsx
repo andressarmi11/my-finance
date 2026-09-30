@@ -1,325 +1,152 @@
-import { useRef, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useState } from 'react';
+import { generalReminderRule } from '@/domain/reminders/schedule';
 import { Link } from 'react-router-dom';
+import { useLiveQuery } from 'dexie-react-hooks';
+import {
+  IconBell, IconBolt, IconCalendar, IconChartBar, IconChevronRight, IconCoin, IconCreditCard,
+  IconDatabase, IconFileText, IconLogout, IconMoon, IconRepeat, IconTag, IconWorld,
+} from '@tabler/icons-react';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
+import { db } from '@/data/db';
+import { isSupabaseConfigured } from '@/data/supabase/client';
+import { useSession } from '@/features/auth/useSession';
 import { useLanguage } from '@/i18n/language';
-import { exportBackupJSON, exportBackupXLSX, exportTransactionsCSV, parseBackupFile, importBackup, type BackupPreview } from '@/data/backup/exportImport';
-import type { Backup } from '@/data/backup/schema';
-import type { Settings } from '@/domain/types';
 import type { TextKey } from '@/i18n/texts';
-import { CURRENCIES, currencySample } from '@/domain/money/currencies';
-import { ImportPreviewSheet } from './ImportPreviewSheet';
-import { CloudSection } from './CloudSection';
-import { AutomationSection } from './AutomationSection';
-import { NotificationsSection } from '@/features/notifications/NotificationsSection';
+import { fill } from '@/lib/dateLabels';
+import { todayISO } from '@/lib/todayISO';
+import type { Settings } from '@/domain/types';
+import { SettingsGroup, SettingsRow } from './ui';
+import { LanguageSheet } from './LanguageSheet';
+import { ThemeSheet } from './ThemeSheet';
+import { LogoutSheet } from './LogoutSheet';
 
-const THEMES: Array<{ value: Settings['theme']; label: TextKey }> = [
-  { value: 'system', label: 'settings.themeSystem' },
-  { value: 'light', label: 'settings.themeLight' },
-  { value: 'dark', label: 'settings.themeDark' },
-];
+const THEME_LABEL: Record<Settings['theme'], TextKey> = {
+  system: 'settings.themeSystem',
+  light: 'settings.themeLight',
+  dark: 'settings.themeDark',
+};
 
+const ICON = { size: 17, stroke: 1.9 } as const;
+
+/**
+ * Settings as an iOS-style grouped list (redesign §7). Every row opens its
+ * own screen (ajustes/*) or a sheet (language, theme, sign out); the logic
+ * behind each one is the section that used to be expanded here.
+ */
 export function SettingsScreen() {
+  const { language, t } = useLanguage();
+  const { session } = useSession();
   const settings = useLiveQuery(() => localRepository.getSettings(), []);
-  const { language, setLanguage, t } = useLanguage();
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importState, setImportState] = useState<
-    { status: 'idle' } | { status: 'error'; message: string } | { status: 'preview'; backup: Backup; preview: BackupPreview }
-  >({ status: 'idle' });
-  const [busy, setBusy] = useState<string | null>(null);
+  const [year, month] = todayISO().split('-').map(Number) as [number, number];
+  const counts = useLiveQuery(async () => ({
+    categories: (await db.categories.toArray()).filter((c) => !c.isArchived).length,
+    methods: await db.paymentMethods.count(),
+    recurring: await db.recurringRules.count(),
+    budgets: (await localRepository.listBudgets(year, month)).filter((b) => b.amount > 0).length,
+  }), [year, month]);
+  const [sheet, setSheet] = useState<'language' | 'theme' | 'logout' | null>(null);
 
   if (!settings) return null;
 
-  function patch(partial: Partial<Settings>) {
-    void localRepository.saveSettings({ ...settings!, ...partial });
-  }
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    const text = await file.text();
-    const result = parseBackupFile(text);
-    if (!result.success) {
-      setImportState({ status: 'error', message: result.error });
-      return;
-    }
-    setImportState({ status: 'preview', backup: result.backup, preview: result.preview });
-  }
-
-  async function confirmImport() {
-    if (importState.status !== 'preview') return;
-    setBusy('import');
-    try {
-      await importBackup(importState.backup);
-      setImportState({ status: 'idle' });
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleExportJSON() {
-    setBusy('json');
-    try { await exportBackupJSON(); } finally { setBusy(null); }
-  }
-  async function handleExportXLSX() {
-    setBusy('xlsx');
-    try {
-      await exportBackupXLSX();
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function handleExportCSV() {
-    setBusy('csv');
-    try { await exportTransactionsCSV(); } finally { setBusy(null); }
-  }
+  const cloud = isSupabaseConfigured() && !!session;
+  const name = settings.displayName.trim();
+  const payValue = settings.payDays.length > 1
+    ? fill(t('set.payDaysTwo'), { a: settings.payDays[0]!, b: settings.payDays[1]! })
+    : fill(t('set.payDaysOne'), { a: settings.payDays[0] ?? 1 });
+  const rule = generalReminderRule(settings);
+  const days = rule.days;
+  const reminderValue = rule.mode === 'sameDay' || days === 0 ? t('set.sameDay')
+    : days === 1 ? t('set.oneDayBefore') : fill(t('set.nDaysBefore'), { n: days });
 
   return (
-    <Screen title={t('settings.title')} subtitle={t('settings.subtitle')}>
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.yourName')}</h2>
-        <input
-          defaultValue={settings.displayName}
-          onBlur={(e) => patch({ displayName: e.target.value.trim() })}
-          placeholder={t('settings.namePlaceholder')}
-          aria-label={t('settings.yourName')}
-          maxLength={40}
-          style={{
-            width: '100%', minHeight: 'var(--tap)', padding: '0 14px',
-            borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-            background: 'var(--surface)', color: 'var(--text)', fontSize: 16,
-          }}
-        />
-      </section>
+    <Screen title={t('settings.title')}>
+      <Link
+        to="/ajustes/cuenta"
+        aria-label={fill(t('set.profileOf'), { name: name || t('set.profile') })}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: 14, textDecoration: 'none',
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)',
+          color: 'var(--text)',
+        }}
+      >
+        <Avatar name={name} size={46} />
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-md)' }}>{name || t('set.profile')}</span>
+          <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {cloud ? session!.user.email : t('set.localOnlyShort')}
+          </span>
+          {cloud && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-faint)', marginTop: 2 }}>
+              <span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: 'var(--positive)' }} />
+              {t('cloud.syncedOk')}
+            </span>
+          )}
+        </span>
+        <IconChevronRight aria-hidden size={18} stroke={1.75} style={{ color: 'var(--text-faint)' }} />
+      </Link>
 
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.language')}</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {([['es', 'Español'], ['en', 'English']] as const).map(([code, name]) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => setLanguage(code)}
-              aria-pressed={language === code}
-              lang={code}
-              style={segmentStyle(language === code)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '8px 0 0' }}>
-          {t('settings.languageNote')}
-        </p>
-      </section>
+      <SettingsGroup title={t('set.preferences')}>
+        <SettingsRow icon={<IconWorld {...ICON} />} tint="var(--q10)" label={t('settings.language')}
+          value={language === 'en' ? 'English' : 'Español'} onClick={() => setSheet('language')} />
+        <SettingsRow icon={<IconMoon {...ICON} />} tint="var(--cat-servicios)" label={t('settings.theme')}
+          value={t(THEME_LABEL[settings.theme])} onClick={() => setSheet('theme')} />
+        <SettingsRow icon={<IconCoin {...ICON} />} tint="var(--positive)" label={t('settings.currency')}
+          value={settings.currency} to="/ajustes/moneda" />
+      </SettingsGroup>
 
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.theme')}</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {THEMES.map((theme) => (
-            <button key={theme.value} type="button" onClick={() => patch({ theme: theme.value })} aria-pressed={settings.theme === theme.value} style={segmentStyle(settings.theme === theme.value)}>
-              {t(theme.label)}
-            </button>
-          ))}
-        </div>
-      </section>
+      <SettingsGroup title={t('set.yourMoney')}>
+        <SettingsRow icon={<IconCalendar {...ICON} />} tint="var(--q25)" label={t('settings.howYouGetPaid')}
+          value={payValue} to="/ajustes/pagos" />
+        <SettingsRow icon={<IconBell {...ICON} />} tint="var(--danger)" label={t('settings.reminders')}
+          value={reminderValue} to="/ajustes/recordatorios" />
+      </SettingsGroup>
 
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.currency')}</h2>
-        {/* Picker, not two text fields: typing 'cop' and 'es_CO' by hand
-            broke the formatting of the whole app without saying why. */}
-        <div style={{ display: 'grid', gap: 6 }}>
-          {CURRENCIES.map((c) => {
-            const isActive = settings.currency === c.code;
-            return (
-              <button
-                key={c.code}
-                type="button"
-                onClick={() => patch({ currency: c.code, locale: c.locale })}
-                aria-pressed={isActive}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                  minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 'var(--radius-s)',
-                  border: `1px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
-                  background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
-                  color: 'var(--text)', cursor: 'pointer', fontSize: 'var(--text-base)',
-                }}
-              >
-                <span style={{ flex: 1, textAlign: 'left', fontWeight: isActive ? 600 : 400 }}>{c.label}</span>
-                <span className="figures" style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>{currencySample(c)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <SettingsGroup title={t('settings.organize')}>
+        <SettingsRow icon={<IconTag {...ICON} />} tint="var(--cat-hogar)" label={t('categories.title')}
+          value={counts ? String(counts.categories) : ''} to="/ajustes/categorias" />
+        <SettingsRow icon={<IconCreditCard {...ICON} />} tint="var(--q10)" label={t('methods.title')}
+          value={counts ? String(counts.methods) : ''} to="/ajustes/metodos" />
+        <SettingsRow icon={<IconRepeat {...ICON} />} tint="var(--cat-suscripciones)" label={t('recurring.title')}
+          value={counts ? String(counts.recurring) : ''} to="/ajustes/recurrentes" />
+        <SettingsRow icon={<IconChartBar {...ICON} />} tint="var(--cat-entretenimiento)" label={t('budgets.title')}
+          value={counts ? (counts.budgets ? String(counts.budgets) : t('set.none')) : ''} to="/ajustes/presupuestos" />
+      </SettingsGroup>
 
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.howYouGetPaid')}</h2>
-        <Row label={t('settings.moneyComesIn')}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {([
-              { label: 'settings.twiceAMonth', biweekly: true },
-              { label: 'settings.onceAMonth', biweekly: false },
-            ] as const).map((option) => {
-              const isActive = (settings.payDays.length > 1) === option.biweekly;
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={() => patch({
-                    // Monthly starts on day 1, the calendar month:
-                    // inheriting the first pay-period day would shift the month without
-                    // the user having asked for it. The day gets adjusted right below.
-                    payDays: option.biweekly ? [10, 25] : [1],
-                  })}
-                  style={{
-                    minHeight: 'var(--tap)', padding: '0 12px',
-                    borderRadius: 'var(--radius-s)',
-                    border: `1.5px solid ${isActive ? 'var(--q10)' : 'var(--line)'}`,
-                    background: isActive ? 'var(--q10-soft)' : 'var(--surface)',
-                    color: 'var(--text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}
-                >
-                  {t(option.label)}
-                </button>
-              );
-            })}
-          </div>
-        </Row>
+      <SettingsGroup title={t('set.advanced')}>
+        <SettingsRow icon={<IconBolt {...ICON} />} tint="var(--q25)" label={t('set.shortcuts')} to="/ajustes/atajos" />
+        <SettingsRow icon={<IconDatabase {...ICON} />} tint="var(--text-muted)" label={t('settings.yourData')}
+          value={t('set.exportImport')} to="/ajustes/datos" />
+        <SettingsRow icon={<IconFileText {...ICON} />} tint="var(--text-muted)" label={t('settings.legal')} to="/legal" />
+      </SettingsGroup>
 
-        {settings.payDays.length > 1 ? (
-          <>
-            <Row label={t('settings.firstStartsOn')}>
-              <NumberInput
-                value={settings.payDays[0] ?? 10}
-                onCommit={(v) => patch({ payDays: [v, settings.payDays[1] ?? 25] })}
-              />
-            </Row>
-            <Row label={t('settings.secondStartsOn')}>
-              <NumberInput
-                value={settings.payDays[1] ?? 25}
-                onCommit={(v) => patch({ payDays: [settings.payDays[0] ?? 10, v] })}
-              />
-            </Row>
-          </>
-        ) : (
-          <Row label={t('settings.monthStartsOn')}>
-            <NumberInput
-              value={settings.payDays[0] ?? 1}
-              onCommit={(v) => patch({ payDays: [v] })}
-            />
-          </Row>
-        )}
-      </section>
-
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.reminders')}</h2>
-        <Row label={t('settings.warnMeWith')}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <NumberInput value={settings.reminderDefaultDaysBefore} min={0} onCommit={(v) => patch({ reminderDefaultDaysBefore: v })} />
-            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('settings.daysBefore')}</span>
-          </div>
-        </Row>
-      </section>
-
-      <section style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={sectionTitle}>{t('settings.organize')}</h2>
-        <NavLink to="/ajustes/categorias" label={t('categories.title')} />
-        <NavLink to="/ajustes/metodos" label={t('methods.title')} />
-        <NavLink to="/ajustes/recurrentes" label={t('action.newRecurring')} />
-        <NavLink to="/ajustes/presupuestos" label={t('budgets.title')} />
-        <NavLink to="/legal" label={t('settings.legal')} />
-      </section>
-
-      <CloudSection />
-      <AutomationSection />
-      <NotificationsSection />
-
-      <section style={sectionStyle}>
-        <h2 style={sectionTitle}>{t('settings.yourData')}</h2>
-        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
-          {t('settings.exportAnytime')}
-        </p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <button type="button" onClick={handleExportJSON} disabled={busy === 'json'} style={secondaryButtonStyle}>
-            {busy === 'json' ? t('settings.exporting') : t('settings.exportJSON')}
-          </button>
-          <button type="button" onClick={handleExportCSV} disabled={busy === 'csv'} style={secondaryButtonStyle}>
-            {busy === 'csv' ? t('settings.exporting') : t('settings.exportCSV')}
-          </button>
-        </div>
-        <button type="button" onClick={handleExportXLSX} disabled={busy === 'xlsx'} style={{ ...secondaryButtonStyle, width: '100%', marginBottom: 8 }}>
-          {busy === 'xlsx' ? t('settings.buildingExcel') : t('settings.exportExcel')}
-        </button>
-        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: '0 0 12px' }}>
-          {t('settings.excelNote').split('{strong}')[0]}
-          <strong>{t('settings.restore')}</strong>
-          {t('settings.excelNote').split('{strong}')[1]}
-        </p>
-        <button type="button" onClick={() => fileInputRef.current?.click()} style={{ ...secondaryButtonStyle, width: '100%' }}>
-          {t('settings.import')}
-        </button>
-        <input ref={fileInputRef} type="file" accept="application/json" onChange={handleFileChange} style={{ display: 'none' }} />
-        {importState.status === 'error' && (
-          <p style={{ color: 'var(--danger-text)', fontSize: 12, marginTop: 8 }}>{importState.message}</p>
-        )}
-      </section>
-
-      {importState.status === 'preview' && (
-        <ImportPreviewSheet
-          preview={importState.preview}
-          onConfirm={confirmImport}
-          onCancel={() => setImportState({ status: 'idle' })}
-        />
+      {cloud && (
+        <SettingsGroup>
+          <SettingsRow icon={<IconLogout {...ICON} />} tint="var(--danger)" label={t('cloud.signOut')} danger
+            chevron={false} onClick={() => setSheet('logout')} />
+        </SettingsGroup>
       )}
+
+      <p className="figures" style={{ textAlign: 'center', fontSize: 'var(--text-xs)', color: 'var(--text-faint)', margin: '22px 0 0' }}>
+        Step up v{import.meta.env.VITE_APP_VERSION as string} · © 2026
+      </p>
+
+      {sheet === 'language' && <LanguageSheet onClose={() => setSheet(null)} />}
+      {sheet === 'theme' && <ThemeSheet settings={settings} onClose={() => setSheet(null)} />}
+      {sheet === 'logout' && <LogoutSheet email={session?.user.email ?? ''} onClose={() => setSheet(null)} />}
     </Screen>
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+/** Initial in a --q10 disc: the profile card (46px) and the profile screen (84px). */
+export function Avatar({ name, size }: { name: string; size: number }) {
+  const initial = name.trim().charAt(0).toUpperCase() || '·';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 40 }}>
-      <span style={{ fontSize: 14, color: 'var(--text)' }}>{label}</span>
-      {children}
-    </div>
+    <span aria-hidden style={{
+      width: size, height: size, borderRadius: size / 2, flex: 'none', display: 'grid', placeItems: 'center',
+      background: 'var(--q10-soft)', color: 'var(--q10-text)', fontWeight: 700, fontSize: Math.round(size * 0.4),
+    }}>
+      {initial}
+    </span>
   );
 }
-
-function NavLink({ to, label }: { to: string; label: string }) {
-  return (
-    <Link to={to} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 'var(--radius-s)', border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--text)', textDecoration: 'none', fontWeight: 600 }}>
-      {label}
-      <span aria-hidden style={{ color: 'var(--text-faint)' }}>›</span>
-    </Link>
-  );
-}
-
-function NumberInput({ value, onCommit, min = 1, max = 31 }: { value: number; onCommit: (v: number) => void; min?: number; max?: number }) {
-  const [text, setText] = useState(String(value));
-  return (
-    <input
-      type="number" inputMode="numeric" min={min} max={max} value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={() => {
-        const n = Math.min(max, Math.max(min, Number(text) || value));
-        setText(String(n));
-        if (n !== value) onCommit(n);
-      }}
-      className="figures"
-      style={smallInputStyle}
-    />
-  );
-}
-
-const sectionStyle: React.CSSProperties = { marginBottom: 'var(--gap-xl)' };
-const sectionTitle: React.CSSProperties = { fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', margin: '0 0 10px' };
-const smallInputStyle: React.CSSProperties = { width: 72, minHeight: 36, padding: '0 8px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', textAlign: 'right', fontSize: 14 };
-function segmentStyle(active: boolean): React.CSSProperties {
-  return { flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' };
-}
-const secondaryButtonStyle: React.CSSProperties = { flex: 1, minHeight: 44, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' };

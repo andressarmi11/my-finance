@@ -37,6 +37,20 @@ export async function completeOnboarding(page: Page): Promise<void> {
   await expect(startButton).toBeHidden();
 }
 
+/**
+ * Ajustes → Idioma is a sheet now (redesign §7): open it from the grouped
+ * list, pick the language and close it. Works from either language.
+ */
+export async function switchLanguage(page: Page, name: 'English' | 'Español'): Promise<void> {
+  await page.goto('ajustes');
+  await page.getByRole('button', { name: /^(Idioma|Language)/ }).click();
+  const sheet = page.getByRole('dialog', { name: /^(Idioma|Language)$/ });
+  await sheet.getByRole('button', { name, exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', name === 'English' ? 'en' : 'es-CO');
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+}
+
 export const test = base.extend<object>({
   page: async ({ page }, use) => {
     const originalGoto = page.goto.bind(page);

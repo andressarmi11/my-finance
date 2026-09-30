@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, switchLanguage } from './fixtures';
 
 /** The screens added for budgets-by-month and custom recurrence, in English. */
 const SPANISH_ONLY = [
@@ -9,9 +9,7 @@ const SPANISH_ONLY = [
 
 test('budget months picker and custom recurrence have no Spanish in English', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
-  await page.goto('ajustes');
-  await page.getByRole('button', { name: 'English' }).click();
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await switchLanguage(page, 'English');
 
   const body = async () => (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   const found: string[] = [];
@@ -30,6 +28,7 @@ test('budget months picker and custom recurrence have no Spanish in English', as
   await expect(sheet.getByRole('button', { name: 'Save for 12 months' })).toBeVisible();
   await scan('budget sheet');
   await sheet.getByRole('button', { name: 'Save for 12 months' }).click();
+  await scan('budget list with columns');
 
   // Recurring: every 2 months.
   await page.goto('ajustes/recurrentes');
@@ -45,6 +44,75 @@ test('budget months picker and custom recurrence have no Spanish in English', as
   await form.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText(/^Every 2 months/)).toBeVisible();
   await scan('recurring list');
+
+  expect(found, `Spanish left:\n${found.join('\n')}`).toEqual([]);
+});
+
+/**
+ * Redesign phase 6: the grouped Settings, every sub-screen and the sheets
+ * that open from them, in English. Words that only a Spanish screen shows.
+ */
+const SETTINGS_SPANISH = [
+  'Preferencias', 'Tu plata', 'Avanzado', 'Idioma', 'Tema', 'Moneda', 'Principal',
+  'Monedas rápidas', 'Cómo te pagan', 'Primer pago', 'Segundo pago', 'Vista previa',
+  'Del mes', 'del mes siguiente', 'Recordatorios', 'Avisarme', 'Cuándo', 'Días de aviso',
+  'Así te llega', 'vence', 'Exportar', 'Restaurar', 'Importar', 'Copia completa',
+  'Cómo armarlo', 'Guía completa', 'Perfil', 'Tu nombre', 'Contraseña', 'Coinciden',
+  'Muy corta', 'Débil', 'Nueva categoría', 'Más íconos', 'Nuevo método', 'Usar por defecto',
+  'Día de corte', 'Día de pago', 'Compras del', 'Cupo', 'Entran al mes', 'Salen al mes',
+  'Listo', 'Sistema', 'Claro', 'Oscuro', 'Se aplica', 'Guardar', 'Cancelar', 'Ninguno',
+  'Solo en este', 'Por defecto', 'Total histórico', 'Gasto', 'Ingreso',
+];
+
+test('the grouped Settings, its sub-screens and sheets have no Spanish in English', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await switchLanguage(page, 'English');
+
+  const found: string[] = [];
+  const scan = async (where: string) => {
+    const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+    for (const w of SETTINGS_SPANISH) if (text.includes(w)) found.push(`${where}: "${w}"`);
+  };
+
+  await page.goto('ajustes');
+  await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible();
+  await scan('settings');
+
+  await page.getByRole('button', { name: /^Theme/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Theme' })).toBeVisible();
+  await scan('theme sheet');
+  await page.getByRole('dialog', { name: 'Theme' }).getByRole('button', { name: 'Done' }).click();
+
+  await page.getByRole('button', { name: /^Language/ }).click();
+  await scan('language sheet');
+  await page.keyboard.press('Escape');
+
+  for (const path of ['ajustes/cuenta', 'ajustes/moneda', 'ajustes/pagos', 'ajustes/recordatorios', 'ajustes/datos', 'ajustes/atajos']) {
+    await page.goto(path);
+    await expect(page.getByRole('link', { name: 'Settings' }).first()).toBeVisible();
+    await scan(path);
+  }
+
+  await page.goto('ajustes/cuenta/contrasena');
+  await page.getByLabel('New password').fill('abc');
+  await page.getByLabel('Repeat the new one').fill('abd');
+  await expect(page.getByText('They do not match')).toBeVisible();
+  await expect(page.getByText('Too short')).toBeVisible();
+  await scan('change password');
+
+  await page.goto('ajustes/categorias');
+  await page.getByRole('button', { name: '+ New category' }).click();
+  await expect(page.getByRole('dialog', { name: 'New category' })).toBeVisible();
+  await scan('new category sheet');
+  await page.keyboard.press('Escape');
+
+  await page.goto('ajustes/metodos');
+  await page.getByRole('button', { name: /New payment method/ }).click();
+  const method = page.getByRole('dialog', { name: 'New payment method' });
+  await method.getByRole('button', { name: 'Credit', exact: true }).click();
+  await expect(method.getByText(/^Purchases from day 1 to day 15 are due on/)).toBeVisible();
+  await scan('new method sheet');
+  await page.keyboard.press('Escape');
 
   expect(found, `Spanish left:\n${found.join('\n')}`).toEqual([]);
 });

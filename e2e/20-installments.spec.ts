@@ -17,8 +17,8 @@ async function crearTarjeta(page: Page, name: string, cutoff: string, payment: s
   const d = page.getByRole('dialog', { name: 'Nuevo método de pago' });
   await d.getByLabel('Nombre').fill(name);
   await d.getByRole('button', { name: 'Crédito' }).click();
-  await d.getByLabel('Día de corte').fill(cutoff);
-  await d.getByLabel('Día de pago').fill(payment);
+  await d.getByRole('spinbutton', { name: 'Día de corte' }).fill(cutoff);
+  await d.getByRole('spinbutton', { name: 'Día de pago' }).fill(payment);
   if (cupo) await d.getByLabel('Cupo (opcional)').fill(cupo);
   await d.getByRole('button', { name: 'Guardar' }).click();
   await expect(d).toBeHidden();
@@ -59,9 +59,9 @@ test('an instalment plan holds the full credit, not one instalment', async ({ pa
   await crearTarjeta(page, 'Visa Cupo', '15', '2', '5000000');
   await buyInInstallments(page, 'Nevera', '1200000', 'Visa Cupo', '12');
 
-  // 5,000,000 - 1,200,000 (the total, not the 100,000 of the first instalment).
+  // 1,200,000 used (the total, not the 100,000 of the first instalment).
   await page.goto('ajustes/metodos');
-  await expect(page.getByText('$ 3.800.000')).toBeVisible();
+  await expect(page.getByText('Usado $ 1.200.000')).toBeVisible();
 });
 
 test('deleting one instalment deletes the whole plan', async ({ page }) => {

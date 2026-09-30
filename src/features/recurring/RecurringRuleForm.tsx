@@ -13,6 +13,10 @@ import { MonthChipGrid } from '@/components/ui/MonthChipGrid';
 import { nextOccurrences } from '@/domain/recurring/expansion';
 import { previewRuleSave } from '@/data/local/recurringEdit';
 import { dateLabel, fill } from '@/lib/dateLabels';
+import { CurrencyChips } from '@/components/ui/CurrencyChips';
+import { convert, quickCurrencyList } from '@/lib/currencies';
+import { useFxRate } from '@/lib/fxRates';
+import { FxLine } from '@/features/transactions/TransactionForm';
 
 /** Advanced repetition, behind "More options". 'none' = the simple frequency row. */
 type Repeat = 'none' | 'interval' | 'months';
@@ -25,11 +29,14 @@ const FREQUENCIES: Array<{ value: Frequency; label: TextKey }> = [
 ];
 
 export function RecurringRuleForm({
-  existing, categories, paymentMethods, onSave, onCancel, onDelete,
+  existing, categories, paymentMethods, mainCurrency = 'COP', quickCurrencies, onSave, onCancel, onDelete,
 }: {
   existing: RecurringRule | null;
   categories: Category[];
   paymentMethods: PaymentMethod[];
+  /** Settings.currency: the rule's `amount` is always stored in it. */
+  mainCurrency?: string;
+  quickCurrencies?: string[];
   onSave: (rule: RecurringRule) => void;
   onCancel: () => void;
   onDelete?: () => void;
@@ -37,7 +44,14 @@ export function RecurringRuleForm({
   const t = useT();
   const [type, setType] = useState<TransactionType>(existing?.type ?? 'expense');
   const [name, setName] = useState(existing?.name ?? '');
-  const [amountText, setAmountText] = useState(existing ? String(Math.round(existing.amount)) : '');
+  // A rule entered in another currency (redesign §9b) edits its original
+  // amount; `amount` stays the converted integer, so nothing downstream moves.
+  const foreign = !!existing?.currency && existing.currency !== mainCurrency
+    && existing.originalAmount != null && !!existing.fxRate;
+  const [currency, setCurrency] = useState(foreign ? existing!.currency! : mainCurrency);
+  const [amountText, setAmountText] = useState(
+    existing ? String(Math.round(foreign ? existing.originalAmount! : existing.amount)) : '',
+  );
   const [categoryId, setCategoryId] = useState<string | null>(existing?.categoryId ?? null);
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(existing?.paymentMethodId ?? paymentMethods[0]?.id ?? null);
   // 'custom' is not a button in the simple row: it lives in `repeat` below.
@@ -55,7 +69,13 @@ export function RecurringRuleForm({
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
   const [touched, setTouched] = useState(false);
 
-  const amount = parseMoney(amountText);
+  const originalAmount = parseMoney(amountText);
+  const isForeign = currency !== mainCurrency;
+  // The rate is fetched, never typed (lib/fxRates); an edited rule keeps
+  // the rate it was saved with while its currency doesn't change.
+  const fx = useFxRate(currency, mainCurrency, existing?.currency === currency ? existing.fxRate : undefined);
+  const fxRate = fx.status === 'same' ? 1 : fx.status === 'ready' ? fx.rate : null;
+  const amount = originalAmount !== null && fxRate !== null ? convert(originalAmount, fxRate) : null;
   const canSave = name.trim().length > 0 && amount !== null && amount > 0 && !!startDate
     && (repeat !== 'months' || monthSet.size > 0);
   const needsDayOfMonth = repeat === 'none' ? frequency === 'monthly' : repeat === 'months' || unit === 'months';
@@ -68,6 +88,9 @@ export function RecurringRuleForm({
       name: name.trim(),
       type,
       amount: amount ?? 0,
+      ...(isForeign && originalAmount !== null && fxRate !== null
+        ? { currency, originalAmount, fxRate }
+        : {}),
       categoryId,
       paymentMethodId,
       frequency: custom ? 'custom' : frequency,
@@ -164,6 +187,8 @@ export function RecurringRuleForm({
           <input id="rr-valor" value={amountText} onChange={(e) => setAmountText(e.target.value.replace(/-/g, ''))} placeholder="$ 0" inputMode="numeric" className="figures" style={inputStyle} />
         </Field>
         {touched && (amount === null || amount <= 0) && <p style={errorText}>{t('transactions.enterValidAmount')}</p>}
+        <CurrencyChips value={currency} quick={quickCurrencyList(mainCurrency, quickCurrencies)} onChange={setCurrency} />
+        {isForeign && <FxLine fx={fx} amount={amount} main={mainCurrency} />}
 
         <FieldGroup label={t('form.category')} id="rr-categoria" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 14 }}>
           {categories.filter((c) => c.kind === 'both' || c.kind === type).map((c) => (

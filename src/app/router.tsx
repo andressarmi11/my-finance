@@ -6,6 +6,13 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { DashboardScreen } from '@/features/dashboard/DashboardScreen';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 import { SettingsScreen } from '@/features/settings/SettingsScreen';
+import { ProfileScreen } from '@/features/settings/ProfileScreen';
+import { ChangePasswordScreen } from '@/features/settings/ChangePasswordScreen';
+import { CurrencyScreen } from '@/features/settings/CurrencyScreen';
+import { PayDaysScreen } from '@/features/settings/PayDaysScreen';
+import { RemindersScreen } from '@/features/settings/RemindersScreen';
+import { ShortcutsScreen } from '@/features/settings/ShortcutsScreen';
+import { DataScreen } from '@/features/settings/DataScreen';
 import { CategoriesScreen } from '@/features/categories/CategoriesScreen';
 import { PaymentMethodsScreen } from '@/features/payment-methods/PaymentMethodsScreen';
 import { RecurringRulesScreen } from '@/features/recurring/RecurringRulesScreen';
@@ -36,6 +43,15 @@ export const router = createBrowserRouter(
         { path: 'calendario', element: <Navigate to="/movimientos?vista=calendario" replace /> },
         { path: 'analisis', element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary> },
         { path: 'ajustes', element: <SettingsScreen /> },
+        // Settings sub-screens (redesign §7): each a thin wrapper around the
+        // section that used to be expanded on the long Settings page.
+        { path: 'ajustes/cuenta', element: <ProfileScreen /> },
+        { path: 'ajustes/cuenta/contrasena', element: <ChangePasswordScreen /> },
+        { path: 'ajustes/moneda', element: <CurrencyScreen /> },
+        { path: 'ajustes/pagos', element: <PayDaysScreen /> },
+        { path: 'ajustes/recordatorios', element: <RemindersScreen /> },
+        { path: 'ajustes/atajos', element: <ShortcutsScreen /> },
+        { path: 'ajustes/datos', element: <DataScreen /> },
         { path: 'ajustes/categorias', element: <CategoriesScreen /> },
         { path: 'ajustes/metodos', element: <PaymentMethodsScreen /> },
         { path: 'ajustes/recurrentes', element: <RecurringRulesScreen /> },

@@ -104,12 +104,14 @@ base('you can switch to monthly later, from Settings', async ({ page }) => {
   await page.getByRole('button', { name: 'Empezar' }).click();
   await expect(page.getByRole('heading', { name: 'Hola, Andrés' })).toBeVisible();
 
+  // Settings is a grouped list now (redesign §7): "Cómo te pagan" is its own screen.
   await page.goto('ajustes');
-  await expect(page.getByRole('heading', { name: 'Cómo te pagan' })).toBeVisible();
+  await page.getByRole('link', { name: /^Cómo te pagan/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Cómo te pagan' })).toBeVisible();
   await page.getByRole('button', { name: 'Una vez al mes' }).click();
 
   await expect(page.getByText('Tu mes empieza el día')).toBeVisible();
-  await expect(page.getByText('Segunda empieza el día')).toBeHidden();
+  await expect(page.getByText('Segundo pago, día')).toBeHidden();
 
   await page.goto('');
   await expect(page.getByText(/Quincena del/)).toBeHidden();

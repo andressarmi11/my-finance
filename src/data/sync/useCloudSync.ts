@@ -3,6 +3,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import { useSession } from '@/features/auth/useSession';
 import { syncBidirectional } from './syncService';
 import { ensureOwner } from './owner';
+import { markSynced } from './lastSynced';
 import { translate } from '@/i18n/language';
 
 export type SyncStatus = 'inactivo' | 'sincronizando' | 'ok' | 'error';
@@ -104,6 +105,7 @@ export function useCloudSync() {
       dirty = false;
       await syncBidirectional();
       lastRef.current = Date.now();
+      markSynced(lastRef.current);
       setStatus('ok');
     } catch (e) {
       dirty = true;

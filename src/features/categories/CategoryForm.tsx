@@ -1,20 +1,33 @@
 import { useT } from '@/i18n/language';
 import { useState } from 'react';
-import { useDialogo } from '@/components/ui/useDialogo';
 import type { Category } from '@/domain/types';
-import { Field, FieldGroup } from '@/components/ui/Field';
-import { CategoryIcon, SELECTABLE_ICONS } from '@/components/ui/CategoryIcon';
+import { CategoryIcon, SELECTABLE_ICONS, type IconName } from '@/components/ui/CategoryIcon';
+import { Segmented } from '@/components/ui/Segmented';
 import { DEFAULT_CATEGORIES } from '@/domain/seed/defaultCategories';
 import { categoryColor } from '@/domain/seed/categoryColor';
+import { fill } from '@/lib/dateLabels';
+import { BottomSheet, SheetTopBar } from '@/features/settings/ui';
 
 // The names live in components/ui/CategoryIcon.tsx: a single registry.
-// The palette is the seeded categories' one (the twelve --cat-* tokens). The
-// hex is what gets STORED (portable, see categoryColor.ts); the swatch is
-// PAINTED with the matching token so it follows the theme.
-const PALETTE = DEFAULT_CATEGORIES.map((c) => ({ stored: c.color, painted: categoryColor(c) }));
+// The palette is the seeded categories' one, only the twelve with a --cat-*
+// token ("Otros" is grey on purpose, not a colour to pick). The hex is what
+// gets STORED (portable, see categoryColor.ts); the swatch is PAINTED with
+// the matching token so it follows the theme.
+const PALETTE = DEFAULT_CATEGORIES
+  .map((c) => ({ stored: c.color, painted: categoryColor(c) }))
+  .filter((p) => p.painted.startsWith('var('));
 const COLORS = PALETTE.map((p) => p.stored);
 const paint = (stored: string) => PALETTE.find((p) => p.stored.toUpperCase() === stored.toUpperCase())?.painted ?? stored;
 
+/** The ten shown first (redesign §9f); "Más íconos" opens the rest. */
+const FEATURED: IconName[] = ['food', 'home', 'transport', 'health', 'entertainment', 'shopping', 'education', 'pets', 'salary', 'other'];
+
+/**
+ * Nueva / editar categoría (redesign §9f): a big preview of the avatar with
+ * the name under it, Gasto | Ingreso, the 12 colours in a grid of 6 and
+ * 10 icons in a grid of 5. Same fields and the same Category it always
+ * saved.
+ */
 export function CategoryForm({
   existing, nextSortOrder, onSave, onCancel, onDelete }: {
   existing: Category | null;
@@ -25,12 +38,15 @@ export function CategoryForm({
 }) {
   const t = useT();
   const [name, setName] = useState(existing?.name ?? '');
-  const [icon, setIcon] = useState<string>(existing?.icon ?? SELECTABLE_ICONS[0]!);
+  const [icon, setIcon] = useState<string>(existing?.icon ?? FEATURED[0]!);
   const [color, setColor] = useState(existing?.color ?? COLORS[0]!);
   const [kind, setKind] = useState<Category['kind']>(existing?.kind ?? 'expense');
+  const [allIcons, setAllIcons] = useState(() => !!existing && !FEATURED.includes(existing.icon as IconName));
   const [touched, setTouched] = useState(false);
 
   const canSave = name.trim().length > 0;
+  const painted = paint(color);
+  const icons = allIcons ? SELECTABLE_ICONS : FEATURED;
 
   function handleSubmit() {
     setTouched(true);
@@ -49,71 +65,91 @@ export function CategoryForm({
     });
   }
 
-  const dialogRef = useDialogo(onCancel);
+  const title = existing ? t('categories.editOne') : t('categories.newOneTitle');
+  // "Ambos" only when the category already is: new ones pick one side.
+  const kinds: Array<{ value: Category['kind']; label: string }> = [
+    { value: 'expense', label: t('set.kindExpense') },
+    { value: 'income', label: t('set.kindIncome') },
+    ...(existing?.kind === 'both' ? [{ value: 'both' as const, label: t('set.kindBoth') }] : []),
+  ];
+
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-label={existing ? t('categories.editOne') : t('categories.newOneTitle')}
-      style={{ position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)', display: 'flex', alignItems: 'flex-end', zIndex: 50 }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)', borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)', maxHeight: '90vh', overflowY: 'auto' }}
-      >
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+    <BottomSheet label={title} onClose={onCancel} zIndex={50}>
+      <SheetTopBar title={title} onCancel={onCancel} onSave={handleSubmit} canSave={canSave} />
 
-        <Field label={t('form.name')} htmlFor="cat-nombre">
-          <input id="cat-nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Mascotas" style={inputStyle} />
-        </Field>
-        {touched && !name.trim() && <p style={{ margin: '-10px 0 10px', fontSize: 12, color: 'var(--danger-text)' }}>{t('categories.giveItAName')}</p>}
-
-        <FieldGroup label={t('categories.icon')} id="cat-icono" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          {SELECTABLE_ICONS.map((i) => (
-            <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={icon === i} aria-label={i}
-              style={{
-                width: 42, height: 42, borderRadius: 12, display: 'grid', placeItems: 'center',
-                border: `1.5px solid ${icon === i ? paint(color) : 'var(--line)'}`,
-                background: icon === i ? `color-mix(in srgb, ${paint(color)} 16%, var(--surface))` : 'var(--surface)',
-                color: icon === i ? paint(color) : 'var(--text-muted)', cursor: 'pointer',
-              }}>
-              <CategoryIcon icon={i} size={20} />
-            </button>
-          ))}
-        </FieldGroup>
-
-        <FieldGroup label="Color" id="cat-color" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-          {COLORS.map((c) => (
-            <button key={c} type="button" onClick={() => setColor(c)} aria-pressed={color === c} aria-label={`Color ${c}`}
-              style={{ width: 30, height: 30, borderRadius: 15, background: paint(c), border: color === c ? '3px solid var(--text)' : '1px solid var(--line)', cursor: 'pointer' }} />
-          ))}
-        </FieldGroup>
-
-        <FieldGroup label="Aplica a" id="cat-aplica" style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
-          {(['expense', 'income', 'both'] as const).map((k) => (
-            <button key={k} type="button" onClick={() => setKind(k)} aria-pressed={kind === k} style={segmentStyle(kind === k)}>
-              {k === 'expense' ? 'Gastos' : k === 'income' ? 'Ingresos' : 'Ambos'}
-            </button>
-          ))}
-        </FieldGroup>
-
-        <button type="button" onClick={handleSubmit} disabled={!canSave} style={saveButtonStyle(canSave)}>{t('action.save')}</button>
-
-        {existing && onDelete && (
-          <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 10, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
-            {t('categories.archive')}
-          </button>
-        )}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '18px 0 6px' }}>
+        <span aria-hidden style={{
+          width: 64, height: 64, borderRadius: 20, display: 'grid', placeItems: 'center',
+          background: `color-mix(in srgb, ${painted} 16%, var(--surface))`, color: painted,
+        }}>
+          <CategoryIcon icon={icon} size={30} />
+        </span>
+        <input
+          id="cat-nombre"
+          autoFocus
+          aria-label={t('form.name')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('set.categoryNamePlaceholder')}
+          maxLength={40}
+          style={{
+            width: '100%', textAlign: 'center', border: 'none', background: 'none', outline: 'none',
+            color: 'var(--text)', fontSize: 20, fontWeight: 700, minHeight: 'var(--tap)',
+          }}
+        />
+        {touched && !name.trim() && <p style={{ margin: 0, fontSize: 12, color: 'var(--danger-text)' }}>{t('categories.giveItAName')}</p>}
       </div>
-    </div>
+
+      <Segmented label={t('set.appliesTo')} value={kind} onChange={setKind} options={kinds} size="s" />
+
+      <h3 style={sectionTitle}>{t('set.color')}</h3>
+      <div role="group" aria-label={t('set.color')} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10, justifyItems: 'center' }}>
+        {COLORS.map((c, i) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColor(c)}
+            aria-pressed={color.toUpperCase() === c.toUpperCase()}
+            aria-label={fill(t('set.colorN'), { n: i + 1 })}
+            style={{
+              width: 38, height: 38, borderRadius: 19, padding: 0, cursor: 'pointer', background: paint(c),
+              border: `3px solid ${color.toUpperCase() === c.toUpperCase() ? 'var(--text)' : 'transparent'}`,
+              boxShadow: 'inset 0 0 0 2px var(--surface)',
+            }}
+          />
+        ))}
+      </div>
+
+      <h3 style={sectionTitle}>{t('categories.icon')}</h3>
+      <div role="group" aria-label={t('categories.icon')} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+        {icons.map((i) => {
+          const active = icon === i;
+          return (
+            <button key={i} type="button" onClick={() => setIcon(i)} aria-pressed={active} aria-label={i}
+              style={{
+                height: 50, borderRadius: 14, display: 'grid', placeItems: 'center', cursor: 'pointer',
+                border: `1.5px solid ${active ? painted : 'var(--line)'}`,
+                background: active ? `color-mix(in srgb, ${painted} 16%, var(--surface))` : 'transparent',
+                color: active ? painted : 'var(--text-muted)',
+              }}>
+              <CategoryIcon icon={i} size={22} />
+            </button>
+          );
+        })}
+      </div>
+      {!allIcons && (
+        <button type="button" onClick={() => setAllIcons(true)} style={{ marginTop: 8, width: '100%', minHeight: 40, border: 'none', background: 'none', color: 'var(--q10-text)', fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer' }}>
+          {t('set.moreIcons')}
+        </button>
+      )}
+
+      {existing && onDelete && (
+        <button type="button" onClick={onDelete} style={{ width: '100%', minHeight: 44, marginTop: 16, borderRadius: 14, border: 'none', background: 'var(--surface-sunken)', color: 'var(--danger-text)', fontWeight: 600, cursor: 'pointer' }}>
+          {t('categories.archive')}
+        </button>
+      )}
+    </BottomSheet>
   );
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', minHeight: 'var(--tap)', padding: '0 12px', marginBottom: 14, borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontSize: 16 };
-function segmentStyle(active: boolean): React.CSSProperties {
-  return { flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)', background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text)', fontWeight: 600, cursor: 'pointer' };
-}
-function saveButtonStyle(enabled: boolean): React.CSSProperties {
-  return { width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none', background: enabled ? 'var(--text)' : 'var(--surface-sunken)', color: enabled ? 'var(--surface)' : 'var(--text-faint)', fontWeight: 700, fontSize: 16, cursor: enabled ? 'pointer' : 'not-allowed' };
-}
+const sectionTitle: React.CSSProperties = { fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-faint)', margin: '18px 2px 10px' };

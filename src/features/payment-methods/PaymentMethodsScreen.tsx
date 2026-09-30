@@ -1,7 +1,6 @@
 import { useT } from '@/i18n/language';
 import { IconBuildingBank, IconCash, IconCreditCard } from '@tabler/icons-react';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { localRepository } from '@/data/local/localRepository';
@@ -9,8 +8,10 @@ import { db } from '@/data/db';
 import { formatMoney } from '@/domain/money/format';
 import { calculateAvailableCredit } from '@/domain/credit-card/availableCredit';
 import type { PaymentMethod } from '@/domain/types';
+import { DashedButton, SettingsGroup, rowStyle, useSettingsBack } from '@/features/settings/ui';
 import { PaymentMethodForm } from './PaymentMethodForm';
 import { todayISO } from '@/lib/todayISO';
+import { fill } from '@/lib/dateLabels';
 import { EMPTY } from '@/lib/empty';
 import type { TextKey } from '@/i18n/texts';
 
@@ -18,14 +19,29 @@ const TYPE_LABEL: Record<PaymentMethod['type'], TextKey> = {
   debit: 'methods.debit', credit: 'methods.credit', cash: 'methods.cash', transfer: 'methods.transfer',
 };
 
+/** Icon and tint per type: bank, card, banknotes. */
+const TYPE_LOOK: Record<PaymentMethod['type'], { icon: typeof IconCreditCard; color: string }> = {
+  debit: { icon: IconBuildingBank, color: 'var(--q10)' },
+  transfer: { icon: IconBuildingBank, color: 'var(--q10)' },
+  credit: { icon: IconCreditCard, color: 'var(--q25)' },
+  cash: { icon: IconCash, color: 'var(--positive)' },
+};
+
+/**
+ * Métodos de pago (redesign §9f): one row per method with its type icon,
+ * "Por defecto" on the default one, "Crédito · corte 15, paga 2" and, for a
+ * card with a limit, the bar of how much of it is used (creditLimit, 0007).
+ */
 export function PaymentMethodsScreen() {
   const t = useT();
-  const navigate = useNavigate();
+  const back = useSettingsBack();
   const methods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
+  const settings = useLiveQuery(() => localRepository.getSettings(), []);
   const [editing, setEditing] = useState<PaymentMethod | null>(null);
   const [creating, setCreating] = useState(false);
   const today = todayISO();
+  const defaultId = settings?.defaultPaymentMethodId ?? methods.find((m) => m.isDefault)?.id ?? null;
 
   const usageByMethod = useMemo(() => {
     const account = new Map<string, number>();
@@ -36,8 +52,13 @@ export function PaymentMethodsScreen() {
     return account;
   }, [transactions]);
 
-  async function handleSave(method: PaymentMethod) {
+  async function handleSave(method: PaymentMethod, useAsDefault: boolean) {
     await localRepository.savePaymentMethod(method);
+    if (settings) {
+      const wasDefault = defaultId === method.id;
+      if (useAsDefault && !wasDefault) await localRepository.saveSettings({ ...settings, defaultPaymentMethodId: method.id });
+      if (!useAsDefault && wasDefault) await localRepository.saveSettings({ ...settings, defaultPaymentMethodId: null });
+    }
     setEditing(null);
     setCreating(false);
   }
@@ -45,77 +66,70 @@ export function PaymentMethodsScreen() {
   async function handleDelete() {
     if (!editing) return;
     await localRepository.deletePaymentMethod(editing.id);
+    if (settings && settings.defaultPaymentMethodId === editing.id) {
+      await localRepository.saveSettings({ ...settings, defaultPaymentMethodId: null });
+    }
     setEditing(null);
   }
 
   return (
-    <Screen title={t('methods.title')}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-      >
-        ← {t('nav.backToSettings')}
-      </button>
-
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
-        {methods.map((m) => {
-          const disp = m.type === 'credit'
-            ? calculateAvailableCredit(m, transactions, today)
-            : null;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setEditing(m)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--line)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-            >
-              <span
-                aria-hidden
-                style={{
-                  flex: 'none', width: 36, height: 36, borderRadius: 12, display: 'grid',
-                  placeItems: 'center', background: 'var(--surface-sunken)', color: 'var(--text-muted)',
-                }}
-              >
-                {m.type === 'credit' ? <IconCreditCard size={19} stroke={1.75} />
-                  : m.type === 'cash' ? <IconCash size={19} stroke={1.75} />
-                  : <IconBuildingBank size={19} stroke={1.75} />}
-              </span>
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
-                <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
-                  {t(TYPE_LABEL[m.type])}
-                  {m.type === 'credit' && m.cutoffDay && m.paymentDay
-                    ? ` · ${t('methods.cycleShort')
-                        .replace('{cutoff}', String(m.cutoffDay))
-                        .replace('{payment}', String(m.paymentDay))}`
-                    : ''}
+    <Screen title={t('methods.title')} subtitle={t('set.methodsIntro')} back={back}>
+      {methods.length > 0 && (
+        <SettingsGroup style={{ marginTop: 0 }}>
+          {methods.map((m) => {
+            const credit = m.type === 'credit' ? calculateAvailableCredit(m, transactions, today) : null;
+            const look = TYPE_LOOK[m.type];
+            const Icon = look.icon;
+            const usedPct = credit && credit.cupo > 0 ? Math.min(100, Math.max(0, (credit.used / credit.cupo) * 100)) : 0;
+            return (
+              <button key={m.id} type="button" onClick={() => setEditing(m)} style={{ ...rowStyle, alignItems: 'flex-start', padding: '12px 14px' }}>
+                <span aria-hidden style={{
+                  width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'grid', placeItems: 'center',
+                  background: `color-mix(in srgb, ${look.color} 14%, var(--surface))`, color: look.color,
+                }}>
+                  <Icon size={20} stroke={1.8} />
                 </span>
-              </span>
-              {disp && (
-                <span style={{ textAlign: 'right', flex: 'none' }}>
-                  <span className="figures" style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: disp.available >= 0 ? 'var(--text)' : 'var(--danger-text)' }}>
-                    {formatMoney(disp.available)}
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name}</span>
+                    {m.id === defaultId && (
+                      <span style={{ flex: 'none', fontSize: 11, fontWeight: 700, color: 'var(--q10-text)', background: 'var(--q10-soft)', padding: '2px 7px', borderRadius: 8 }}>
+                        {t('set.defaultTag')}
+                      </span>
+                    )}
                   </span>
-                  <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>{t('cards.available')}</span>
+                  <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 1 }}>
+                    {t(TYPE_LABEL[m.type])}
+                    {m.type === 'credit' && m.cutoffDay && m.paymentDay
+                      ? ` · ${t('methods.cycleShort')
+                          .replace('{cutoff}', String(m.cutoffDay))
+                          .replace('{payment}', String(m.paymentDay))}`
+                      : ''}
+                  </span>
+                  {credit && (
+                    <>
+                      <span aria-hidden style={{ display: 'block', height: 6, borderRadius: 3, background: 'var(--line)', marginTop: 10, overflow: 'hidden' }}>
+                        <span style={{ display: 'block', height: '100%', width: `${usedPct}%`, background: credit.available < 0 ? 'var(--danger)' : 'var(--q25)', borderRadius: 3 }} />
+                      </span>
+                      <span className="figures" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 5 }}>
+                        <span>{fill(t('set.usedAmount'), { amount: formatMoney(credit.used) })}</span>
+                        <span>{fill(t('set.limitAmount'), { amount: formatMoney(credit.cupo) })}</span>
+                      </span>
+                    </>
+                  )}
                 </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </SettingsGroup>
+      )}
 
-      <button
-        type="button"
-        onClick={() => setCreating(true)}
-        style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-      >
-        {t('cards.newMethod')}
-      </button>
+      <DashedButton onClick={() => setCreating(true)}>{t('cards.newMethod')}</DashedButton>
 
       {(editing || creating) && (
         <PaymentMethodForm
           existing={editing}
+          isDefault={!!editing && editing.id === defaultId}
           relatedTransactions={editing ? usageByMethod.get(editing.id) ?? 0 : 0}
           onSave={handleSave}
           onDelete={editing ? handleDelete : undefined}

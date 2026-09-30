@@ -17,8 +17,9 @@ async function crearTarjeta(page: Page, name: string, cutoff: string, payment: s
   const dialog = page.getByRole('dialog', { name: 'Nuevo método de pago' });
   await dialog.getByLabel('Nombre').fill(name);
   await dialog.getByRole('button', { name: 'Crédito' }).click();
-  await dialog.getByLabel('Día de corte').fill(cutoff);
-  await dialog.getByLabel('Día de pago').fill(payment);
+  // Steppers now (redesign §9f): the middle is still a number field.
+  await dialog.getByRole('spinbutton', { name: 'Día de corte' }).fill(cutoff);
+  await dialog.getByRole('spinbutton', { name: 'Día de pago' }).fill(payment);
   if (cupo) await dialog.getByLabel('Cupo (opcional)').fill(cupo);
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();
@@ -52,7 +53,9 @@ test('the credit limit shows the available amount and deducts from it', async ({
   await crearTarjeta(page, 'Visa Cupo', '15', '2', '2000000');
 
   await page.goto('ajustes/metodos');
-  await expect(page.getByText('$ 2.000.000')).toBeVisible();
+  // The card's row shows a usage bar: used on the left, the limit on the right.
+  await expect(page.getByText('Cupo $ 2.000.000')).toBeVisible();
+  await expect(page.getByText('Usado $ 0')).toBeVisible();
 
   await page.goto('movimientos?nuevo=1');
   const dialog = page.getByRole('dialog', { name: 'Agregar movimiento' });
@@ -65,7 +68,7 @@ test('the credit limit shows the available amount and deducts from it', async ({
   await expect(dialog).toBeHidden();
 
   await page.goto('ajustes/metodos');
-  await expect(page.getByText('$ 1.700.000')).toBeVisible();
+  await expect(page.getByText('Usado $ 300.000')).toBeVisible();
 });
 
 test('deleting a card leaves its transactions without a method, it does not delete them', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -13,6 +13,11 @@ import { formatMoney } from '@/domain/money/format';
 import type { RecurringRule } from '@/domain/types';
 import { RecurringRuleForm } from './RecurringRuleForm';
 import { EMPTY } from '@/lib/empty';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { categoryColor } from '@/domain/seed/categoryColor';
+import { formatMoneyIn } from '@/lib/currencies';
+import { DashedButton, SettingsGroup, rowStyle, useSettingsBack } from '@/features/settings/ui';
+import { monthlyTotals } from './monthlyTotals';
 import { useT } from '@/i18n/language';
 import type { TextKey } from '@/i18n/texts';
 
@@ -22,7 +27,7 @@ const FREQ_LABEL: Record<RecurringRule['frequency'], TextKey> = {
 };
 
 export function RecurringRulesScreen() {
-  const navigate = useNavigate();
+  const back = useSettingsBack();
   const t = useT();
   const [params, setParams] = useSearchParams();
   const rules = useLiveQuery(() => localRepository.listRecurringRules(), []) ?? EMPTY;
@@ -85,54 +90,92 @@ export function RecurringRulesScreen() {
     setEditing(null);
   }
 
-  return (
-    <Screen title={t('recurring.title')} subtitle={t('recurring.subtitle')}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-      >
-        {t('nav.backToSettingsArrow')}
-      </button>
+  const settings = useLiveQuery(() => localRepository.getSettings(), []);
+  const totals = monthlyTotals(rules);
+  const byCategory = new Map(categories.map((c) => [c.id, c]));
+  // By day of the month: the order they hit the account.
+  const byDay = (a: RecurringRule, b: RecurringRule) =>
+    (a.dayOfMonth ?? 99) - (b.dayOfMonth ?? 99) || a.name.localeCompare(b.name);
+  const income = rules.filter((r) => r.type === 'income').sort(byDay);
+  const expenses = rules.filter((r) => r.type !== 'income').sort(byDay);
 
+  function ruleRow(r: RecurringRule) {
+    const category = r.categoryId ? byCategory.get(r.categoryId) : undefined;
+    const color = category ? categoryColor(category) : 'var(--text-muted)';
+    return (
+      <button
+        key={r.id}
+        type="button"
+        onClick={() => setEditing(r)}
+        style={{ ...rowStyle, padding: '12px 14px', opacity: r.isActive ? 1 : 0.5 }}
+      >
+        <span aria-hidden style={{
+          width: 38, height: 38, borderRadius: 12, flex: 'none', display: 'grid', placeItems: 'center',
+          background: `color-mix(in srgb, ${color} 16%, var(--surface))`, color,
+        }}>
+          <CategoryIcon icon={category?.icon} size={19} />
+        </span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', fontSize: 'var(--text-md)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+          <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+            {describe(r)}
+          </span>
+        </span>
+        <span className="figures" style={{ textAlign: 'right', flex: 'none' }}>
+          <span style={{ display: 'block', fontWeight: 600, color: r.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
+            {r.type === 'income' ? '+' : ''}{formatMoney(r.amount)}
+          </span>
+          {r.currency && r.originalAmount != null && r.currency !== settings?.currency && (
+            <span style={{ display: 'block', fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>
+              {formatMoneyIn(r.originalAmount, r.currency)} {r.currency}
+            </span>
+          )}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <Screen title={t('recurring.title')} subtitle={t('recurring.subtitle')} back={back}>
       {rules.length === 0 ? (
         <EmptyState title={t('recurring.emptyTitle')} body={t('recurring.emptyBody')} />
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
-          {rules.map((r) => (
-            <button
-              key={r.id}
-              type="button"
-              onClick={() => setEditing(r)}
-              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid var(--line)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', opacity: r.isActive ? 1 : 0.5 }}
-            >
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontWeight: 600 }}>{r.name}</span>
-                <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {describe(r)}
-                </span>
-              </span>
-              <span className="figures" style={{ fontWeight: 600, color: r.type === 'income' ? 'var(--positive-text)' : 'var(--text)' }}>
-                {r.type === 'income' ? '+' : ''}{formatMoney(r.amount)}
-              </span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--line)',
+            borderRadius: 'var(--radius-card)', overflow: 'hidden', border: '1px solid var(--line)',
+          }}>
+            <div style={{ background: 'var(--surface)', padding: '12px 14px' }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{t('set.inPerMonth')}</div>
+              <div className="figures" style={{ fontSize: 17, fontWeight: 700, color: 'var(--positive-text)' }}>{formatMoney(totals.income)}</div>
+            </div>
+            <div style={{ background: 'var(--surface)', padding: '12px 14px' }}>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{t('set.outPerMonth')}</div>
+              <div className="figures" style={{ fontSize: 17, fontWeight: 700 }}>{formatMoney(totals.expense)}</div>
+            </div>
+          </div>
+          {income.length > 0 && (
+            <SettingsGroup title={t('set.incomeGroup')}>
+              {income.map(ruleRow)}
+            </SettingsGroup>
+          )}
+          {expenses.length > 0 && (
+            <SettingsGroup title={t('set.expensesGroup')}>
+              {expenses.map(ruleRow)}
+            </SettingsGroup>
+          )}
+        </>
       )}
 
-      <button
-        type="button"
-        onClick={() => setCreating(true)}
-        style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-      >
-        {t('recurring.newOne')}
-      </button>
+      <DashedButton onClick={() => setCreating(true)}>{t('recurring.newOne')}</DashedButton>
 
-      {(editing || creating) && (
+      {(editing || creating) && settings && (
         <RecurringRuleForm
           existing={editing}
           categories={categories}
           paymentMethods={paymentMethods}
+          mainCurrency={settings.currency}
+          quickCurrencies={settings.quickCurrencies}
           onSave={handleSave}
           onDelete={editing ? () => setConfirmDelete(true) : undefined}
           onCancel={() => { setEditing(null); setCreating(false); }}
