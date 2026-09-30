@@ -12,7 +12,10 @@ test.use({ viewport: { width: 1440, height: 900 } });
 async function withSampleData(page: Page) {
   await page.goto('');
   await page.getByRole('button', { name: 'Cargar datos de ejemplo' }).click();
-  await expect(page.getByRole('region', { name: 'Movimientos' })).toBeVisible();
+  // Wait for the rows, not the region (it's there empty too): the seed
+  // commits after the button hides, and a goto() before that aborts it.
+  const table = page.getByRole('region', { name: 'Movimientos' });
+  await expect(table.getByTestId('tx-table-row').filter({ hasText: 'Mercado' }).first()).toBeVisible();
 }
 
 test('a sidebar with the three tabs, the pay period and the account; no tab bar', async ({ page }) => {
