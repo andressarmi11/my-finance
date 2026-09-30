@@ -7,7 +7,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { formatMoney } from '@/domain/money/format';
-import { dateLabel } from '@/lib/dateLabels';
+import { dateLabel, fill } from '@/lib/dateLabels';
 import { todayISO } from '@/lib/todayISO';
 import { buildCalendarGrid } from './calendarGrid';
 import { EMPTY } from '@/lib/empty';
@@ -18,7 +18,13 @@ import { EMPTY } from '@/lib/empty';
  * owns the month navigator and passes the month in. `/calendario` redirects
  * to `/movimientos?vista=calendario`.
  */
-export function CalendarView({ year: viewYear, month: viewMonth }: { year: number; month: number }) {
+export function CalendarView({ year: viewYear, month: viewMonth, wide = false }: {
+  year: number;
+  month: number;
+  /** Desktop (§9g 2d): the whole month in 88px cells, each with up to two
+   *  transactions (category dot + concept) and "+N más". */
+  wide?: boolean;
+}) {
   const t = useT();
   const weekdays = t('calendar.weekdays').split(',');
   const today = todayISO();
@@ -55,6 +61,19 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
 
   const cells = useMemo(() => buildCalendarGrid(viewYear, viewMonth), [viewYear, viewMonth]);
 
+  // The desktop cells list the day's transactions themselves.
+  const byDate = useMemo(() => {
+    const map = new Map<string, typeof transactions>();
+    if (!wide) return map;
+    for (const tx of transactions) {
+      if (tx.status === 'cancelled') continue;
+      const list = map.get(tx.date) ?? [];
+      list.push(tx);
+      map.set(tx.date, list);
+    }
+    return map;
+  }, [transactions, wide]);
+
   const dayTransactions = transactions.filter((t) => t.date === selected);
   const dayPayments = transactions.filter((t) => t.cyclePaymentDate === selected && t.date !== selected);
   // The day's net: what came in minus what went out (cancelled ones aside).
@@ -63,8 +82,66 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
     0,
   );
 
+  const wideGrid = wide ? (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, marginBottom: 4 }}>
+        {weekdays.map((w, i) => (
+          <div key={i} style={{ fontSize: 12, color: 'var(--text-faint)', fontWeight: 600, padding: '0 6px' }}>{w}</div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6, marginBottom: 20 }}>
+        {cells.map((cell) => {
+          const isSelected = cell.date === selected;
+          const isToday = cell.date === today;
+          const dayNum = Number(cell.date.slice(8, 10));
+          const items = (byDate.get(cell.date) ?? []);
+          const shown = items.slice(0, 2);
+          return (
+            <button
+              key={cell.date}
+              type="button"
+              className="row-hover"
+              onClick={() => setSelected(cell.date)}
+              aria-pressed={isSelected}
+              aria-label={dateLabel(cell.date, t, 'long')}
+              style={{
+                minHeight: 88, minWidth: 0, borderRadius: 12, padding: '6px 7px', cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', gap: 3, textAlign: 'left',
+                border: `1.5px solid ${isSelected ? 'var(--q10)' : 'var(--line)'}`,
+                background: cell.inMonth ? 'var(--paper)' : 'transparent',
+                opacity: cell.inMonth ? 1 : 0.4, color: 'var(--text)',
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: isToday || isSelected ? 700 : 500, color: isToday ? 'var(--q10-text)' : 'var(--text)' }}>
+                {dayNum}
+              </span>
+              {shown.map((tx) => {
+                const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
+                return (
+                  <span key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, minWidth: 0, width: '100%' }}>
+                    <span aria-hidden style={{
+                      width: 5, height: 5, borderRadius: 3, flex: 'none',
+                      background: tx.type === 'income' ? 'var(--positive)' : cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
+                    }} />
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                      {tx.concept}
+                    </span>
+                  </span>
+                );
+              })}
+              {items.length > 2 && (
+                <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{fill(t('desk.nMore'), { n: items.length - 2 })}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
+  ) : null;
+
   return (
     <>
+      {wideGrid ?? (<>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 4 }}>
         {weekdays.map((w, i) => (
           <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-faint)', fontWeight: 600 }}>{w}</div>
@@ -109,6 +186,7 @@ export function CalendarView({ year: viewYear, month: viewMonth }: { year: numbe
           );
         })}
       </div>
+      </>)}
 
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '0 0 10px' }}>
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>

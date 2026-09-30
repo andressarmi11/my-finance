@@ -1,5 +1,5 @@
 import { Children, useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useT } from '@/i18n/language';
@@ -13,7 +13,7 @@ import { fill } from '@/lib/dateLabels';
  */
 
 /** "Preferencias", "Cuenta"…: 13px/600 in --text-faint, then the card. */
-export function SettingsGroup({ title, right, children, note, style }: {
+export function SettingsGroup({ title, right, children, note, style, cardClassName }: {
   title?: string;
   /** Small text at the right of the title ("2 de 3"). */
   right?: ReactNode;
@@ -21,6 +21,8 @@ export function SettingsGroup({ title, right, children, note, style }: {
   /** 12px explanation under the card. */
   note?: ReactNode;
   style?: React.CSSProperties;
+  /** A hook for layout CSS (e.g. two columns in the desktop panel). */
+  cardClassName?: string;
 }) {
   // Conditional rows come in as null/false: only real ones get a divider.
   const rows = Children.toArray(children);
@@ -32,7 +34,7 @@ export function SettingsGroup({ title, right, children, note, style }: {
           {right && <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-faint)' }}>{right}</span>}
         </div>
       )}
-      <div style={card}>
+      <div className={cardClassName} style={card}>
         {rows.map((row, i) => (
           <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line)' }}>{row}</div>
         ))}
@@ -68,6 +70,7 @@ export function SettingsRow({ icon, tint = 'var(--text-muted)', label, value, to
   danger?: boolean;
   chevron?: boolean;
 }) {
+  const { pathname } = useLocation();
   const inner = (
     <>
       {icon && (
@@ -88,8 +91,22 @@ export function SettingsRow({ icon, tint = 'var(--text-muted)', label, value, to
       {chevron && <IconChevronRight aria-hidden size={18} stroke={1.75} style={{ flex: 'none', color: 'var(--text-faint)' }} />}
     </>
   );
-  if (to) return <Link to={to} style={rowStyle}>{inner}</Link>;
-  return <button type="button" onClick={onClick} style={rowStyle}>{inner}</button>;
+  // On desktop the list stays beside the open sub-screen (§9g 2c): the row
+  // of the screen being shown is marked.
+  const active = !!to && (pathname === to || pathname.startsWith(`${to}/`));
+  if (to) {
+    return (
+      <Link
+        to={to}
+        className="row-hover"
+        aria-current={active ? 'page' : undefined}
+        style={{ ...rowStyle, background: active ? 'var(--surface-sunken)' : 'none' }}
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <button type="button" className="row-hover" onClick={onClick} style={rowStyle}>{inner}</button>;
 }
 
 export const rowStyle: React.CSSProperties = {

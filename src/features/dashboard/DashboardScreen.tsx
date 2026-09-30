@@ -4,7 +4,7 @@ import { fill } from '@/lib/dateLabels';
 import { Logo } from '@/components/ui/Logo';
 import { BigAmount } from '@/components/ui/BigAmount';
 import { IconCheck, IconChevronRight, IconCreditCardOff } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -30,6 +30,12 @@ import { ToPaySheet } from './ToPaySheet';
 import { haptic } from '@/lib/haptic';
 import type { Transaction } from '@/domain/types';
 import { EMPTY } from '@/lib/empty';
+import { IconPlus, IconSearch } from '@tabler/icons-react';
+import { useBreakpoint } from '@/app/useBreakpoint';
+import { SEARCH_INPUT_ID, consumeSearchFocus, onSearchFocusRequest } from '@/app/searchFocus';
+import { QuickActions } from '@/components/ui/TabBar';
+import { BudgetColumns } from '@/features/analytics/BudgetColumns';
+import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 
 
 export function DashboardScreen() {
@@ -58,6 +64,24 @@ export function DashboardScreen() {
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
   const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  // Desktop (§9g): two columns, with Movimientos embedded as a table on the
+  // right. The header's search box feeds it; ⌘K focuses the box.
+  const desktop = useBreakpoint() === 'desktop';
+  const [query, setQuery] = useState('');
+  const [quickOpen, setQuickOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const budgets = useLiveQuery(
+    () => (desktop ? localRepository.listBudgets(year, month) : Promise.resolve([])),
+    [desktop, year, month],
+  ) ?? EMPTY;
+  const hasTransactions = transactions.length > 0;
+  useEffect(() => {
+    if (!desktop || !hasTransactions) return;
+    const focus = () => { searchRef.current?.focus(); searchRef.current?.select(); };
+    if (consumeSearchFocus()) focus();
+    return onSearchFocusRequest(() => { consumeSearchFocus(); focus(); });
+  }, [desktop, hasTransactions]);
 
   const resolved = useMemo(
     () => withResolvedPeriods(transactions, settings.payDays),
@@ -192,41 +216,268 @@ export function DashboardScreen() {
     );
   }
 
+  // Only if there is something to warn about. Everything being up to date
+  // is not news — same rule as SyncIndicator.
+  const overdueBanner = overdue.length > 0 && (
+    <button
+      type="button"
+      onClick={() => navigate('/tarjeta')}
+      style={{
+        width: '100%', textAlign: 'left', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: 'var(--danger-soft)',
+        border: '1px solid color-mix(in srgb, var(--danger) 30%, var(--line))',
+        borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: desktop ? 0 : 16,
+        color: 'var(--text)',
+      }}
+    >
+      <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
+          {overdue.length === 1 ? t('home.unpaidBalance') : `${overdue.length} ${t('home.unpaidBalances')}`}
+        </span>
+        <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+          {overdue.length === 1
+            ? `${overdue[0]!.card.name} · ${t('home.overdueOn')} ${formatShortDate(overdue[0]!.paymentDate).day} ${formatShortDate(overdue[0]!.paymentDate).month}`
+            : t('home.markThem')}
+        </span>
+      </span>
+      <span className="figures" style={{ flex: 'none', fontWeight: 700, color: 'var(--danger-text)' }}>
+        {formatMoney(overdue.reduce((a, v) => a + v.total, 0))}
+      </span>
+    </button>
+  );
+
+  const periodLine = linePeriod && (
+    <p style={{ margin: '12px 0 0', display: 'flex', alignItems: 'center', justifyContent: desktop ? 'flex-start' : 'center', gap: 7, fontSize: 'var(--text-base)' }}>
+      <span aria-hidden style={{ width: 7, height: 7, borderRadius: 4, background: `var(${lineColorVar})` }} />
+      <span style={{ color: `var(${lineColorVar})`, fontWeight: 600 }}>
+        {periodLabel(settings.payDays, linePeriodIdx, month)}
+      </span>
+      <span className="figures" style={{ color: 'var(--text-muted)' }}>
+        · {fill(t('home.periodLeft'), { amount: formatMoney(linePeriod.remainder) })}
+      </span>
+    </p>
+  );
+
+  // The four numbers that make it up, in one card. None can be negative.
+  // "Falta pagar" opens its breakdown.
+  const flowGrid = (
+    <div
+      style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
+        borderRadius: desktop ? 16 : 'var(--radius-card)', overflow: 'hidden',
+        background: 'var(--line)', border: '1px solid var(--line)',
+        marginBottom: desktop ? 0 : 28, marginTop: desktop ? 20 : 0,
+      }}
+    >
+      <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
+      <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
+      <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
+      <FlowCell
+        label={t('home.leftToPay')}
+        value={flow.toPay}
+        tone="danger-soft"
+        onClick={toPay.count > 0 ? () => setPorPagarOpen(true) : undefined}
+      />
+    </div>
+  );
+
+  // Upcoming transactions FOR THE visible month: income and expenses.
+  const upcomingList = upcoming.length === 0 ? (
+    <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
+      {t('home.nothingPending')} — {monthName(month).toLowerCase()}.
+    </p>
+  ) : (
+    <div style={desktop ? {} : { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
+      {upcoming.map((tx, idx) => {
+        const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
+        const { day, month: monthLabel } = formatShortDate(relevantDate(tx));
+        const isIncome = tx.type === 'income';
+        const isPaid = tx.status === 'paid';
+        const isLate = isCurrentMonth && relevantDate(tx) < today;
+        return (
+          <div
+            key={tx.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: desktop ? '10px 0' : '10px 12px',
+              borderBottom: idx < upcoming.length - 1 ? '1px solid var(--line)' : 'none',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => toggleTxPaid(tx)}
+              aria-pressed={isPaid}
+              aria-label={isIncome ? t('home.markAsReceived') : t('home.markAsPaid')}
+              style={{
+                width: 28, height: 28, minWidth: 28, borderRadius: 14, flex: 'none',
+                border: `1.5px solid ${isPaid ? 'var(--positive)' : 'var(--line-strong)'}`,
+                background: isPaid ? 'var(--positive)' : 'transparent',
+                color: isPaid ? 'var(--on-accent)' : 'transparent',
+                display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14,
+                transition: 'all var(--dur-fast) var(--ease-spring-out)',
+              }}
+            >
+              <IconCheck size={15} stroke={2.5} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/movimientos')}
+              style={{
+                flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
+                padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
+              }}
+            >
+              <CategoryAvatar
+                icon={cat?.icon ?? (isIncome ? 'salary' : 'other')}
+                color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
+                size={36}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {tx.concept}
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                  {isLate ? `${t('home.overdue')} ` : ''}{day} {monthLabel}
+                </div>
+              </div>
+            </button>
+            <span
+              className="figures"
+              style={{
+                fontWeight: 600, fontSize: 'var(--text-md)',
+                color: isPaid ? 'var(--text-faint)' : isIncome ? 'var(--positive-text)' : 'var(--text)',
+                textDecoration: isPaid ? 'line-through' : 'none',
+              }}
+            >
+              {isIncome ? '+ ' : ''}{formatMoney(tx.amount)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  if (desktop) {
+    const name = settings.displayName.trim();
+    const dateLine = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'es-CO', {
+      weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC',
+    }).format(new Date(`${today}T12:00:00Z`));
+    const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+    const card: React.CSSProperties = {
+      background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22,
+    };
+    return (
+      <div className="screen screen-wide">
+        <header style={{ display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+              {dateLine.charAt(0).toUpperCase() + dateLine.slice(1)}
+            </div>
+            <h1 style={{ margin: '2px 0 0', fontSize: 30, fontWeight: 700, letterSpacing: '-0.025em' }}>
+              {name ? `${t('home.hello')}, ${name}` : t('home.title')}
+            </h1>
+          </div>
+          {nav}
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: 300, height: 40, padding: '0 10px 0 14px',
+              borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text-faint)',
+            }}
+          >
+            <IconSearch size={17} stroke={1.9} aria-hidden style={{ flex: 'none' }} />
+            <input
+              ref={searchRef}
+              id={SEARCH_INPUT_ID}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape' && query) { e.preventDefault(); setQuery(''); } }}
+              placeholder={t('desk.search')}
+              aria-label={t('desk.search')}
+              aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
+              style={{
+                flex: 1, minWidth: 0, height: '100%', border: 'none', outline: 'none', background: 'none',
+                color: 'var(--text)', fontSize: 14,
+              }}
+            />
+            <kbd
+              aria-hidden
+              style={{
+                flex: 'none', fontFamily: 'inherit', fontSize: 11, border: '1px solid var(--line-strong)',
+                borderRadius: 5, padding: '1px 6px', color: 'var(--text-faint)',
+              }}
+            >
+              {isMac ? '⌘K' : 'Ctrl K'}
+            </kbd>
+          </label>
+          <button
+            type="button"
+            onClick={() => { haptic('light'); setQuickOpen(true); }}
+            style={{
+              height: 40, padding: '0 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: 'var(--q10)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 14,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
+          >
+            <IconPlus size={17} stroke={2.4} aria-hidden />
+            {t('desk.newTransaction')}
+          </button>
+        </header>
+
+        <div
+          data-testid="home-columns"
+          style={{ display: 'grid', gridTemplateColumns: '410px minmax(0, 1fr)', gap: 24, marginTop: 26, alignItems: 'start' }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+            {overdueBanner}
+            <section style={{ ...card, padding: 24 }}>
+              <h2 style={{ margin: 0, fontSize: 14, fontWeight: 500, color: 'var(--text-muted)' }}>
+                {fill(t('home.heroLineNoName'), { month: monthInSentence })}
+              </h2>
+              <div style={{ marginTop: 8 }}>
+                <BigAmount
+                  value={monthBalance.leftover}
+                  size={52}
+                  color={monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)'}
+                />
+              </div>
+              {periodLine}
+              {flowGrid}
+            </section>
+
+            <section style={{ ...card, padding: '18px 18px 8px' }}>
+              <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>{t('home.leftThisMonth')}</h2>
+              {upcomingList}
+            </section>
+
+            <section style={{ ...card, padding: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('budgets.title')}</h2>
+              <BudgetColumns
+                categories={categories}
+                budgets={budgets}
+                transactions={transactions}
+                monthPrefix={`${year}-${String(month).padStart(2, '0')}`}
+              />
+            </section>
+          </div>
+
+          <TransactionsScreen embedded={{ year, month, query, onQueryChange: setQuery }} />
+        </div>
+
+        {porPagarOpen && (
+          <ToPaySheet toPay={toPay} onClose={() => setPorPagarOpen(false)} />
+        )}
+        <QuickActions open={quickOpen} onClose={() => setQuickOpen(false)} />
+      </div>
+    );
+  }
+
   return (
     <HomeFrame>
       {header}
 
-      {/* Only if there is something to warn about. Everything being up
-          to date is not news — same rule as SyncIndicator. */}
-      {overdue.length > 0 && (
-        <button
-          type="button"
-          onClick={() => navigate('/tarjeta')}
-          style={{
-            width: '100%', textAlign: 'left', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'var(--danger-soft)',
-            border: '1px solid color-mix(in srgb, var(--danger) 30%, var(--line))',
-            borderRadius: 'var(--radius-m)', padding: '12px 14px', marginBottom: 16,
-            color: 'var(--text)',
-          }}
-        >
-          <IconCreditCardOff size={22} stroke={1.75} aria-hidden style={{ flex: 'none' }} />
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ display: 'block', fontWeight: 700, fontSize: 'var(--text-base)', color: 'var(--danger-text)' }}>
-              {overdue.length === 1 ? t('home.unpaidBalance') : `${overdue.length} ${t('home.unpaidBalances')}`}
-            </span>
-            <span style={{ display: 'block', fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-              {overdue.length === 1
-                ? `${overdue[0]!.card.name} · ${t('home.overdueOn')} ${formatShortDate(overdue[0]!.paymentDate).day} ${formatShortDate(overdue[0]!.paymentDate).month}`
-                : t('home.markThem')}
-            </span>
-          </span>
-          <span className="figures" style={{ flex: 'none', fontWeight: 700, color: 'var(--danger-text)' }}>
-            {formatMoney(overdue.reduce((a, v) => a + v.total, 0))}
-          </span>
-        </button>
-      )}
+      {overdueBanner}
 
       {/* Hero: how the month ends up if everything goes as planned. No
           coloured card — the one big number is the whole point. */}
@@ -239,41 +490,11 @@ export function DashboardScreen() {
           size={56}
           color={monthBalance.leftover >= 0 ? 'var(--text)' : 'var(--danger-text)'}
         />
-        {linePeriod && (
-          <p style={{ margin: '12px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 'var(--text-base)' }}>
-            <span aria-hidden style={{ width: 7, height: 7, borderRadius: 4, background: `var(${lineColorVar})` }} />
-            <span style={{ color: `var(${lineColorVar})`, fontWeight: 600 }}>
-              {periodLabel(settings.payDays, linePeriodIdx, month)}
-            </span>
-            <span className="figures" style={{ color: 'var(--text-muted)' }}>
-              · {fill(t('home.periodLeft'), { amount: formatMoney(linePeriod.remainder) })}
-            </span>
-          </p>
-        )}
+        {periodLine}
       </section>
 
-      {/* The four numbers that make it up, in one card. None can be
-          negative. "Falta pagar" opens its breakdown. */}
-      <div
-        style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1,
-          borderRadius: 'var(--radius-card)', overflow: 'hidden',
-          background: 'var(--line)', border: '1px solid var(--line)',
-          marginBottom: 28,
-        }}
-      >
-        <FlowCell label={t('home.alreadyReceived')} value={flow.received} tone="positive" />
-        <FlowCell label={t('home.leftToReceive')} value={flow.toReceive} tone="positive-soft" />
-        <FlowCell label={t('home.alreadyPaid')} value={flow.paid} tone="plain" />
-        <FlowCell
-          label={t('home.leftToPay')}
-          value={flow.toPay}
-          tone="danger-soft"
-          onClick={toPay.count > 0 ? () => setPorPagarOpen(true) : undefined}
-        />
-      </div>
+      {flowGrid}
 
-      {/* Upcoming transactions FOR THE visible month: income and expenses. */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '0 0 10px' }}>
         <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, margin: 0 }}>
           {t('home.leftThisMonth')}
@@ -287,79 +508,7 @@ export function DashboardScreen() {
         </button>
       </div>
 
-      {upcoming.length === 0 ? (
-        <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
-          {t('home.nothingPending')} — {monthName(month).toLowerCase()}.
-        </p>
-      ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
-          {upcoming.map((tx, idx) => {
-            const cat = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
-            const { day, month: monthLabel } = formatShortDate(relevantDate(tx));
-            const isIncome = tx.type === 'income';
-            const isPaid = tx.status === 'paid';
-            const isLate = isCurrentMonth && relevantDate(tx) < today;
-            return (
-              <div
-                key={tx.id}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-                  borderBottom: idx < upcoming.length - 1 ? '1px solid var(--line)' : 'none',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleTxPaid(tx)}
-                  aria-pressed={isPaid}
-                  aria-label={isIncome ? t('home.markAsReceived') : t('home.markAsPaid')}
-                  style={{
-                    width: 28, height: 28, minWidth: 28, borderRadius: 14, flex: 'none',
-                    border: `1.5px solid ${isPaid ? 'var(--positive)' : 'var(--line-strong)'}`,
-                    background: isPaid ? 'var(--positive)' : 'transparent',
-                    color: isPaid ? 'var(--on-accent)' : 'transparent',
-                    display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14,
-                    transition: 'all var(--dur-fast) var(--ease-spring-out)',
-                  }}
-                >
-                  <IconCheck size={15} stroke={2.5} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate('/movimientos')}
-                  style={{
-                    flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
-                    padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text)',
-                  }}
-                >
-                  <CategoryAvatar
-                    icon={cat?.icon ?? (isIncome ? 'salary' : 'other')}
-                    color={cat ? categoryColor(cat) : UNCATEGORIZED_COLOR}
-                    size={36}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {tx.concept}
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: isLate ? 'var(--danger-text)' : 'var(--text-muted)' }}>
-                      {isLate ? `${t('home.overdue')} ` : ''}{day} {monthLabel}
-                    </div>
-                  </div>
-                </button>
-                <span
-                  className="figures"
-                  style={{
-                    fontWeight: 600, fontSize: 'var(--text-md)',
-                    color: isPaid ? 'var(--text-faint)' : isIncome ? 'var(--positive-text)' : 'var(--text)',
-                    textDecoration: isPaid ? 'line-through' : 'none',
-                  }}
-                >
-                  {isIncome ? '+ ' : ''}{formatMoney(tx.amount)}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {upcomingList}
 
       <button
         type="button"

@@ -15,10 +15,21 @@ const LANGUAGES: Array<{ code: Language; badge: string; name: string; region: st
  * current one still finds theirs.
  */
 export function LanguageSheet({ onClose }: { onClose: () => void }) {
-  const { language, setLanguage, t } = useLanguage();
+  const { t } = useLanguage();
   return (
     <BottomSheet label={t('settings.language')} onClose={onClose}>
       <h2 style={{ margin: '0 0 4px', fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('settings.language')}</h2>
+      <LanguageOptions />
+      <DoneButton onClick={onClose} />
+    </BottomSheet>
+  );
+}
+
+/** The two languages and the note: the sheet on the phone, a card on desktop. */
+export function LanguageOptions() {
+  const { language, setLanguage, t } = useLanguage();
+  return (
+    <>
       <SettingsGroup style={{ marginTop: 14 }}>
         {LANGUAGES.map((l) => (
           <button
@@ -44,7 +55,6 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
         ))}
       </SettingsGroup>
       <p style={noteStyle}>{t('settings.languageNote')}</p>
-      <DoneButton onClick={onClose} />
-    </BottomSheet>
+    </>
   );
 }

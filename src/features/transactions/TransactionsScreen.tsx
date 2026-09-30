@@ -1,7 +1,7 @@
 import { useT } from '@/i18n/language';
 import { useEffect, useMemo, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -25,18 +25,33 @@ import { interpretText } from '@/domain/nlp/interpret';
 import type { Transaction } from '@/domain/types';
 import { groupByPeriod } from './groupByPeriod';
 import { applyFilters, type StatusFilter, type TypeFilter } from './filters';
-import { TransactionRow } from './TransactionRow';
+import { TABLE_COLUMNS, TransactionRow, TransactionTableRow } from './TransactionRow';
 import { TransactionForm, type Prefill } from './TransactionForm';
 import { EMPTY } from '@/lib/empty';
 
 
-export function TransactionsScreen() {
+/**
+ * Movimientos on desktop lives inside Inicio (§9g): Inicio owns the month
+ * (its header's MonthNav) and the search (its header's box, ⌘K), and this
+ * renders as a card with the table.
+ */
+export interface EmbeddedMovimientos {
+  year: number;
+  month: number;
+  query: string;
+  onQueryChange: (query: string) => void;
+}
+
+export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimientos } = {}) {
   const t = useT();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [prefill, setPrefill] = useState<Prefill | undefined>();
-  const [query, setQuery] = useState('');
+  const [ownQuery, setOwnQuery] = useState('');
+  const query = embedded ? embedded.query : ownQuery;
+  const setQuery = embedded ? embedded.onQueryChange : setOwnQuery;
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('todos');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('todos');
   // null = we're not selecting. An empty Set = selection mode, with nothing
@@ -48,7 +63,11 @@ export function TransactionsScreen() {
 
   const today = todayISO();
   const [todayYear, todayMonth] = today.split('-').map(Number) as [number, number];
-  const [cursor, setCursor] = useState({ y: todayYear, m: todayMonth });
+  const [ownCursor, setCursor] = useState({ y: todayYear, m: todayMonth });
+  const cursor = useMemo(
+    () => (embedded ? { y: embedded.year, m: embedded.month } : ownCursor),
+    [embedded, ownCursor],
+  );
   const isCurrentMonth = cursor.y === todayYear && cursor.m === todayMonth;
 
   // See DashboardScreen: the month being viewed needs its recurring
@@ -316,13 +335,290 @@ export function TransactionsScreen() {
   );
 
   const dialogRef = useDialogo(() => setConfirmDelete(false), confirmDelete);
+  const selectedLabel = t('transactions.nSelected')
+    .replace('{n}', String(selectedIds.length))
+    .replace('{s}', selectedIds.length === 1 ? '' : 's');
+  const dialogs = (<>
+      {confirmDelete && (
+        <div
+      ref={dialogRef}
+          role="dialog"
+          aria-label={t('transactions.confirmDeleteLabel')}
+          onClick={() => setConfirmDelete(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
+            display: 'flex', alignItems: 'flex-end', zIndex: 70,
+            animation: 'fadeIn var(--dur-fast) var(--ease-spring-out)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
+              borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
+              animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
+            }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
+            <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
+              {t('transactions.deleteQuestion')
+                .replace('{n}', String(selectedIds.length))
+                .replace('{noun}', selectedIds.length === 1 ? t('transactions.transaction') : t('transactions.transactionsPl'))}
+            </h2>
+            <ul
+              className="divided"
+              style={{
+                listStyle: 'none', margin: '0 0 12px', padding: '0 14px',
+                maxHeight: 220, overflowY: 'auto',
+                background: 'var(--paper)', borderRadius: 14, border: '1px solid var(--line)',
+              }}
+            >
+              {selectedIds.map((tx) => (
+                <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', fontSize: 'var(--text-base)' }}>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
+                  <span className="figures" style={{ flex: 'none', fontWeight: 600 }}>{formatMoney(tx.amount)}</span>
+                </li>
+              ))}
+            </ul>
+            <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>
+              {t('transactions.theyAddUpTo')} {formatMoney(selectedIds.reduce((a, tx) => a + tx.amount, 0))}.{' '}
+              {t('transactions.deleteWarning')}
+            </p>
+            <button
+              type="button"
+              onClick={deleteSelected}
+              disabled={applying}
+              style={{
+                width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
+                background: 'var(--danger)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16,
+                cursor: applying ? 'not-allowed' : 'pointer', marginBottom: 8,
+              }}
+            >
+              {applying ? t('action.deleting') : t('transactions.yesDelete')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              style={{
+                width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
+                background: 'var(--surface-sunken)', color: 'var(--text)', fontWeight: 600,
+                fontSize: 'var(--text-base)', cursor: 'pointer',
+              }}
+            >
+              {t('action.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {formOpen && (
+        <TransactionForm
+          existing={editing}
+          prefill={editing ? undefined : prefill}
+          categories={categories}
+          paymentMethods={paymentMethods}
+          defaultPaymentMethodId={settings.defaultPaymentMethodId ?? paymentMethods.find((m) => m.isDefault)?.id ?? null}
+          mainCurrency={settings.currency}
+          quickCurrencies={settings.quickCurrencies}
+          onSave={handleSave}
+          onDelete={editing ? handleDelete : undefined}
+          onDuplicate={editing ? handleDuplicate : undefined}
+          onCancel={closeForm}
+          onRecurring={editing ? undefined : () => { closeForm(); navigate('/ajustes/recurrentes?nuevo=1'); }}
+        />
+      )}
+  </>);
+
+  if (embedded) {
+    const filterChips = transactions.length > 0 && (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <Chip activeRecognizer={typeFilter === 'todos' && statusFilter === 'todos'}
+          onClick={() => { setTypeFilter('todos'); setStatusFilter('todos'); }}>{t('filter.all')}</Chip>
+        <Chip activeRecognizer={typeFilter === 'expense'} onClick={() => setTypeFilter(typeFilter === 'expense' ? 'todos' : 'expense')}>{t('filter.expenses')}</Chip>
+        <Chip activeRecognizer={typeFilter === 'income'} onClick={() => setTypeFilter(typeFilter === 'income' ? 'todos' : 'income')}>{t('filter.income')}</Chip>
+        <Chip activeRecognizer={statusFilter === 'pendientes'} onClick={() => setStatusFilter(statusFilter === 'pendientes' ? 'todos' : 'pendientes')}>{t('filter.pending')}</Chip>
+        <Chip activeRecognizer={statusFilter === 'pagados'} onClick={() => setStatusFilter(statusFilter === 'pagados' ? 'todos' : 'pagados')}>{t('filter.paid')}</Chip>
+      </div>
+    );
+    return (
+      <section
+        aria-label={t('transactions.title')}
+        style={{
+          background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22,
+          padding: '20px 22px', minWidth: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <h2 style={{ flex: 1, margin: 0, fontSize: 20, fontWeight: 700 }}>{t('transactions.title')}</h2>
+          {!calendarView && transactions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelection(inSelection ? null : new Set())}
+              style={{
+                height: 32, padding: '0 12px', borderRadius: 10, border: '1px solid var(--line-strong)',
+                background: 'none', color: 'var(--q10-text)', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+              }}
+            >
+              {inSelection ? t('action.cancel') : t('action.select')}
+            </button>
+          )}
+          <div style={{ width: 220, flex: 'none' }}>
+            <Segmented
+              size="s"
+              label={t('transactions.view')}
+              value={calendarView ? 'calendario' : 'lista'}
+              onChange={setView}
+              options={[
+                { value: 'lista', label: t('transactions.viewList') },
+                { value: 'calendario', label: t('transactions.viewCalendar') },
+              ]}
+            />
+          </div>
+        </div>
+
+        {calendarView ? (
+          <div style={{ marginTop: 16 }}>
+            <CalendarView year={cursor.y} month={cursor.m} wide />
+          </div>
+        ) : (<>
+          <div style={{ marginTop: 12 }}>{filterChips}</div>
+          {transactions.length > 0 && (
+            <div className="figures" style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>
+              <span>
+                {monthTotal.count} {monthTotal.count === 1 ? t('transactions.transaction') : t('transactions.transactionsPl')}
+              </span>
+              <span style={{ color: 'var(--positive-text)', fontWeight: 700 }}>+ {formatMoney(monthTotal.income)}</span>
+              <span style={{ color: 'var(--danger-text)', fontWeight: 700 }}>− {formatMoney(monthTotal.expense)}</span>
+            </div>
+          )}
+
+          {inSelection && (
+            <div
+              role="toolbar"
+              aria-label={t('transactions.selectionActions')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginTop: 12,
+                padding: '8px 8px 8px 14px', borderRadius: 14,
+                background: 'var(--q10-soft)', border: '1px solid var(--q10)',
+              }}
+            >
+              <span className="figures" style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{selectedLabel}</span>
+              <button type="button" onClick={selectAllVisible} style={{ ...buttonText, minHeight: 32, padding: '0 12px' }}>
+                {t('transactions.selectAll')}
+              </button>
+              <button
+                type="button"
+                onClick={markSelectedPaid}
+                disabled={selectedIds.length === 0 || applying}
+                style={{ ...actionStyle(selectedIds.length > 0 && !applying, 'var(--positive)', 'var(--positive-text)'), minHeight: 32 }}
+              >
+                {t('desk.markPaid')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                disabled={selectedIds.length === 0 || applying}
+                style={{ ...actionStyle(selectedIds.length > 0 && !applying, 'var(--danger)', 'var(--danger-text)'), minHeight: 32 }}
+              >
+                {t('action.delete')}
+              </button>
+            </div>
+          )}
+
+          {transactions.length === 0 ? (
+            <div style={{ marginTop: 16 }}>
+              <EmptyState
+                title={t('transactions.emptyTitle')}
+                body={t('transactions.emptyBody')}
+                action={{ label: loadingDemo ? 'Cargando...' : 'Cargar datos de ejemplo', onClick: handleLoadDemo }}
+              />
+            </div>
+          ) : groups.length === 0 ? (
+            <div style={{ marginTop: 16 }}>
+              <EmptyState
+                title={searching ? t('transactions.noResultsTitle') : t('transactions.empty')}
+                body={searching
+                  ? `${t('transactions.nothingMatches')} "${query}".`
+                  : `${t('transactions.noTransactionsThisMonth')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
+              />
+            </div>
+          ) : (<>
+            <div
+              aria-hidden
+              style={{
+                display: 'grid', gridTemplateColumns: TABLE_COLUMNS, gap: 12, padding: '16px 8px 8px', marginTop: 6,
+                fontSize: 12, fontWeight: 600, color: 'var(--text-faint)', borderBottom: '1px solid var(--line)',
+              }}
+            >
+              <span />
+              <span>{t('desk.colConcept')}</span>
+              <span>{t('desk.colDate')}</span>
+              <span>{t('desk.colMethod')}</span>
+              <span>{t('desk.colStatus')}</span>
+              <span style={{ textAlign: 'right' }}>{t('desk.colAmount')}</span>
+            </div>
+            {groups.map((group) => {
+              const isCollapsed = collapsed[group.key] === true;
+              return (
+                <div key={group.key}>
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapsed(group.key)}
+                    aria-expanded={!isCollapsed}
+                    aria-label={fill(t('transactions.collapseGroup'), { group: group.label })}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '16px 8px 8px',
+                      border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left', color: 'var(--text)',
+                    }}
+                  >
+                    <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />
+                    <span style={{ fontWeight: 700, fontSize: 14, color: `var(${group.colorVar}-text)` }}>{group.label}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>{group.rangeLabel}</span>
+                    <span style={{ flex: 1 }} />
+                    <span className="figures" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                      {isCollapsed
+                        ? fill(t('transactions.collapsedSummary'), { n: group.transactions.length, amount: formatMoney(group.balance.remainder) })
+                        : <>{t('transactions.remaining')}{' '}
+                            <b style={{ color: group.balance.remainder >= 0 ? 'var(--positive-text)' : 'var(--danger-text)' }}>
+                              {formatMoney(group.balance.remainder)}
+                            </b></>}
+                    </span>
+                    <IconChevronDown
+                      size={18}
+                      stroke={2}
+                      aria-hidden
+                      style={{
+                        flex: 'none', color: 'var(--text-faint)',
+                        transform: isCollapsed ? 'rotate(-90deg)' : 'none',
+                        transition: 'transform var(--dur-fast) var(--ease-spring-out)',
+                      }}
+                    />
+                  </button>
+                  {!isCollapsed && group.transactions.map((tx) => (
+                    <TransactionTableRow
+                      key={tx.id}
+                      tx={tx}
+                      category={tx.categoryId ? categoryById.get(tx.categoryId) : undefined}
+                      paymentMethod={tx.paymentMethodId ? methodById.get(tx.paymentMethodId) : undefined}
+                      onTogglePaid={() => togglePaid(tx)}
+                      onOpen={() => { setEditing(tx); setFormOpen(true); }}
+                      selected={selection?.has(tx.id)}
+                      onSeleccionar={inSelection ? () => toggleSelection(tx.id) : undefined}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          </>)}
+        </>)}
+        {dialogs}
+      </section>
+    );
+  }
+
   return (
     <Screen
-      title={inSelection
-        ? t('transactions.nSelected')
-            .replace('{n}', String(selectedIds.length))
-            .replace('{s}', selectedIds.length === 1 ? '' : 's')
-        : t('transactions.title')}
+      title={inSelection ? selectedLabel : t('transactions.title')}
       back={inSelection ? undefined : { label: t('nav.home'), to: '/' }}
       backAction={inSelection ? (
         <button type="button" onClick={() => setSelection(null)} style={buttonText}>{t('action.cancel')}</button>
@@ -498,7 +794,7 @@ export function TransactionsScreen() {
       )}
       </>)}
 
-      {inSelection && (
+      {inSelection && !embedded && (
         <div
           role="toolbar"
           aria-label={t('transactions.selectionActions')}
@@ -517,9 +813,7 @@ export function TransactionsScreen() {
           }}
         >
           <span className="figures" style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-sm)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t('transactions.nSelected')
-              .replace('{n}', String(selectedIds.length))
-              .replace('{s}', selectedIds.length === 1 ? '' : 's')}
+            {selectedLabel}
           </span>
           <button
             type="button"
@@ -547,93 +841,7 @@ export function TransactionsScreen() {
         </div>
       )}
 
-      {confirmDelete && (
-        <div
-      ref={dialogRef}
-          role="dialog"
-          aria-label={t('transactions.confirmDeleteLabel')}
-          onClick={() => setConfirmDelete(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'color-mix(in srgb, black 40%, transparent)',
-            display: 'flex', alignItems: 'flex-end', zIndex: 70,
-            animation: 'fadeIn var(--dur-fast) var(--ease-spring-out)',
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%', maxWidth: 560, margin: '0 auto', background: 'var(--surface)',
-              borderRadius: '20px 20px 0 0', padding: '10px 20px calc(var(--safe-bottom) + 20px)',
-              animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
-            }}
-          >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--line-strong)', margin: '4px auto 16px' }} />
-            <h2 style={{ margin: '0 0 6px', fontSize: 'var(--text-lg)', fontWeight: 700 }}>
-              {t('transactions.deleteQuestion')
-                .replace('{n}', String(selectedIds.length))
-                .replace('{noun}', selectedIds.length === 1 ? t('transactions.transaction') : t('transactions.transactionsPl'))}
-            </h2>
-            <ul
-              className="divided"
-              style={{
-                listStyle: 'none', margin: '0 0 12px', padding: '0 14px',
-                maxHeight: 220, overflowY: 'auto',
-                background: 'var(--paper)', borderRadius: 14, border: '1px solid var(--line)',
-              }}
-            >
-              {selectedIds.map((tx) => (
-                <li key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 0', fontSize: 'var(--text-base)' }}>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.concept}</span>
-                  <span className="figures" style={{ flex: 'none', fontWeight: 600 }}>{formatMoney(tx.amount)}</span>
-                </li>
-              ))}
-            </ul>
-            <p style={{ margin: '0 0 16px', color: 'var(--text-muted)', fontSize: 'var(--text-base)', lineHeight: 'var(--lh-normal)' }}>
-              {t('transactions.theyAddUpTo')} {formatMoney(selectedIds.reduce((a, tx) => a + tx.amount, 0))}.{' '}
-              {t('transactions.deleteWarning')}
-            </p>
-            <button
-              type="button"
-              onClick={deleteSelected}
-              disabled={applying}
-              style={{
-                width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
-                background: 'var(--danger)', color: 'var(--on-accent)', fontWeight: 700, fontSize: 16,
-                cursor: applying ? 'not-allowed' : 'pointer', marginBottom: 8,
-              }}
-            >
-              {applying ? t('action.deleting') : t('transactions.yesDelete')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(false)}
-              style={{
-                width: '100%', minHeight: 44, borderRadius: 'var(--radius-s)', border: 'none',
-                background: 'var(--surface-sunken)', color: 'var(--text)', fontWeight: 600,
-                fontSize: 'var(--text-base)', cursor: 'pointer',
-              }}
-            >
-              {t('action.cancel')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {formOpen && (
-        <TransactionForm
-          existing={editing}
-          prefill={editing ? undefined : prefill}
-          categories={categories}
-          paymentMethods={paymentMethods}
-          defaultPaymentMethodId={settings.defaultPaymentMethodId ?? paymentMethods.find((m) => m.isDefault)?.id ?? null}
-          mainCurrency={settings.currency}
-          quickCurrencies={settings.quickCurrencies}
-          onSave={handleSave}
-          onDelete={editing ? handleDelete : undefined}
-          onDuplicate={editing ? handleDuplicate : undefined}
-          onCancel={closeForm}
-        />
-      )}
+      {dialogs}
     </Screen>
   );
 }

@@ -16,7 +16,7 @@ import { monthName } from '@/components/ui/MonthNav';
 import { monthFromLabel, payPeriodLabel } from '@/i18n/periodLabels';
 import { formatShortDate } from '@/lib/formatShortDate';
 
-function formatRangeLabel(start: string, end: string): string {
+export function formatRangeLabel(start: string, end: string): string {
   const s = formatShortDate(start);
   const e = formatShortDate(end);
   return s.month === e.month ? `${s.day} - ${e.day} ${s.month}` : `${s.day} ${s.month} - ${e.day} ${e.month}`;
@@ -51,7 +51,7 @@ export interface PeriodGroup {
  * ("Septiembre"), and if it starts on the pay day it says since when,
  * because their September isn't the calendar's.
  */
-function label(payments: PayDays, index: number, key: PeriodKey): string {
+export function periodGroupLabel(payments: PayDays, index: number, key: PeriodKey): string {
   if (payments.length > 1) return `${payPeriodLabel()} ${payments[index - 1]}`;
 
   const day = payments[0]!;
@@ -96,7 +96,7 @@ export function groupByPeriod(
     const txs = (byKey.get(key) ?? []).slice().sort((x, y) => compareISO(y.date, x.date));
     groups.push({
       key,
-      label: label(payments, i, key),
+      label: periodGroupLabel(payments, i, key),
       rangeLabel: formatRangeLabel(range.start, range.end),
       start: range.start,
       colorVar: PERIOD_COLORS[(i - 1) % PERIOD_COLORS.length]!,
