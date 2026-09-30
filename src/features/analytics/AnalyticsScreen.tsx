@@ -38,8 +38,6 @@ const CHART_ANIMATION = typeof window !== 'undefined' && window.matchMedia?.('(p
   ? { isAnimationActive: false }
   : { isAnimationActive: true, animationBegin: 0, animationDuration: 350 };
 
-const CHART_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF3B30', '#FFCC00', '#5AC8FA', '#FF2D55'];
-
 export function AnalyticsScreen() {
   const t = useT();
   const [range, setRange] = useState<Range>('mes');
@@ -210,7 +208,7 @@ export function AnalyticsScreen() {
               id: c.categoryId ?? `income-${i}`,
               name: cat?.name ?? t('analytics.noCategory'),
               icon: cat?.icon ?? 'other',
-              color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
+              color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
               amount: c.amount,
             };
           })}
@@ -227,7 +225,7 @@ export function AnalyticsScreen() {
               id: c.categoryId ?? `spend-${i}`,
               name: cat?.name ?? t('analytics.noCategory'),
               icon: cat?.icon ?? 'other',
-              color: cat ? categoryColor(cat) : CHART_COLORS[i % CHART_COLORS.length]!,
+              color: cat ? categoryColor(cat) : UNCATEGORIZED_COLOR,
               amount: c.amount,
             };
           })}
@@ -346,7 +344,7 @@ export function AnalyticsScreen() {
             key={r} type="button" onClick={() => startTransition(() => setRange(r))} aria-pressed={range === r}
             style={{
               flex: 1, minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px solid var(--line-strong)',
-              background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? '#fff' : 'var(--text)',
+              background: range === r ? 'var(--q10)' : 'var(--surface)', color: range === r ? 'var(--on-accent)' : 'var(--text)',
               fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize', fontSize: 'var(--text-sm)',
               transition: 'all var(--dur-fast) var(--ease-spring-out)',
             }}

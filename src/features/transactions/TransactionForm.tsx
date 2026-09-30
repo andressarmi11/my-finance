@@ -466,7 +466,7 @@ export function TransactionForm({
           >
             <span style={{
               position: 'absolute', top: 2, left: value.markPaidNow ? 21 : 2, width: 20, height: 20,
-              borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgb(0 0 0/.3)', transition: 'left var(--dur-fast) var(--ease-spring-out)',
+              borderRadius: 10, background: 'var(--knob)', boxShadow: '0 1px 3px rgb(0 0 0/.3)', transition: 'left var(--dur-fast) var(--ease-spring-out)',
             }} />
           </span>
         </button>
@@ -512,7 +512,7 @@ function saveButtonStyle(enabled: boolean): React.CSSProperties {
   return {
     width: '100%', minHeight: 48, borderRadius: 'var(--radius-s)', border: 'none',
     background: enabled ? 'var(--q10)' : 'var(--surface-sunken)',
-    color: enabled ? '#fff' : 'var(--text-faint)',
+    color: enabled ? 'var(--on-accent)' : 'var(--text-faint)',
     fontWeight: 700, fontSize: 16, cursor: enabled ? 'pointer' : 'not-allowed',
     transition: 'background var(--dur-fast) var(--ease-spring-out)',
   };

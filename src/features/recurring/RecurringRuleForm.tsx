@@ -307,7 +307,7 @@ export function RecurringRuleForm({
 function ToggleDot({ on, activeColor = 'var(--text)' }: { on: boolean; activeColor?: string }) {
   return (
     <span aria-hidden style={{ width: 44, height: 26, borderRadius: 13, background: on ? activeColor : 'var(--surface-sunken)', border: '1px solid var(--line)', position: 'relative' }}>
-      <span style={{ position: 'absolute', top: 2, left: on ? 21 : 2, width: 20, height: 20, borderRadius: 10, background: '#fff', boxShadow: '0 1px 3px rgb(0 0 0/.3)' }} />
+      <span style={{ position: 'absolute', top: 2, left: on ? 21 : 2, width: 20, height: 20, borderRadius: 10, background: 'var(--knob)', boxShadow: '0 1px 3px rgb(0 0 0/.3)' }} />
     </span>
   );
 }

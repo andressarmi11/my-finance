@@ -31,7 +31,10 @@ export async function completeOnboarding(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Siguiente' }).click();
   }
   await startButton.click();
-  await expect(name).toBeHidden();
+  // Wait for the button, not for the name field: Settings has its own
+  // "Tu nombre" input, so a test that starts on /ajustes found it visible
+  // right after the setup closed and failed on a race.
+  await expect(startButton).toBeHidden();
 }
 
 export const test = base.extend<object>({

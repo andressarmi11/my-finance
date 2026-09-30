@@ -1,16 +1,34 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 /** Standard container: one width, one padding, across the whole app.
- *  Header with an iOS 18 large title (34pt SF Pro Rounded). `right` slot for
- *  contextual actions (filter buttons, edit, etc). */
-export function Screen({ title, subtitle, right, children }: {
+ *  Header with a large title (32px). `right` slot for contextual actions
+ *  (filter buttons, edit, etc). `back` puts a "‹ label" link above the title,
+ *  for screens that hang from another one (Movimientos from Inicio, the
+ *  Ajustes sub-screens from Ajustes). */
+export function Screen({ title, subtitle, right, back, children }: {
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  back?: { label: string; to: string };
   children?: ReactNode;
 }) {
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '0 var(--gap-l)' }}>
+      {back && (
+        <Link
+          to={back.to}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 2,
+            minHeight: 'var(--tap)', marginBottom: 2,
+            color: 'var(--q10-text)', fontSize: 'var(--text-md)', fontWeight: 500,
+            textDecoration: 'none',
+          }}
+        >
+          <span aria-hidden="true" style={{ fontSize: 24, lineHeight: 1, marginTop: -2 }}>‹</span>
+          {back.label}
+        </Link>
+      )}
       <header
         style={{
           marginBottom: 'var(--gap-l)',
@@ -29,9 +47,9 @@ export function Screen({ title, subtitle, right, children }: {
             className="figures"
             style={{
               margin: 0,
-              fontSize: 'var(--text-2xl)',
+              fontSize: 32,
               fontWeight: 700,
-              letterSpacing: '-0.022em',
+              letterSpacing: '-0.025em',
               lineHeight: 'var(--lh-tight)',
             }}
           >

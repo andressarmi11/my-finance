@@ -77,7 +77,7 @@ export function TransactionRow({
           // green (already paid). Two meanings, two colors.
           border: `1.5px solid ${marked ? brandColor : 'var(--line-strong)'}`,
           background: marked ? brandColor : 'transparent',
-          color: marked ? '#fff' : 'transparent',
+          color: marked ? 'var(--on-accent)' : 'transparent',
           display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 14,
           transition: 'all var(--dur-fast) var(--ease-spring-out)',
         }}

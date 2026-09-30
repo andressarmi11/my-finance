@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 1: foundations
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 1).
+
+### Changed
+- Dark theme tokens (§1): blacker paper (`#0B0D12`), new surfaces, lines and
+  text greys. Accents and category colors unchanged.
+- Logo 1c "S escalonada" (§9): five right-angled blocks with the amber accent.
+  The tile is solid (`--brand-tile`), no gradient. `public/icons/*` and
+  `apple-touch-icon.png` regenerated; manifest and `theme-color` follow the
+  new dark paper.
+- `Screen`: optional `back` link (`‹ label`) above a 32px title.
+- Buttons filled with an accent use `--on-accent` (white in light, `--paper`
+  in dark) instead of a hard-coded white; switch knobs use `--knob`.
+- The category color picker offers the twelve `--cat-*` colors (stored as
+  their portable hex, painted with the token). Analytics' fallback chart
+  colors became the "no category" grey.
+
+### Added
+- Tokens `--radius-card`, `--tabbar-h`, `--hover`, `--on-accent`, `--knob`,
+  `--brand-tile`, `--on-brand-tile`.
+- `useBreakpoint()` (`phone` < 760 ≤ `tablet` < 1100 ≤ `desktop`) with tests.
+- `docs/rediseno/`: the redesign plan and the prototype.
+
+### Fixed
+- E2E setup fixture: waited for the "Tu nombre" field to disappear, which
+  raced with the Settings field of the same name on tests that start on
+  `/ajustes`.
+
 ## [1.3.0] — Scheduling by voice, flexible budgets and recurring items
 
 ### Added
