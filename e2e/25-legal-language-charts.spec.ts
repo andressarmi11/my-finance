@@ -1,5 +1,5 @@
 import { test as signedOut } from '@playwright/test';
-import { test, expect } from './fixtures';
+import { test, expect, switchLanguage } from './fixtures';
 
 /* Explicit locale: the app picks its language from navigator.language, and
    Playwright's browser comes in English. Without pinning it, these tests
@@ -61,8 +61,7 @@ test.describe('legal from inside the app', () => {
 
 test.describe('language', () => {
   test('switching to English translates the interface and the documents', async ({ page }) => {
-    await page.goto('ajustes');
-    await page.getByRole('button', { name: 'English' }).click();
+    await switchLanguage(page, 'English');
 
     // The navigation changes...
     await expect(page.getByRole('link', { name: 'Legal', exact: true })).toBeVisible();
@@ -76,8 +75,7 @@ test.describe('language', () => {
   });
 
   test('the language survives a reload', async ({ page }) => {
-    await page.goto('ajustes');
-    await page.getByRole('button', { name: 'English' }).click();
+    await switchLanguage(page, 'English');
     await page.reload();
     await page.goto('legal');
     await expect(page.getByRole('button', { name: /Cookie policy/ })).toBeVisible();
@@ -88,9 +86,12 @@ test.describe('language', () => {
     // The screen reader needs it to pick a voice: in Spanish it would read
     // the English with Spanish phonetics.
     await expect(page.locator('html')).toHaveAttribute('lang', 'es-CO');
-    await page.getByRole('button', { name: 'English' }).click();
+    // Ajustes → Idioma is a sheet that stays open: switch both ways in it.
+    await page.getByRole('button', { name: /^Idioma/ }).click();
+    const sheet = page.getByRole('dialog', { name: /^(Idioma|Language)$/ });
+    await sheet.getByRole('button', { name: 'English', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-    await page.getByRole('button', { name: 'Español' }).click();
+    await sheet.getByRole('button', { name: 'Español', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'es-CO');
   });
 

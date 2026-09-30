@@ -55,7 +55,8 @@ test.describe('list filters', () => {
 test('the Excel button triggers the download with the right name', async ({ page }) => {
   await agregar(page, 'Mercado', '200000');
 
-  await page.goto('ajustes');
+  // Exports live in Ajustes → Tus datos (redesign §9e).
+  await page.goto('ajustes/datos');
   const descarga = page.waitForEvent('download');
   await page.getByRole('button', { name: /Exportar Excel/ }).click();
   const file = await descarga;

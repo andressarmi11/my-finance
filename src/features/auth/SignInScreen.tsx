@@ -1,9 +1,10 @@
-import { useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { IconCheck, IconEye, IconEyeOff, IconLock, IconMail } from '@tabler/icons-react';
 import { getSupabase } from '@/data/supabase/client';
 import { MIN_PASSWORD, translateError } from './authStyles';
 import { useTurnstile } from './useTurnstile';
+import { forgetSignedOutEmail, readSignedOutEmail } from './signedOut';
 import { Logo } from '@/components/ui/Logo';
 import { Segmented } from '@/components/ui/Segmented';
 import { PasswordStrength, passwordStrength } from '@/components/ui/PasswordStrength';
@@ -65,13 +66,16 @@ function SignInForm() {
   const t = useT();
   const desktop = useBreakpoint() === 'desktop';
   const [mode, setModo] = useState<Mode>('entrar');
-  const [email, setEmail] = useState('');
+  // Just signed out: the email comes back typed, with a green notice (§9f).
+  const [signedOutEmail] = useState(readSignedOutEmail);
+  useEffect(() => { if (signedOutEmail) forgetSignedOutEmail(); }, [signedOutEmail]);
+  const [email, setEmail] = useState(signedOutEmail);
   const [key, setClave] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(() => (signedOutEmail ? t('login.signedOut') : ''));
   const captchaBox = useRef<HTMLDivElement>(null);
   const captcha = useTurnstile(captchaBox);
   // Undefined when there's no captcha configured: Supabase ignores it then.

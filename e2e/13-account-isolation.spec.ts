@@ -103,3 +103,58 @@ test('data does not cross between accounts', async ({ page }) => {
   // Case 4: and the new account does keep its own.
   expect(r.deBeto).toBe(1);
 });
+
+interface ModuloBorrado {
+  clearLocalDevice(): Promise<void>;
+}
+
+/**
+ * Ajustes → Cerrar sesión → "Borrar también de este teléfono" (redesign
+ * §11 item 4): after signing out, the whole local database goes — owner
+ * marker and tombstones included — and so do the device preferences in
+ * localStorage. The database is opened again, empty and usable.
+ */
+test('"also erase it from this phone" leaves no data and no preferences', async ({ page }) => {
+  const errores: string[] = [];
+  page.on('pageerror', (e) => errores.push(String(e)));
+  await page.goto('./');
+
+  const r = await page.evaluate(async () => {
+    const rutaDb = '/step-up/src/data/db.ts';
+    const rutaDueno = '/step-up/src/data/sync/owner.ts';
+    const rutaBorrado = '/step-up/src/features/settings/clearLocalDevice.ts';
+    const { db } = (await import(rutaDb)) as ModuloDb;
+    const { ensureOwner } = (await import(rutaDueno)) as ModuloDueno;
+    const { clearLocalDevice } = (await import(rutaBorrado)) as ModuloBorrado;
+
+    await db.transactions.put({
+      id: 'tx-privada', type: 'expense', concept: 'Privado', amount: 1, date: '2026-09-01',
+      categoryId: null, paymentMethodId: null, status: 'paid',
+      quincenaKey: null, createdAt: '', updatedAt: '2026-09-01T00:00:00Z',
+    });
+    await ensureOwner('ana');
+    localStorage.setItem('step-up:language', 'en');
+    localStorage.setItem('movimientos.collapsed', '["2026-09-Q1"]');
+    localStorage.setItem('sb-fake-auth-token', 'left to supabase-js');
+
+    await clearLocalDevice();
+
+    const counts = await Promise.all(db.tables.map((t: Tabla) => t.count()));
+    // Still usable after the wipe: the app keeps its handle on `db`.
+    await db.transactions.put({
+      id: 'tx-nueva', type: 'expense', concept: 'Nueva', amount: 1, date: '2026-09-02',
+      categoryId: null, paymentMethodId: null, status: 'paid',
+      quincenaKey: null, createdAt: '', updatedAt: '2026-09-02T00:00:00Z',
+    });
+    return {
+      total: counts.reduce((a: number, b: number) => a + b, 0),
+      despues: await db.transactions.count(),
+      keys: Object.keys(localStorage).sort(),
+    };
+  });
+
+  expect(errores, 'sin errores de página').toEqual([]);
+  expect(r.total).toBe(0);
+  expect(r.despues).toBe(1);
+  expect(r.keys).toEqual(['sb-fake-auth-token']);
+});

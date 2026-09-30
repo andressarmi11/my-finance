@@ -280,7 +280,7 @@ Referencia: turno 2 del prototipo (2a).
 
 ## 10. Checklist
 
-Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · Fase 6 ⬜ · **Fase 7 ✅** (backend; el editor se monta en Ajustes → Recordatorios con la Fase 6) · **Fase 8 ✅** (login y registro; cambiar contraseña y cerrar sesión van con la Fase 6) · Fase 9 ⬜ · Fase 10 ⬜
+Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · **Fase 4 ✅** · **Fase 5 ✅** · **Fase 6 ✅** · **Fase 7 ✅** · **Fase 8 ✅** · Fase 9 ⬜ · Fase 10 ⬜
 
 - [x] Tokens oscuros actualizados — Fase 1
 - [x] TabBar con 3 pestañas + FAB lateral; `RefreshButton` eliminado — Fase 2
@@ -288,17 +288,17 @@ Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · 
 - [x] `CalendarView` extraído y montado en Movimientos — Fase 2
 - [x] Inicio: hero nuevo, "Falta pagar" abre `ToPaySheet`, sin `PeriodCard` ni `ExpectCard` — Fase 3
 - [x] Análisis: donut fusionado con la lista de categorías — Fase 5
-- [ ] Ajustes agrupado en subpantallas
+- [x] Ajustes agrupado en subpantallas — Fase 6
 - [x] `LegalFooter` solo en Legal — Fase 2
 - [x] Logo 1c en `Logo.tsx` y los íconos regenerados — Fase 1
 - [x] Moneda por movimiento + método Efectivo (tipos, migración 0013, mappers, nlp) — Fase 4
 - [x] Hoja de nuevo movimiento compacta; QuickEntrySheet con moneda y método — Fase 4
 - [x] Análisis: sin "Ingresos vs. gastos", tarjetas plegables, columnas de presupuesto — Fase 5
-- [ ] Subpantallas: pagos, categorías, recurrentes, presupuestos, atajos
-- [ ] Subpantallas: perfil, idioma, tema (en vivo), moneda + monedas rápidas, recordatorios, datos, legal
-- [ ] Login/registro nuevos, cambiar contraseña, cerrar sesión con opción de borrar local
-- [ ] Nueva categoría, métodos de pago (+ nuevo con corte/pago)
-- [ ] Recordatorios v2 (días/mismo día) + aviso por movimiento; cron cada 5–15 min
+- [x] Subpantallas: pagos, categorías, recurrentes, presupuestos, atajos — Fase 6
+- [x] Subpantallas: perfil, idioma, tema (en vivo), moneda + monedas rápidas, recordatorios, datos, legal — Fase 6
+- [x] Login/registro nuevos, cambiar contraseña, cerrar sesión con opción de borrar local — Fases 6 y 8
+- [x] Nueva categoría, métodos de pago (+ nuevo con corte/pago) — Fase 6
+- [x] Recordatorios v2 (días/mismo día) + aviso por movimiento; cron cada 5–15 min — Fases 4, 6 y 7
 - [x] Movimientos: 10 → 25, grupos plegables, vista mensual, barra de selección con Eliminar — Fase 3
 - [x] Cero hex sueltos en componentes (todo por variables) — Fase 1
 - [ ] `npm run typecheck && npm test && npm run test:e2e` en verde (e2e a revisar: 24, 25, 29, 31, 32, 38)
@@ -306,7 +306,7 @@ Progreso por fase (§12): **Fase 1 ✅** · **Fase 2 ✅** · **Fase 3 ✅** · 
 
 ## 11. Pendiente: lo que la app todavía NO tiene
 
-Hechos: 6, 7, 8 (Fase 3) · 1, 2 (Fase 4; la moneda en el formulario de recurrentes llega con su hoja nueva en la Fase 6) · 3: datos por movimiento y chips de aviso (Fase 4, migración 0014), falta el cálculo y el cron (Fase 7) · 9 (columnas; el stepper ±50.000 va con Presupuestos en la Fase 6), 10 (Fase 5).
+Hechos: 4, 5 (Fase 6) · 6, 7, 8 (Fase 3) · 1, 2 (Fase 4; la moneda en el formulario de recurrentes llega con su hoja nueva en la Fase 6) · 3: datos por movimiento y chips de aviso (Fase 4, migración 0014), falta el cálculo y el cron (Fase 7) · 9 (columnas; el stepper ±50.000 va con Presupuestos en la Fase 6), 10 (Fase 5).
 
 Cada punto dice qué falta, dónde va y cómo hacerlo. Nada de esto requiere reescribir `src/domain/`, solo extenderlo.
 

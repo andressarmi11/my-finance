@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect } from './fixtures';
+import { test, expect, switchLanguage } from './fixtures';
 
 /**
  * The arrows must not move as the month name changes length.
@@ -35,8 +35,7 @@ test.describe('calendar', () => {
     await page.goto('calendario');
     const enEspanol = await nextArrowX(page);
 
-    await page.goto('ajustes');
-    await page.getByRole('button', { name: 'English' }).click();
+    await switchLanguage(page, 'English');
     await page.goto('calendario');
 
     expect(await nextArrowX(page)).toBe(enEspanol);

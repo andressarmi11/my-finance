@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures';
+import { test, expect, switchLanguage } from './fixtures';
 
 /**
  * Switching to English has to translate the WHOLE interface.
@@ -39,6 +39,11 @@ const SPANISH_ONLY = [
   'Automatizaciones', 'Generar clave', 'Nuevo recurrente',
   'Tu cuenta, moneda', 'Te entra la plata', 'Dos veces al mes',
   'Una vez al mes', 'Balance por categoría', 'Organizar gráficos',
+  // The grouped Settings and its sub-screens (redesign §7).
+  'Preferencias', 'Tu plata', 'Avanzado', 'Tus datos', 'Idioma', 'Moneda',
+  'Monedas rápidas', 'Vista previa', 'Primer pago', 'Avisarme', 'Exportar',
+  'Restaurar', 'Cómo armarlo', 'Perfil', 'Tu nombre', 'Contraseña',
+  'Coinciden', 'Categorías', 'Métodos de pago', 'Recurrentes', 'Entran al mes',
 ];
 
 /** Everything the switch has to reach, and how to get there. */
@@ -53,14 +58,19 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'recurring', path: 'ajustes/recurrentes' },
   { name: 'budgets', path: 'ajustes/presupuestos' },
   { name: 'card', path: 'tarjeta' },
+  { name: 'profile', path: 'ajustes/cuenta' },
+  { name: 'change password', path: 'ajustes/cuenta/contrasena' },
+  { name: 'currency', path: 'ajustes/moneda' },
+  { name: 'how you get paid', path: 'ajustes/pagos' },
+  { name: 'reminders', path: 'ajustes/recordatorios' },
+  { name: 'shortcuts', path: 'ajustes/atajos' },
+  { name: 'your data', path: 'ajustes/datos' },
 ];
 
 test('switching to English leaves no Spanish behind', async ({ page }) => {
-  await page.goto('ajustes');
-  await page.getByRole('button', { name: 'English' }).click();
-  // The switch is what we are testing, so prove it took effect before
-  // trusting anything the rest of the test reads.
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  // The switch is what we are testing: switchLanguage proves it took
+  // effect before the rest of the test reads anything.
+  await switchLanguage(page, 'English');
 
   const found: string[] = [];
   for (const screen of SCREENS) {
@@ -83,6 +93,9 @@ test('switching to English leaves no Spanish behind', async ({ page }) => {
 test('Spanish stays Spanish', async ({ page }) => {
   await page.goto('ajustes');
   await expect(page.locator('html')).toHaveAttribute('lang', 'es-CO');
-  await expect(page.getByRole('heading', { name: 'Cómo te pagan' })).toBeVisible();
-  await expect(page.getByText('Te entra la plata')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Preferencias' })).toBeVisible();
+  await page.goto('ajustes/pagos');
+  await expect(page.getByRole('heading', { level: 1, name: 'Cómo te pagan' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Te entra la plata' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Dos veces al mes' })).toBeVisible();
 });

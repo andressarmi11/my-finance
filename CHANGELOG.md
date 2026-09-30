@@ -1,5 +1,101 @@
 # Changelog
 
+## [Unreleased] — Redesign v4, phase 6: Settings
+
+Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 6; §7, §9d, §9e,
+§9f; pending 4 and 5).
+
+### Changed
+- Settings (§7) is an iOS-style grouped list instead of one long page: a
+  profile card (initial, name, email, "Sincronizado"), then Preferencias
+  (Idioma, Tema, Moneda), Tu plata (Cómo te pagan, Recordatorios), Organizar
+  (Categorías, Métodos de pago, Recurrentes, Presupuestos, with counts),
+  Avanzado (Atajos de iOS, Tus datos, Legal), "Cerrar sesión" in red (only
+  with an account) and "Step up v1.3.0 · © 2026". 52px rows, a tinted 30px
+  icon square, the value in `--text-faint` and a chevron. Each row opens its
+  own screen (`ajustes/cuenta`, `ajustes/cuenta/contrasena`, `ajustes/moneda`,
+  `ajustes/pagos`, `ajustes/recordatorios`, `ajustes/atajos`, `ajustes/datos`,
+  plus the existing ones) with "‹ Ajustes" on top; Idioma and Tema are sheets.
+- Cómo te pagan (§9d): "Dos veces al mes | Una vez al mes", steppers for the
+  pay days (first + 2 ≤ second) and a 30-day preview strip coloured by pay
+  period (`periodsOfMonth`), with each period's range.
+- Categorías: avatar, name and all-time total, dashed "+ Nueva categoría".
+  The category sheet (§9f) is new: big avatar preview, the name under it,
+  Gasto | Ingreso, the 12 `--cat-*` colours in a grid of 6 and 10 icons in a
+  grid of 5 ("Más íconos" opens the rest). Same saved fields.
+- Métodos de pago (§9f): type icon, "Por defecto" tag, "Crédito · corte 15,
+  paga 2" and a usage bar for cards with a limit ("Usado $ … · Cupo $ …").
+  The method sheet: Débito | Crédito | Efectivo, name, cutoff/payment
+  steppers, an amber line computed with `cycle.ts` ("Compras del 1 al 15 se
+  pagan el 2 de noviembre. Del 16 en adelante, el 2 de diciembre.") and a
+  "Usar por defecto" switch (writes `settings.defaultPaymentMethodId`).
+- Recurrentes: "Entran al mes / Salen al mes" summary (monthly equivalent of
+  every active rule), Ingresos and Gastos groups sorted by day. A rule can be
+  entered in another currency (CurrencyChips + today's fetched rate); it keeps
+  `currency`/`originalAmount`/`fxRate`, `amount` stays converted.
+- Presupuestos: the §9c columns on top and one row per category with "spent
+  of limit" (red "· te pasaste" when over) and a ±$50.000 stepper, or a
+  dashed "Definir". Tapping the amount still opens the full sheet.
+- Atajos de iOS: "Clave activa · Solo puede enviar" card with the key masked
+  and "Copiar", "Generar una clave nueva" with its warning, "Cómo armarlo" in
+  3 steps and a link to `docs/ATAJOS_IOS.md`.
+- Perfil (§9e): 84px avatar, editable name (the greeting on Inicio), the
+  account's sync state ("Sincronizado · hace 2 min") with "Sincronizar
+  ahora", "Cambiar contraseña" and "Cerrar sesión".
+- Idioma sheet (two rows with a check and the note) and Tema sheet (three
+  thumbnails). The theme applies at once, cross-fading background, text and
+  border colours over 350ms. The light theme gets the §9e values
+  (`--paper #F2F4F7`, `--line-strong #D5DAE2`, `--q25 #B7650F`, …).
+- Moneda: the main currency with flag, name, code and sample, and "Monedas
+  rápidas" chips (max 3, `settings.quickCurrencies`) that the new-transaction
+  sheet shows before "Más".
+- Recordatorios: "Avisarme en este dispositivo" switch (push), "Días de aviso
+  antes" stepper 0–7, the fixed 9:00 a. m. and a preview of the notification
+  with the 1c icon. (Reminder modes v2 come with phase 7.)
+- Tus datos: Exportar (JSON, CSV, Excel, each with what it's for) and
+  Restaurar (import a JSON backup, confirmed as before). The import sheet is
+  translated.
+
+### Added
+- Change the password in the app (pending 5): current, new (with a 4-segment
+  strength meter) and repeat, with a live "Coinciden / No coinciden". It
+  re-authenticates with the current password (`signInWithPassword`, with the
+  Turnstile token when the captcha is on) and then `auth.updateUser`. "¿No la
+  recuerdas?" sends the recovery link. Errors go through `translateError`.
+- Sign-out sheet (pending 4): "Tus datos siguen en tu cuenta…" and an
+  optional "Borrar también de este teléfono": after signing out it deletes and
+  reopens the local database and clears the device preferences in
+  localStorage, then reloads to a blank login.
+- `PasswordStrength` (`passwordStrength(pw): 0–4` and the meter), shared with
+  the new login (phase 8).
+- Shared Settings building blocks (`features/settings/ui.tsx`): group card,
+  row, stepper, switch and bottom sheet.
+- `data/sync/lastSynced.ts`: when this device last finished a sync.
+
+### Removed
+- `BudgetBar` (the budget rows are steppers now; the columns show the fill).
+
+### Tests
+- Unit: `passwordStrength`, the pay-days preview, the recurring monthly
+  equivalents.
+- E2E updated: 10 (Cómo te pagan is its own screen), 13 (new case: the wipe
+  leaves no data and no preferences), 19 and 20 (card steppers, usage bar),
+  22 (exports in Tus datos), 25, 26 and 27 (language from the Idioma sheet;
+  27 walks the new screens), 33 (budget stepper), 38 (the new screens and
+  sheets in English). New: 43 (grouped list, theme, profile name, pay days,
+  quick currencies, reminders, data, new category, new method, recurring in
+  dollars) and 44 (change password and sign out with/without wiping, on the
+  fake-Supabase build).
+
+### Integration (with phases 7 and 8)
+- Ajustes → Recordatorios mounts the v2 editor (days before at a time, or the
+  same day: 1 h / N hours / N minutes before, or at an exact time) with its
+  live preview; the Settings row shows the mode. The legacy days field is
+  kept in step.
+- Signing out returns to the login with the email already typed and a green
+  notice ("Cerraste sesión…"), also after "Borrar también de este teléfono".
+- The password meter is the one from phase 8 (same API).
+
 ## [Unreleased] — Redesign v4, phase 7: reminders v2 (backend)
 
 Plan and checklist: `docs/rediseno/REDISENO.md` (§12, phase 7; §9f

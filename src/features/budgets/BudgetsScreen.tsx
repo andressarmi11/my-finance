@@ -1,6 +1,5 @@
 import { useT } from '@/i18n/language';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
@@ -17,15 +16,20 @@ import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import type { Category } from '@/domain/types';
 import { todayISO } from '@/lib/todayISO';
 import { BudgetAmountSheet } from './BudgetAmountSheet';
-import { BudgetBar } from './BudgetBar';
-import { CategoryAvatar } from '@/components/ui/CategoryIcon';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
+import { BudgetColumns } from '@/features/analytics/BudgetColumns';
+import { shortAmount } from '@/features/analytics/shortAmount';
+import { SettingsGroup, Stepper, card, useSettingsBack } from '@/features/settings/ui';
+
+/** Quick adjustments move by $50.000 (redesign §9d); the sheet takes any amount. */
+const STEP = 50_000;
+const MAX_BUDGET = 999_999_999_999;
 import { categoryColor } from '@/domain/seed/categoryColor';
-import { daysInMonth } from '@/domain/dates';
 import { EMPTY } from '@/lib/empty';
 
 export function BudgetsScreen() {
   const t = useT();
-  const navigate = useNavigate();
+  const back = useSettingsBack();
   const today = todayISO();
   const [nowYear, nowMonth] = today.split('-').map(Number) as [number, number];
   // Budgets are per category AND month, so the screen browses months.
@@ -38,14 +42,6 @@ export function BudgetsScreen() {
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const [editing, setEditing] = useState<Category | null>(null);
   const [removing, setRemoving] = useState<Category | null>(null);
-
-  // How far into the month we are: the bar's pace marker. Spending 60% is
-  // good on the 25th and bad on the 5th, and without this the bar doesn't
-  // say so.
-  // Past month: fully elapsed. Future month: not started.
-  const monthProgress = inCurrentMonth
-    ? Number(today.split('-')[2]) / daysInMonth(year, month)
-    : year * 12 + month < nowYear * 12 + nowMonth ? 1 : 0;
 
   const monthPrefix = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
   const monthTransactions = useMemo(
@@ -76,12 +72,12 @@ export function BudgetsScreen() {
     setEditing(null);
   }
 
-  return (
-    <Screen title={t('budgets.title')} subtitle={t('budgets.subtitle')}>
-      <button type="button" onClick={() => navigate(-1)} style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-        ← {t('nav.backToSettings')}
-      </button>
+  const budgeted = expenseCategories.filter((c) => budgetByCategory.has(c.id));
+  const totalLimit = budgeted.reduce((sum, c) => sum + budgetByCategory.get(c.id)!.amount, 0);
+  const totalSpent = budgeted.reduce((sum, c) => sum + (spendByCategory.get(c.id) ?? 0), 0);
 
+  return (
+    <Screen title={t('budgets.title')} subtitle={t('set.budgetsIntro')} back={back}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
         <MonthNav
           label={`${monthName(month)} ${year}`}
@@ -93,49 +89,69 @@ export function BudgetsScreen() {
         />
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {budgeted.length > 0 && (
+        <div style={{ ...card, padding: 16, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 700, fontSize: 'var(--text-md)' }}>{monthName(month)}</span>
+            <span className="figures" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
+              {fill(t('set.budgetUsed'), { pct: totalLimit ? Math.round((totalSpent / totalLimit) * 100) : 0 })}
+            </span>
+          </div>
+          <BudgetColumns categories={categories} budgets={budgets} transactions={transactions} monthPrefix={monthPrefix} />
+        </div>
+      )}
+
+      <SettingsGroup style={{ marginTop: 0 }}>
         {expenseCategories.map((c) => {
           const spent = spendByCategory.get(c.id) ?? 0;
           const budget = budgetByCategory.get(c.id);
-
-          if (!budget) {
-            return (
-              <button
-                key={c.id} type="button" onClick={() => setEditing(c)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 'var(--tap)', padding: '0 14px', borderRadius: 'var(--radius-m)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', cursor: 'pointer', textAlign: 'left' }}
-              >
-                <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
-                <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-faint)' }}>
-                  {spent > 0 ? fill(t('budgets.spentAmount'), { amount: formatMoney(spent) }) : t('budgets.define')}
-                </span>
-              </button>
-            );
-          }
-
-          const status = calculateBudgetStatus(spent, budget.amount);
+          const color = categoryColor(c);
+          const over = !!budget && calculateBudgetStatus(spent, budget.amount).state === 'exceeded';
           return (
-            <button
-              key={c.id} type="button" onClick={() => setEditing(c)}
-              style={{ padding: '12px 14px', borderRadius: 'var(--radius-m)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', textAlign: 'left' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={32} />
-                <span style={{ flex: 1, minWidth: 0, fontWeight: 600 }}>{c.name}</span>
-                <span className="figures" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)' }}>
-                  {fill(t('budgets.spentOf'), { spent: formatMoney(spent), budget: formatMoney(budget.amount) })}
+            <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', minHeight: 56 }}>
+              <span aria-hidden style={{
+                width: 36, height: 36, borderRadius: 12, flex: 'none', display: 'grid', placeItems: 'center',
+                background: `color-mix(in srgb, ${color} 16%, var(--surface))`, color,
+              }}>
+                <CategoryIcon icon={c.icon} size={19} />
+              </span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 15, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span className="figures" style={{ display: 'block', fontSize: 'var(--text-xs)', color: over ? 'var(--danger-text)' : 'var(--text-muted)' }}>
+                  {budget
+                    ? fill(t('budgets.spentOf'), { spent: formatMoney(spent), budget: formatMoney(budget.amount) }) + (over ? ` · ${t('set.youWentOver')}` : '')
+                    : spent > 0 ? fill(t('budgets.spentAmount'), { amount: formatMoney(spent) }) : t('set.noLimit')}
                 </span>
-              </div>
-              <BudgetBar
-                spent={spent}
-                budgeted={budget.amount}
-                status={status.state}
-                monthProgress={monthProgress}
-              />
-            </button>
+              </span>
+              {budget ? (
+                <Stepper
+                  label={fill(t('set.budgetOf'), { name: c.name, amount: formatMoney(budget.amount) })}
+                  value={budget.amount}
+                  min={STEP}
+                  max={MAX_BUDGET}
+                  step={STEP}
+                  width={44}
+                  format={shortAmount}
+                  onValueClick={() => setEditing(c)}
+                  onChange={(v) => void setBudgetForMonths(c.id, [{ year, month }], v)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEditing(c)}
+                  aria-label={`${t('budgets.define')}: ${c.name}`}
+                  style={{
+                    flex: 'none', border: '1px dashed var(--line-strong)', background: 'none', color: 'var(--q10-text)',
+                    height: 32, padding: '0 12px', borderRadius: 16, fontWeight: 600, fontSize: 'var(--text-sm)', cursor: 'pointer',
+                  }}
+                >
+                  {t('analytics.define')}
+                </button>
+              )}
+            </div>
           );
         })}
-      </div>
+      </SettingsGroup>
 
       {editing && (
         <BudgetAmountSheet

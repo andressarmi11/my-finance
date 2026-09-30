@@ -41,7 +41,7 @@
   --gray-950: #1C1C1E;
 
   /* ────────────── Backgrounds / superficies ────────────── */
-  --paper: #F4F6F9;              /* iOS grouped background */
+  --paper: #F2F4F7;              /* tema claro §9e */
   --surface: #FFFFFF;            /* card / row surface */
   --surface-sunken: #E9ECF1;     /* input / sunken sections */
 
@@ -52,7 +52,7 @@
 
   /* ────────────── Líneas ────────────── */
   --line: #E4E8EE;
-  --line-strong: #C6CCD6;
+  --line-strong: #D5DAE2;
 
   /* ────────────── Acentos de quincena ──────────────
      Los dos colores con los que la app separa la quincena del 10 de la
@@ -60,7 +60,7 @@
      ver la nota de v3 arriba. */
   --q10: #2F4FE0;                /* Indigo Step up. 6.33:1 sobre blanco */
   --q10-soft: #EFF2FD;
-  --q25: #E07B26;                /* Ambar. SOLO relleno: 2.99:1, ver --q25-text */
+  --q25: #B7650F;                /* Ambar del tema claro (§9e): legible sobre blanco */
   --q25-soft: #FDF5EC;
 
   /* ────────────── Semánticos ────────────── */
@@ -196,6 +196,17 @@
   /* Tile del logo 1c: indigo solido en claro, casi negro en oscuro. */
   --brand-tile: #2F4FE0;
   --on-brand-tile: #FFFFFF;
+
+  /* Miniaturas del selector de Tema (§9e): muestran cada tema tal cual,
+     sea cual sea el activo, asi que NO se redefinen en oscuro. */
+  --thumb-light-paper: #F2F4F7;
+  --thumb-light-card: #FFFFFF;
+  --thumb-light-ink: #151B28;
+  --thumb-dark-paper: #0B0D12;
+  --thumb-dark-card: #1D222C;
+  --thumb-dark-ink: #F4F6FA;
+  --thumb-mid-card: #8A93A3;
+  --thumb-mid-ink: #5B6475;
 
   /* ────────────── Misc ────────────── */
   --safe-top: env(safe-area-inset-top, 0px);

@@ -1,21 +1,25 @@
 import { useT } from '@/i18n/language';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
 import { localRepository } from '@/data/local/localRepository';
 import { db } from '@/data/db';
 import { formatMoney } from '@/domain/money/format';
 import { calculateSpendByCategory } from '@/domain/totals/byCategory';
 import { categoryColor } from '@/domain/seed/categoryColor';
-import { CategoryAvatar } from '@/components/ui/CategoryIcon';
 import type { Category } from '@/domain/types';
+import { DashedButton, SettingsGroup, rowStyle, useSettingsBack } from '@/features/settings/ui';
 import { CategoryForm } from './CategoryForm';
 import { EMPTY } from '@/lib/empty';
 
+/**
+ * Categorías (redesign §9d): avatar, name and all-time total, and a dashed
+ * "+ Nueva categoría". Tapping one opens CategoryForm to edit or archive it.
+ */
 export function CategoriesScreen() {
   const t = useT();
-  const navigate = useNavigate();
+  const back = useSettingsBack();
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const [editing, setEditing] = useState<Category | null>(null);
@@ -41,39 +45,31 @@ export function CategoriesScreen() {
   }
 
   return (
-    <Screen title={t('categories.title')}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: 16, background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
-      >
-        ← {t('nav.backToSettings')}
-      </button>
+    <Screen title={t('categories.title')} subtitle={t('set.categoriesIntro')} back={back}>
+      {visibleRows.length > 0 && (
+        <SettingsGroup style={{ marginTop: 0 }}>
+          {visibleRows.map((c) => {
+            const color = categoryColor(c);
+            const total = spendByCategory.get(c.id) ?? 0;
+            return (
+              <button key={c.id} type="button" onClick={() => setEditing(c)} style={{ ...rowStyle, padding: '10px 14px' }}>
+                <span aria-hidden style={{
+                  width: 36, height: 36, borderRadius: 12, flex: 'none', display: 'grid', placeItems: 'center',
+                  background: `color-mix(in srgb, ${color} 16%, var(--surface))`, color,
+                }}>
+                  <CategoryIcon icon={c.icon} size={19} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 'var(--text-md)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                <span className="figures" style={{ fontSize: 'var(--text-base)', color: total ? 'var(--text-muted)' : 'var(--text-faint)' }}>
+                  {formatMoney(total)}
+                </span>
+              </button>
+            );
+          })}
+        </SettingsGroup>
+      )}
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-m)', padding: '4px 14px', marginBottom: 16 }}>
-        {visibleRows.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setEditing(c)}
-            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--line)', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
-          >
-            <CategoryAvatar icon={c.icon} color={categoryColor(c)} size={36} />
-            <span style={{ flex: 1, fontWeight: 600 }}>{c.name}</span>
-            <span className="figures" style={{ color: 'var(--text-muted)' }}>
-              {formatMoney(spendByCategory.get(c.id) ?? 0)}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setCreating(true)}
-        style={{ width: '100%', minHeight: 'var(--tap)', borderRadius: 'var(--radius-s)', border: '1px dashed var(--line-strong)', background: 'var(--surface)', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-      >
-        {t('categories.newOne')}
-      </button>
+      <DashedButton onClick={() => setCreating(true)}>{t('categories.newOne')}</DashedButton>
 
       {(editing || creating) && (
         <CategoryForm
