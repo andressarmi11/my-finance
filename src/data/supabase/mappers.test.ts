@@ -187,3 +187,39 @@ describe('foreign currency and per-transaction reminder (migrations 0013/0014)',
     expect(settingsToRow(USER, { ...settings, quickCurrencies: undefined }).quick_currencies).toBeNull();
   });
 });
+
+describe('general reminder (migration 0015)', () => {
+  const base: Settings = {
+    id: 'singleton', displayName: 'A', onboardedAt: null, currency: 'COP', locale: 'es-CO',
+    payDays: [10, 25], defaultPaymentMethodId: null, reminderDefaultDaysBefore: 1, theme: 'dark',
+    updatedAt: '2026-09-18T12:00:00.000Z',
+  };
+
+  it('round-trips a days rule and a same-day rule of each kind', () => {
+    const rules: NonNullable<Settings['reminder']>[] = [
+      { mode: 'days', days: 2, time: '07:30', sameDay: { kind: 'hours', value: 1 } },
+      { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'hours', value: 3 } },
+      { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'minutes', value: 45 } },
+      { mode: 'sameDay', days: 1, time: '09:00', sameDay: { kind: 'at', value: '08:00' } },
+    ];
+    for (const reminder of rules) {
+      const settings = { ...base, reminder };
+      expect(settingsFromRow(settingsToRow(USER, settings))).toEqual(settings);
+    }
+  });
+
+  it('absent is always sent, as null, and comes back absent', () => {
+    const row = settingsToRow(USER, base);
+    expect(row).toHaveProperty('reminder', null);
+    expect(settingsFromRow(row)).toEqual(base);
+    expect('reminder' in settingsFromRow(row)).toBe(false);
+  });
+
+  it('a row from before 0015 (no column) or with junk reads as absent', () => {
+    const { reminder: _omit, ...oldRow } = settingsToRow(USER, base);
+    void _omit;
+    expect(settingsFromRow(oldRow)).toEqual(base);
+    expect(settingsFromRow({ ...oldRow, reminder: 'none' })).toEqual(base);
+    expect(settingsFromRow({ ...oldRow, reminder: [1, 2] })).toEqual(base);
+  });
+});

@@ -15,7 +15,7 @@ against the official documentation, not assumptions):
   this is describing something that doesn't work.
 - Therefore, the trigger has to live on a server, not on the phone.
   This app uses **pg_cron** (enabled by default on every Supabase
-  project, including the free tier) to check every 15 minutes whether
+  project, including the free tier) to check every 10 minutes whether
   there are pending reminders, and **pg_net** to call an Edge Function
   that actually sends the push.
 
@@ -24,25 +24,36 @@ against the official documentation, not assumptions):
 ```
 You save an expense with a future date
    → a row in `reminders` is created/updated LOCALLY (IndexedDB),
-     with remind_at = date - X days
+     with remind_at from domain/reminders/schedule.ts (reminderInstant):
+     the transaction's own rule, 'none', or the general one (settings.reminder;
+     absent = N days before at 9:00), in Colombia time (UTC-5, no DST)
    → sync uploads it to Postgres
      (it used to be written straight to the cloud, and offline it was
       lost silently: the upsert failed and nobody retried)
-pg_cron, every 15 minutes
+pg_cron, every 10 minutes
    → pg_net calls the `send-reminders` Edge Function
 Edge Function
-   → looks for due reminders
+   → looks for due reminders: status 'scheduled' and remind_at in
+     (now - 24 h, now], at most 500 per run
+   → claims them in chunks of 100 with a conditional update
+     (scheduled → sent): overlapping runs never send one twice
    → looks up the user's push_subscriptions
    → signs and sends a Web Push (VAPID protocol) to each subscription
    → Apple Push Notification service (APNs) — Safari routes it all through there
    → your iPhone
-   → marks the reminder as 'sent'
+   → the ones no device received end up as 'failed'
+   (hard caps in supabase/functions/send-reminders/policy.ts: batch size,
+    10 s per push, 10 pushes in flight, 60 s of claiming per run; it never
+    calls itself — leftovers wait for the next tick)
 ```
 
 ## Limitations you have to accept
 
-- **±15 minute precision**, not to the second — the cron runs every 15
-  min. For "you have a payment tomorrow", that's more than enough.
+- **±10 minute precision**, not to the second — the cron runs every 10
+  min. Enough for "you have a payment tomorrow" and for "30 minutes
+  before".
+- **A reminder more than 24 h late is never sent** (e.g. a pending
+  expense entered for last week): late news is noise.
 - Subscriptions that expire or become invalid (404/410 code from APNs)
   are deleted automatically by the Edge Function; if that happens,
   just turn them back on from Settings.
@@ -124,7 +135,7 @@ curl -X POST https://TU-PROYECTO.supabase.co/functions/v1/send-reminders \
   -H "Authorization: Bearer TU_CRON_SECRET"
 ```
 
-It should respond `{"sent":0,"failed":0}` if there are no overdue
+It should respond `{"sent":0,"failed":0,"deferred":0}` if there are no overdue
 reminders yet — that alone confirms the function is alive and
 authenticating correctly.
 

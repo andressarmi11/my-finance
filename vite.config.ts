@@ -143,6 +143,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['src/**/*.test.ts'],
+    // + the Edge Functions' pure helpers (no Deno APIs, see send-reminders/policy.ts).
+    include: ['src/**/*.test.ts', 'supabase/functions/**/*.test.ts'],
   },
 });

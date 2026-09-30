@@ -18,9 +18,10 @@
  * comes from the transaction, two devices generate the SAME id for the same
  * reminder: there's no way to duplicate it when syncing.
  */
-import { calculateReminderTime } from '@/domain/reminders/schedule';
+import { generalReminderRule, planReminder, reminderInstant } from '@/domain/reminders/schedule';
 import type { Settings, Transaction } from '@/domain/types';
 import { isSupabaseConfigured } from '@/data/supabase/client';
+import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 
 export async function maybeScheduleReminder(tx: Transaction, settings: Settings): Promise<void> {
@@ -29,12 +30,12 @@ export async function maybeScheduleReminder(tx: Transaction, settings: Settings)
   if (!isSupabaseConfigured()) return;
   if (tx.status === 'paid' || tx.status === 'cancelled') return;
 
-  await localRepository.saveReminder({
-    id: tx.id,
-    transactionId: tx.id,
-    remindAt: calculateReminderTime(tx.date, settings.reminderDefaultDaysBefore),
-    status: 'scheduled',
-    // The real timestamp is stamped by localRepository.saveReminder.
-    updatedAt: '',
-  });
+  // When: the transaction's own rule, 'none', or the general one (§9f). With
+  // the default setting this is exactly the old "N days before at 9:00".
+  const remindAt = reminderInstant(tx, generalReminderRule(settings));
+  // What to write, if anything: planReminder never re-arms one already sent
+  // for the same instant, and dismisses a pending one when it's now 'none'.
+  const next = planReminder(tx.id, await db.reminders.get(tx.id), remindAt);
+  // The real timestamp is stamped by localRepository.saveReminder.
+  if (next) await localRepository.saveReminder(next);
 }

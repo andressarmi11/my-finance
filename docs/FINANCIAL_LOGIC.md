@@ -129,5 +129,16 @@ nobody asked to see.
 
 `calculateReminderTime` subtracts the configured number of days and
 sets the time to 9:00am Colombia time (14:00 UTC, with no daylight
-saving to complicate the subtraction). See `docs/NOTIFICATIONS.md` for
+saving to complicate the subtraction).
+
+Reminders v2 extend it without changing it: `reminderInstant(tx, rule)`
+takes the general rule (`generalReminderRule(settings)`: `settings.reminder`,
+or N days before at 09:00 when absent) and the transaction's override
+(`'none'` = no reminder, a rule = wins, null = the general one). Days mode is
+N days before at the rule's time; same-day counts hours/minutes back from
+the transaction's `time` (09:00 if it has none) or fires at an exact clock
+time. All in Colombia time, UTC−5 with no DST. With the default rule it
+returns exactly what `calculateReminderTime` returns (tested for 0–7 days).
+`planReminder` decides what to write locally: nothing when the instant didn't
+change (so a sent reminder is never re-armed), `dismissed` for `'none'`. See `docs/NOTIFICATIONS.md` for
 how it gets triggered from there on.

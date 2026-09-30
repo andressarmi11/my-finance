@@ -42,6 +42,9 @@ const SettingsBase = z.object({
   reminderDefaultDaysBefore: z.number().int().min(0),
   theme: z.enum(['system', 'light', 'dark']),
   quickCurrencies: z.array(z.string().regex(/^[A-Z]{3}$/)).max(3).optional(),
+  // Migration 0015: the general reminder. Optional: absent = derived from
+  // reminderDefaultDaysBefore, which is what every older backup means.
+  reminder: ReminderRuleSchema.optional(),
 });
 
 /**
