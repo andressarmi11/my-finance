@@ -44,7 +44,7 @@ function spanishIn(text: string): string[] {
 }
 
 const ROUTES = [
-  '', 'movimientos', 'movimientos?vista=calendario', 'analisis', 'ajustes', 'ajustes/cuenta',
+  '', 'movimientos', 'movimientos?vista=calendario', 'analisis', 'analisis/ahorrar', 'ajustes', 'ajustes/cuenta',
   'ajustes/cuenta/contrasena', 'ajustes/moneda', 'ajustes/pagos', 'ajustes/recordatorios',
   'ajustes/categorias', 'ajustes/metodos', 'ajustes/recurrentes', 'ajustes/presupuestos',
   'ajustes/atajos', 'ajustes/datos', 'tarjeta', 'legal', 'legal/terminos',

@@ -10,7 +10,11 @@ import { heroRangeLabel, RANGE_KEY, shortRangeLabel, widestShortRangeLabel } fro
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useNavigate } from 'react-router-dom';
+import { useMatch, useNavigate } from 'react-router-dom';
+import { useBreakpoint } from '@/app/useBreakpoint';
+import { HelpMeSaveScreen } from '@/features/savings/HelpMeSaveScreen';
+import { PlanCard } from '@/features/savings/PlanCard';
+import { useActivePlan } from '@/data/local/savingsPlans';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
@@ -34,6 +38,11 @@ import { EMPTY } from '@/lib/empty';
 export function AnalyticsScreen() {
   const t = useT();
   const navigate = useNavigate();
+  const desktop = useBreakpoint() === 'desktop';
+  // "Ayúdame a ahorrar" lives under Análisis: over it on the phone, in its
+  // place on desktop (prototype 3a).
+  const planRoute = useMatch('/analisis/ahorrar') !== null;
+  const activePlan = useActivePlan();
   const [range, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
   const [layout, setLayout] = useState<ChartLayout>(readChartLayout);
@@ -146,10 +155,16 @@ export function AnalyticsScreen() {
   const fixedVsVariable = useMemo(() => calculateFixedVsVariable(rangedTransactions), [rangedTransactions]);
   const byMethod = useMemo(() => spendByMethod(rangedTransactions, paymentMethods), [rangedTransactions, paymentMethods]);
 
+  if (planRoute && desktop) {
+    // Its own header (‹ Análisis, the title): the wide screen without Screen's.
+    return <div className="screen screen-wide"><HelpMeSaveScreen /></div>;
+  }
+
   if (transactions.length === 0) {
     return (
       <Screen title={t('analytics.title')} subtitle={t('analytics.subtitle')}>
         <EmptyState title={t('analytics.noDataTitle')} body={t('analytics.noDataBody')} />
+        {planRoute && <HelpMeSaveScreen />}
       </Screen>
     );
   }
@@ -349,9 +364,33 @@ export function AnalyticsScreen() {
           </p>
         </section>
 
+        {desktop ? (
+          // Prototype 3a: the plan beside the budgets, above the other cards.
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.25fr) minmax(0,1fr)', gap: 20, marginBottom: 20, alignItems: 'start' }}>
+            <PlanCard range={range} from={rangeFrom} to={rangeTo} desktop />
+            <section aria-label={t('budgets.title')} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 22 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ margin: 0, fontWeight: 700, fontSize: 17 }}>{t('budgets.title')}</h2>
+                <button
+                  type="button"
+                  onClick={() => navigate('/analisis/ahorrar')}
+                  style={{ border: 'none', background: 'none', color: 'var(--positive-text)', fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: 0 }}
+                >
+                  {t(activePlan ? 'save.adjustMine' : 'save.buildWith')}
+                </button>
+              </div>
+              {(budgetSummary.spending || budgetSummary.savings) && <div style={{ marginTop: 12 }}><BudgetStats summary={budgetSummary} size={15} /></div>}
+              <BudgetColumns categories={categories} budgets={budgets} transactions={transactions} monthPrefix={budgetMonth} width={80} />
+            </section>
+          </div>
+        ) : (
+          <PlanCard range={range} from={rangeFrom} to={rangeTo} />
+        )}
+
         <div className="analytics-grid">
         {layout.order
-          .filter((id) => !layout.hiddenIds.includes(id))
+          // On desktop the budgets sit beside the plan, above.
+          .filter((id) => !layout.hiddenIds.includes(id) && !(desktop && id === 'budgets'))
           .map((id) => (
             <ChartCard
               key={id}
@@ -365,6 +404,8 @@ export function AnalyticsScreen() {
           ))}
         </div>
       </div>
+
+      {planRoute && <HelpMeSaveScreen />}
 
       <ChartManager
         layout={layout}

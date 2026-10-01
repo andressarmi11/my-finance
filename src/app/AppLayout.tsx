@@ -4,6 +4,7 @@ import { TabBar } from '@/components/ui/TabBar';
 import { InstallBanner } from '@/components/ui/InstallBanner';
 import { InboxProvider } from '@/features/inbox/InboxProvider';
 import { ToastHost } from '@/components/ui/Toast';
+import { usePlanEndNotice } from '@/features/savings/usePlanEndNotice';
 import { SyncIndicator } from '@/components/ui/SyncIndicator';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { AuthGate } from '@/features/auth/AuthGate';
@@ -40,6 +41,7 @@ function AppShell() {
   const breakpoint = useBreakpoint();
   const desktop = breakpoint === 'desktop';
   const navigate = useNavigate();
+  usePlanEndNotice();
   const { pathname } = useLocation();
 
   // ⌘K / Ctrl+K: the Movimientos search, which on desktop lives in Inicio.

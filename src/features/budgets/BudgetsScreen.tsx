@@ -1,5 +1,8 @@
 import { useT } from '@/i18n/language';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useActivePlan } from '@/data/local/savingsPlans';
+import { Sparkle } from '@/features/savings/HelpMeSaveScreen';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Screen } from '@/components/ui/Screen';
 import { MonthNav, monthName, widestMonthLabel } from '@/components/ui/MonthNav';
@@ -33,6 +36,8 @@ import { EMPTY } from '@/lib/empty';
 export function BudgetsScreen() {
   const t = useT();
   const back = useSettingsBack();
+  const navigate = useNavigate();
+  const activePlan = useActivePlan();
   const today = todayISO();
   const [nowYear, nowMonth] = today.split('-').map(Number) as [number, number];
   // Budgets are per category AND month, so the screen browses months.
@@ -101,6 +106,20 @@ export function BudgetsScreen() {
         />
       )}
     >
+      <button
+        type="button"
+        onClick={() => navigate('/analisis/ahorrar?desde=presupuestos')}
+        style={{
+          width: '100%', margin: '0 0 12px', height: 46, borderRadius: 14, cursor: 'pointer',
+          border: '1px dashed color-mix(in srgb, var(--positive) 50%, var(--line))',
+          background: 'color-mix(in srgb, var(--positive) 7%, transparent)', color: 'var(--positive-text)',
+          fontWeight: 600, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}
+      >
+        <Sparkle size={17} />
+        {t(activePlan ? 'save.adjustMine' : 'save.buildWith')}
+      </button>
+
       {budgeted.length > 0 && (
         <div style={{ ...card, padding: 18, marginBottom: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>

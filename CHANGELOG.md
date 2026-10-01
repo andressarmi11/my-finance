@@ -8,6 +8,60 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-10-01
+
+Ayúdame a ahorrar. Plan: `docs/presupuestos/PRESUPUESTOS-Y-AHORRO.md`
+(part B, checklist and decisions there). Prototype:
+`docs/presupuestos/Step Up Rediseno.dc.html` (1a, 3a).
+
+### Added
+- **Ayúdame a ahorrar**: from Análisis (a card under the balance) or
+  Ajustes → Presupuestos (the dashed green button). On the phone a full
+  screen from the right, over the tab bar, in three steps:
+  - **Tu plan**: "Puedes ahorrar $X más al mes", the start pill, "Cómo
+    quedaría tu plata" (Fijos, Día a día, Ya ahorras, Plan, Libre),
+    "Dónde recortar" with "Promedio A → tope B" and, on tap, the why from
+    the user's own data (deliveries, rides, above average, a one-off,
+    the priciest subscription, the biggest spends), and "No se tocan".
+  - **Personalizar**, live: a monthly amount (±50 mil, "Lo máximo sensato
+    hoy") or a goal (name, ±500 mil, "la cumples en N meses");
+    Suave/Equilibrado/Intenso (10/20/30 %); ¿Cuándo empieza? (este mes,
+    próxima quincena, próximo mes, otro hasta 14 meses); duration in days,
+    weeks (limits also per week), months or a year, or "Hasta cumplir la
+    meta"; each category "Se puede ajustar" / "No tocar" (Hogar is Fijo,
+    Salud starts as No tocar).
+  - **Listo**: the limits and the goal created.
+- Desktop: a page inside Análisis, the plan on the left (whys always
+  visible, as a table) and Personalizar as a sticky panel on the right.
+  Análisis in two columns: the plan card beside Presupuestos.
+- With a plan: "Plan de ahorro · Quincena/Mes/Trimestre/Año" in Análisis,
+  the period's goal, what's saved with a white pace line, each category
+  against its limit (ahead of pace in --q25, named in the note), the
+  quarter's coverage or the projection to December; before the start or
+  after the end, it says so.
+- Eliminar plan (with confirmation): budgets back to how they were
+  before the plan (snapshot), movements untouched, toast "Plan eliminado".
+  At the end date: "¿Renovar o terminar?" in Análisis and one local
+  notification.
+- Engine `src/domain/savings/plan.ts` (pure): 3-month averages without
+  outliers, fixed categories and "No tocar" never cut, floors (groceries
+  without deliveries, bus without rides…), cap by intensity × weight,
+  rounded to 10.000 COP / 10 USD, the warning when asking for more than
+  is sensible, and no cut without data behind it. `progress.ts` reads a
+  plan against a period; `apply.ts` writes and restores its budgets.
+- `SavingsPlan` in Dexie (v5) and Supabase: migration
+  `0020_savings_plans.sql`. Until it runs, the plan stays on the device.
+- A generic toast for one-line confirmations.
+
+### Tests
+- Unit: `plan.ts` (fixed/locked, floors, over, goal months, outliers,
+  reasons, rounding), `progress.ts`, `apply.ts` (snapshot, update,
+  restore).
+- E2E 50-help-me-save: phone flow (Entretenimiento No tocar, Intenso, a
+  3M goal → Crear → Presupuestos → Análisis → Año → Eliminar restores),
+  the "too much" warning, no history, desktop page, English. E2E 48 also
+  sweeps /analisis/ahorrar.
+
 ## [1.5.0] — 2026-10-01
 
 Presupuestos: Tope y Meta. Plan: `docs/presupuestos/PRESUPUESTOS-Y-AHORRO.md`

@@ -25,6 +25,14 @@ const WEIGHTS: Record<string, number> = {
   'cat-otros': 0.5,
 };
 const CUSTOM_WEIGHT = 0.5;
+/**
+ * Day-to-day categories: what's in them is a habit, not a commitment, even
+ * when it repeats (a Netflix every month, groceries every month). Only the
+ * rest can turn "fixed" from recurring rules or stable monthly charges.
+ */
+const FLEXIBLE_IDS = new Set([
+  'cat-entretenimiento', 'cat-compras', 'cat-suscripciones', 'cat-viajes', 'cat-alimentacion', 'cat-transporte', 'cat-salud',
+]);
 
 const OUTLIER_FACTOR = 2.5;
 const OUTLIER_MIN_COUNT = 3;
@@ -109,19 +117,28 @@ function conceptTotals(txs: readonly Transaction[]): Array<{ concept: string; to
     .map(({ concept, total }) => ({ concept, total }));
 }
 
-/** Concepts present every window month with a stable amount: their monthly average. */
+/**
+ * Single monthly charges (one per month, every window month) with a stable
+ * amount, like rent or a loan payment: their monthly average. A concept
+ * bought several times a month (deliveries, rides) is a habit, not a charge.
+ */
 function stableConceptsAvg(txs: readonly Transaction[], months: readonly string[]): number {
   if (months.length < 2) return 0;
   const by = new Map<string, Map<string, number>>();
+  const count = new Map<string, Map<string, number>>();
   for (const t of txs) {
     const key = normalizeConcept(t.concept);
     const perMonth = by.get(key) ?? new Map<string, number>();
     perMonth.set(monthKey(t.date), (perMonth.get(monthKey(t.date)) ?? 0) + t.amount);
     by.set(key, perMonth);
+    const counts = count.get(key) ?? new Map<string, number>();
+    counts.set(monthKey(t.date), (counts.get(monthKey(t.date)) ?? 0) + 1);
+    count.set(key, counts);
   }
   let sum = 0;
-  for (const perMonth of by.values()) {
+  for (const [key, perMonth] of by) {
     if (!months.every((m) => perMonth.has(m))) continue;
+    if ([...count.get(key)!.values()].some((c) => c > 1)) continue;
     const values = months.map((m) => perMonth.get(m)!);
     const min = Math.min(...values);
     const max = Math.max(...values);
@@ -283,8 +300,8 @@ function planCategory(cat: Category, stats: CategoryStats, all: Transaction[], c
     .reduce((a, r) => a + monthlyEquivalent(r), 0);
   const fixed =
     FIXED_IDS.has(id) ||
-    (avg > 0 && recurringMonthly >= FIXED_SHARE * avg) ||
-    (avg > 0 && stableConceptsAvg(all, ctx.months) >= FIXED_SHARE * avg);
+    (!FLEXIBLE_IDS.has(id) && avg > 0 && recurringMonthly >= FIXED_SHARE * avg) ||
+    (!FLEXIBLE_IDS.has(id) && avg > 0 && stableConceptsAvg(all, ctx.months) >= FIXED_SHARE * avg);
 
   let floor: number;
   switch (id) {

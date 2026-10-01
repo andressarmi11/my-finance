@@ -136,17 +136,28 @@ Ayúdame a ahorrar / Help me save · Tu plan / Your plan · Personalizar / Custo
 
 ### Checklist
 
-- [ ] Motor `plan.ts` + tests
-- [ ] Entradas en Análisis y Presupuestos
-- [ ] ¿Cuándo empieza? (este mes / próx. quincena / próx. mes / otro)
-- [ ] Tarjeta de plan en Análisis por Quincena/Mes/Trimestre/Año, con línea de ritmo
-- [ ] Paso 1 (plan), paso 2 (personalizar) y paso 3 (listo)
-- [ ] Crea y actualiza presupuestos Tope/Meta + `SavingsPlan`
-- [ ] Fin del plan: renovar o terminar, con restauración
-- [ ] Eliminar plan con confirmación y restauración del snapshot
-- [ ] Escritorio: Análisis 2 columnas + página del plan con panel Personalizar
-- [ ] ES/EN completos
-- [ ] typecheck, lint, test y test:e2e en verde
+- [x] Motor `plan.ts` + tests
+- [x] Entradas en Análisis y Presupuestos
+- [x] ¿Cuándo empieza? (este mes / próx. quincena / próx. mes / otro)
+- [x] Tarjeta de plan en Análisis por Quincena/Mes/Trimestre/Año, con línea de ritmo
+- [x] Paso 1 (plan), paso 2 (personalizar) y paso 3 (listo)
+- [x] Crea y actualiza presupuestos Tope/Meta + `SavingsPlan`
+- [x] Fin del plan: renovar o terminar, con restauración
+- [x] Eliminar plan con confirmación y restauración del snapshot
+- [x] Escritorio: Análisis 2 columnas + página del plan con panel Personalizar
+- [x] ES/EN completos
+- [x] typecheck, lint, test y test:e2e en verde
+
+### Decisiones de la implementación (confirmadas)
+
+- Tope | Meta cambia el mes que se ve y los siguientes que ya tengan presupuesto en esa categoría; los meses pasados no cambian.
+- "Llevas ahorrado" = lo que dejaste de gastar frente a tu promedio en las categorías del plan, en el tramo que ya pasó (nunca negativo).
+- Fin del plan: aviso en Análisis ("¿Renovar o terminar?") y una notificación local la primera vez que se abre la app después de la fecha de fin (si las notificaciones están permitidas). No hay push del servidor.
+- Con menos de un mes completo de historia no se sugiere nada: se explica por qué.
+- El atajo "Ir a" es navegación del prototipo; las entradas reales son la tarjeta en Análisis y el botón en Presupuestos.
+- Categorías del día a día (alimentación, transporte, entretenimiento, compras, suscripciones, viajes, salud) nunca pasan a "Fijo" por repetirse; el resto sí, si una regla recurrente o un cobro mensual estable cubre ≥ 80 % de su promedio. Hogar y Deudas siempre son fijas.
+- Un gasto atípico (> 2,5 × la mediana) solo cuenta como tal si su concepto aparece en un solo mes (el mercado mensual no es atípico).
+- El plan se sincroniza (tabla `savings_plans`, migración 0020) con "gana el más reciente"; eliminarlo lo marca con `deleted_at` para que la eliminación viaje.
 
 ## Orden de trabajo
 

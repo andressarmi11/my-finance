@@ -410,7 +410,8 @@ function Seg<V extends string>({ label, options, value, onChange, small = false 
             aria-pressed={on}
             onClick={() => onChange(v)}
             style={{
-              height: 34, border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 600, fontSize: small ? 12 : 13, padding: '0 2px',
+              height: 34, border: 'none', borderRadius: 9, cursor: 'pointer', fontWeight: 600, fontSize: small ? 11.5 : 13, padding: '0 2px',
+              whiteSpace: 'nowrap', letterSpacing: small ? '-.01em' : undefined, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis',
               background: on ? 'var(--line-strong)' : 'transparent', color: on ? 'var(--text)' : 'var(--text-faint)',
             }}
           >

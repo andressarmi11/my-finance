@@ -96,6 +96,23 @@ describe('buildPlan', () => {
     expect(cat(r, 'cat-mascotas').cut).toBe(0);
   });
 
+  it('day-to-day categories never turn fixed from repetition: a monthly Netflix is still cuttable', () => {
+    const subs = [
+      ...monthly('cat-suscripciones', 'Netflix', [45_000, 45_000, 45_000]),
+      ...monthly('cat-suscripciones', 'Spotify', [17_000, 17_000, 17_000]),
+    ];
+    const r = buildPlan(input({
+      transactions: [...baseTxs(), ...subs],
+      recurringRules: [rule({ categoryId: 'cat-suscripciones', amount: 62_000 })],
+    }));
+    expect(cat(r, 'cat-suscripciones').fixed).toBe(false);
+  });
+
+  it('a concept bought several times a month is a habit, not a fixed charge', () => {
+    const pets = [1, 2, 3, 4].flatMap((w) => monthly('cat-mascotas', 'Concentrado', [50_000, 50_000, 50_000], w * 6));
+    expect(cat(buildPlan(input({ transactions: [...baseTxs(), ...pets] })), 'cat-mascotas').fixed).toBe(false);
+  });
+
   it('monthly equivalents of each frequency', () => {
     expect(monthlyEquivalent(rule({ amount: 1200, frequency: 'yearly' }))).toBe(100);
     expect(monthlyEquivalent(rule({ amount: 120, frequency: 'weekly' }))).toBe(520);
