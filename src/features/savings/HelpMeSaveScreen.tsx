@@ -5,7 +5,6 @@ import { CategoryAvatar, CategoryIcon } from '@/components/ui/CategoryIcon';
 import { showToast } from '@/components/ui/Toast';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { deletePlan, savePlan } from '@/data/local/savingsPlans';
-import { formatMoney } from '@/domain/money/format';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import type { CategoryPlan } from '@/domain/savings/types';
 import type { Category, SavingsIntensity, SavingsPlan, SavingsPlanUnit } from '@/domain/types';
@@ -13,7 +12,7 @@ import { Switch } from '@/features/settings/ui';
 import { useLanguage } from '@/i18n/language';
 import type { TextKey } from '@/i18n/texts';
 import { fill } from '@/lib/dateLabels';
-import { durationText, fullDate, monthYear, reasonText, short } from './text';
+import { durationText, fullDate, money, monthYear, reasonText, short } from './text';
 import { usePlanDraft, type PlanDraftState, type StartOption } from './usePlanDraft';
 
 type Step = 'main' | 'custom' | 'done';
@@ -108,7 +107,7 @@ export function HelpMeSaveScreen() {
               <Customize d={d} compact />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 20, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
                 <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{t(d.mode === 'goal' ? 'save.footGoal' : 'save.footMonthly')}</span>
-                <span className="figures" style={{ fontSize: 20, fontWeight: 700, color: 'var(--positive-text)' }}>{formatMoney(d.plan.total)}</span>
+                <span className="figures" style={{ fontSize: 20, fontWeight: 700, color: 'var(--positive-text)' }}>{money(d.plan.total)}</span>
               </div>
               <Cta d={d} onClick={() => void create()} style={{ marginTop: 12, width: '100%', height: 48, fontSize: 15 }} />
               {d.active && (
@@ -198,7 +197,7 @@ export function HelpMeSaveScreen() {
         {step === 'custom' && (<>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 4px', fontSize: 14 }}>
             <span style={{ color: 'var(--text-muted)' }}>{t(d.mode === 'goal' ? 'save.footGoal' : 'save.footMonthly')}</span>
-            <span className="figures" data-testid="plan-foot-amount" style={{ fontWeight: 700, color: 'var(--positive-text)' }}>{formatMoney(d.plan.total)}</span>
+            <span className="figures" data-testid="plan-foot-amount" style={{ fontWeight: 700, color: 'var(--positive-text)' }}>{money(d.plan.total)}</span>
           </div>
           <button type="button" onClick={() => go('main')} style={primaryButton}>{t('save.seePlan')}</button>
         </>)}
@@ -260,7 +259,7 @@ function Hero({ d, desktop = false }: { d: PlanDraftState; desktop?: boolean }) 
     <div>
       <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>{label}</div>
       <div className="figures" data-testid="plan-hero-amount" style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-.035em', color: 'var(--positive-text)', marginTop: desktop ? 0 : 4 }}>
-        {formatMoney(d.plan.total)}
+        {money(d.plan.total)}
       </div>
       <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: desktop ? 4 : 6 }}>{sub}</div>
     </div>
@@ -274,7 +273,7 @@ function Warn({ d }: { d: PlanDraftState }) {
       display: 'flex', gap: 8, padding: '10px 12px', borderRadius: 12, marginBottom: 12, fontSize: 13,
       background: 'color-mix(in srgb, var(--q25) 12%, transparent)', color: 'var(--q25-text, var(--q25))',
     }}>
-      <span aria-hidden>!</span><span>{fill(t('save.warnOver'), { max: formatMoney(d.plan.maxCut) })}</span>
+      <span aria-hidden>!</span><span>{fill(t('save.warnOver'), { max: money(d.plan.maxCut) })}</span>
     </div>
   );
 }
@@ -477,7 +476,7 @@ function Customize({ d, compact = false }: { d: PlanDraftState; compact?: boolea
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: compact ? 12 : 0 }}>
             <span style={{ flex: 1 }}>
               <span style={{ display: 'block', fontSize: 14 }}>{t('save.wantMonthly')}</span>
-              <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{fill(t('save.maxSensible'), { max: formatMoney(d.plan.maxCut) })}</span>
+              <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{fill(t('save.maxSensible'), { max: money(d.plan.maxCut) })}</span>
             </span>
             <MiniStepper label={t('save.wantMonthly')} text={short(d.target)} width={compact ? 84 : 74}
               onDec={() => d.setTarget(d.target - d.unitStep)} onInc={() => d.setTarget(d.target + d.unitStep)} />
@@ -504,7 +503,7 @@ function Customize({ d, compact = false }: { d: PlanDraftState; compact?: boolea
             </div>
             {d.plan.total > 0 && goalMonths != null && (
               <div style={{ fontSize: compact ? 12 : 13, color: 'var(--positive-text)', marginTop: compact ? 8 : 10 }}>
-                {fill(t(goalMonths === 1 ? 'save.goalEta1' : 'save.goalEta'), { amount: formatMoney(d.plan.total), n: goalMonths })}
+                {fill(t(goalMonths === 1 ? 'save.goalEta1' : 'save.goalEta'), { amount: money(d.plan.total), n: goalMonths })}
               </div>
             )}
           </div>
@@ -659,9 +658,9 @@ function Done({ plan, d }: { plan: SavingsPlan; d: PlanDraftState }) {
   const end = fullDate(plan.endDate, language);
   const months = Math.max(1, d.plan.goalMonths ?? 1);
   const sub = plan.mode === 'goal'
-    ? fill(t('save.doneSubGoal'), { goal: plan.goalName || t('save.yourGoal'), amount: formatMoney(plan.goalAmount ?? 0), end })
+    ? fill(t('save.doneSubGoal'), { goal: plan.goalName || t('save.yourGoal'), amount: money(plan.goalAmount ?? 0), end })
     : fill(t('save.doneSubMonthly'), {
-      amount: formatMoney(plan.monthlyTarget),
+      amount: money(plan.monthlyTarget),
       period: plan.untilGoal ? fill(t('save.untilGoalMonths'), { n: months }) : durationText(t, plan.unit, plan.n),
       end,
     });

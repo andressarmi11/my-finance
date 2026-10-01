@@ -8,24 +8,29 @@ import type { SavingsPlanUnit } from '@/domain/types';
 
 type T = (k: TextKey) => string;
 
+/** formatMoney with a no-break space: "$" never ends a line alone. */
+export function money(n: number): string {
+  return formatMoney(n).replace(' ', '\u00a0');
+}
+
 /** "780K", "$ 0" for zero: the plan's compact amounts. */
 export function short(n: number): string {
-  return Math.round(n) === 0 ? '$ 0' : shortAmount(n);
+  return Math.round(n) === 0 ? '$\u00a00' : shortAmount(n);
 }
 
 /** The why of a cut, in the user's language, from their own data. */
 export function reasonText(t: T, r: Reason): string {
   switch (r.kind) {
     case 'deliveries':
-      return fill(t('save.whyDeliveries'), { n: r.perMonth, amount: formatMoney(r.amountPerMonth) });
+      return fill(t('save.whyDeliveries'), { n: r.perMonth, amount: money(r.amountPerMonth) });
     case 'rides':
-      return fill(t('save.whyRides'), { n: r.perMonth, amount: formatMoney(r.amountPerMonth) });
+      return fill(t('save.whyRides'), { n: r.perMonth, amount: money(r.amountPerMonth) });
     case 'aboveAverage':
       return fill(t('save.whyAbove'), { month: monthName(r.month), pct: r.pct });
     case 'oneOff':
-      return fill(t('save.whyOneOff'), { concept: r.concept, amount: formatMoney(r.amount) });
+      return fill(t('save.whyOneOff'), { concept: r.concept, amount: money(r.amount) });
     case 'topSubscription':
-      return fill(t(r.count > 1 ? 'save.whySubs' : 'save.whySubs1'), { n: r.count, concept: r.concept, amount: formatMoney(r.amountPerMonth) });
+      return fill(t(r.count > 1 ? 'save.whySubs' : 'save.whySubs1'), { n: r.count, concept: r.concept, amount: money(r.amountPerMonth) });
     case 'topConcepts':
       return fill(t('save.whyTop'), { list: r.concepts.join(t('save.and')) });
   }
