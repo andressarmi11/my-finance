@@ -252,6 +252,48 @@ export interface Budget {
   updatedAt: string;
 }
 
+/** How hard the plan cuts: the most each category can lose (10/20/30 %). */
+export type SavingsIntensity = 'gentle' | 'balanced' | 'intense';
+export type SavingsPlanMode = 'monthly' | 'goal';
+export type SavingsPlanUnit = 'days' | 'weeks' | 'months' | 'year';
+
+/**
+ * "Ayúdame a ahorrar" (PRESUPUESTOS-Y-AHORRO.md, part B). One active plan
+ * at most. Its budgets carry `planId`; deleting or ending the plan puts
+ * back `prevBudgets`, the snapshot taken when it was FIRST created.
+ */
+export interface SavingsPlan {
+  id: Id;
+  mode: SavingsPlanMode;
+  intensity: SavingsIntensity;
+  /** Category ids marked "No tocar". */
+  locked: Id[];
+  unit: SavingsPlanUnit;
+  n: number;
+  /** Goal mode: runs until the goal is reached (endDate from the months it takes). */
+  untilGoal: boolean;
+  startDate: ISODate;
+  /** Inclusive. */
+  endDate: ISODate;
+  /** What the plan puts aside each month (Σ cuts). */
+  monthlyTarget: number;
+  /** Monthly mode: what the user asked for; null = the most that's sensible. */
+  requestedMonthly: number | null;
+  goalName?: string;
+  goalAmount?: number;
+  /** The budgets the plan replaced or created over, as they were before it. */
+  prevBudgets: Budget[];
+  /** Per category: the monthly cut and the limit the plan set (avg − cut). */
+  cuts: Array<{ categoryId: Id; avg: number; cut: number; limit: number }>;
+  /** The savings goal budget's category and monthly amount. */
+  goalCategoryId: Id | null;
+  goalMonthly: number;
+  /** Set when the end notice was answered (renewed or ended). */
+  closedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Reminder {
   id: Id;
   transactionId: Id;
