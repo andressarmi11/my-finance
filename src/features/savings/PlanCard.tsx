@@ -6,7 +6,6 @@ import { showToast } from '@/components/ui/Toast';
 import { db } from '@/data/db';
 import { localRepository } from '@/data/local/localRepository';
 import { deletePlan, endPlan, renewPlan, useActivePlan } from '@/data/local/savingsPlans';
-import { formatMoney } from '@/domain/money/format';
 import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor';
 import { planProgress } from '@/domain/savings/progress';
 import type { SavingsPlan } from '@/domain/types';
@@ -17,7 +16,7 @@ import { fill } from '@/lib/dateLabels';
 import { EMPTY } from '@/lib/empty';
 import { todayISO } from '@/lib/todayISO';
 import { DeleteConfirm, Sparkle } from './HelpMeSaveScreen';
-import { fullDate, short } from './text';
+import { fullDate, money, short } from './text';
 
 const PERIOD_NAME: Record<Range, TextKey> = { quincena: 'save.periodQ', mes: 'save.periodM', trimestre: 'save.periodT', año: 'save.periodY' };
 const THIS_PERIOD: Record<Range, TextKey> = { quincena: 'save.thisQ', mes: 'save.thisM', trimestre: 'save.thisT', año: 'save.thisY' };
@@ -170,10 +169,10 @@ function ActivePlan({ plan, range, from, to, desktop }: { plan: SavingsPlan; ran
     body = (<>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: desktop ? 20 : 14, fontSize: desktop ? 14 : 13, color: 'var(--text-muted)' }}>
         <span>{fill(t(p.started ? 'save.savedIn' : 'save.notYetIn'), { period })}</span>
-        <span className="figures">{fill(t('save.goalOf'), { amount: formatMoney(p.goal) })}</span>
+        <span className="figures">{fill(t('save.goalOf'), { amount: money(p.goal) })}</span>
       </div>
       <div className="figures" data-testid="plan-saved" style={{ fontSize: desktop ? 40 : 28, fontWeight: 700, letterSpacing: '-.03em', color: 'var(--positive-text)', marginTop: 2 }}>
-        {formatMoney(p.saved)}
+        {money(p.saved)}
       </div>
       <div
         role="progressbar"
@@ -215,7 +214,7 @@ function ActivePlan({ plan, range, from, to, desktop }: { plan: SavingsPlan; ran
       {(range === 'año' || range === 'trimestre') && (
         <div style={{ marginTop: desktop ? 12 : 8, padding: desktop ? '12px 14px' : '10px 12px', borderRadius: 12, background: 'var(--paper)', fontSize: desktop ? 14 : 13 }}>
           {range === 'año'
-            ? fill(t('save.projection'), { amount: formatMoney(p.projection), n: months(p.monthsToDecember) })
+            ? fill(t('save.projection'), { amount: money(p.projection), n: months(p.monthsToDecember) })
             : fill(t('save.quarterCover'), { n: months(p.planMonths) })}
         </div>
       )}

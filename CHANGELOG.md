@@ -8,6 +8,13 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-10-01
+
+### Fixed
+- Ayúdame a ahorrar: the pace note no longer says "la línea blanca" (in
+  light mode the mark is dark): "La marca vertical muestra dónde deberías
+  ir hoy". Amounts in the plan keep "$" and the figure on the same line.
+
 ## [1.6.0] — 2026-10-01
 
 Ayúdame a ahorrar. Plan: `docs/presupuestos/PRESUPUESTOS-Y-AHORRO.md`
