@@ -928,6 +928,26 @@ export const TEXTS = {
     'navBar.preview': 'Vista previa de la barra',
     // Enlaces de correo
     'auth.confirmLinkExpired': 'El enlace de confirmación venció o ya se usó. Si ya confirmaste, entra con tu correo y contraseña; si no, crea la cuenta otra vez para recibir un enlace nuevo.',
+    // Presupuestos: Tope y Meta
+    'budgets.limit': 'Tope',
+    'budgets.goal': 'Meta',
+    'budgets.goalDone': '✓ Meta',
+    'budgets.kindOf': 'Tipo de presupuesto de {name}',
+    'budgets.introLead': 'Solo informan, nunca bloquean.',
+    'budgets.limitExplain': 'lo máximo que quieres gastar.',
+    'budgets.goalExplain': 'lo que quieres llegar a ahorrar.',
+    'budgets.spendingPct': 'Gastos {pct}%',
+    'budgets.savingsPct': 'Ahorro {pct}%',
+    'budgets.spentSummary': 'Gastaste {spent} de {limit}',
+    'budgets.savedSummary': 'Ahorraste {spent} de {limit}',
+    'budgets.statSpending': 'Gastos',
+    'budgets.statSavings': 'Ahorro',
+    'budgets.statValue': '{spent} de {limit}',
+    'budgets.goalLine': 'Ahorrado {saved} de {goal} · faltan {left}',
+    'budgets.goalLineDone': 'Ahorrado {saved} de {goal} · meta cumplida',
+    'budgets.edit': 'Editar',
+    'budgets.editAll': 'Editar presupuestos',
+    'analytics.goalColumnLabel': '{name}: ahorrado {spent} de la meta de {limit} ({pct}%)',
   },
 
   en: {
@@ -1825,6 +1845,26 @@ export const TEXTS = {
     'navBar.preview': 'Bar preview',
     // Enlaces de correo
     'auth.confirmLinkExpired': 'The confirmation link has expired or was already used. If you already confirmed, sign in with your email and password; if not, create the account again to get a new link.',
+    // Presupuestos: Tope y Meta
+    'budgets.limit': 'Limit',
+    'budgets.goal': 'Goal',
+    'budgets.goalDone': '✓ Goal',
+    'budgets.kindOf': 'Budget type for {name}',
+    'budgets.introLead': 'They inform, never block.',
+    'budgets.limitExplain': 'the most you want to spend.',
+    'budgets.goalExplain': 'what you want to save up.',
+    'budgets.spendingPct': 'Spending {pct}%',
+    'budgets.savingsPct': 'Savings {pct}%',
+    'budgets.spentSummary': 'Spent {spent} of {limit}',
+    'budgets.savedSummary': 'Saved {spent} of {limit}',
+    'budgets.statSpending': 'Spending',
+    'budgets.statSavings': 'Savings',
+    'budgets.statValue': '{spent} of {limit}',
+    'budgets.goalLine': 'Saved {saved} of {goal} · {left} to go',
+    'budgets.goalLineDone': 'Saved {saved} of {goal} · goal reached',
+    'budgets.edit': 'Edit',
+    'budgets.editAll': 'Edit budgets',
+    'analytics.goalColumnLabel': '{name}: saved {spent} of a {limit} goal ({pct}%)',
   },
 } as const;
 

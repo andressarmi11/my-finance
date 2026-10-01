@@ -224,12 +224,26 @@ export interface RecurringRule extends ForeignAmount {
   updatedAt: string;
 }
 
+/**
+ * 'limit' (Tope): the most you want to spend; going over is bad.
+ * 'goal' (Meta): what you want to put aside; going over is never bad.
+ * PRESUPUESTOS-Y-AHORRO.md, part A.
+ */
+export type BudgetKind = 'limit' | 'goal';
+
 export interface Budget {
   id: Id;
   categoryId: Id;
   year: number;
   month: number; // 1-12
   amount: number;
+  /** Missing = 'limit' (every budget saved before kinds existed). Read it with budgetKind(). */
+  kind?: BudgetKind;
+  /** Set by "Ayúdame a ahorrar": the plan that created this budget. */
+  planId?: Id;
+  /** Goal mode of a savings plan: what the user is saving for, and how much. */
+  goalName?: string;
+  goalAmount?: number;
   /**
    * Stamped by the repository on save. Without this there was no way
    * to sync them: last-write-wins needs to know which of the two

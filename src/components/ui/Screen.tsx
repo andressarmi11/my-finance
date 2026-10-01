@@ -20,7 +20,7 @@ const SR_ONLY: React.CSSProperties = {
  *  Ajustes sub-screens from Ajustes). */
 export function Screen({ title, subtitle, right, back, backAction, wide, hideTitle = false, panelFree = false, children }: {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   right?: ReactNode;
   back?: { label: string; to: string };
   /** An action on the same row as `back`, at the right ("Seleccionar"). */

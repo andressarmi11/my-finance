@@ -229,20 +229,41 @@ export function recurringRuleToRow(userId: string, r: RecurringRule): RecurringR
 
 export interface BudgetRow {
   id: string; user_id: string; category_id: string; year: number; month: number; amount: number;
+  /** Migration 0019. Missing on a server that hasn't run it. */
+  kind?: string; plan_id?: string | null; goal_name?: string | null; goal_amount?: number | null;
   updated_at: string;
 }
 export function budgetFromRow(row: BudgetRow): Budget {
-  return {
+  const b: Budget = {
     id: row.id, categoryId: row.category_id, year: row.year, month: row.month,
     amount: row.amount, updatedAt: row.updated_at,
   };
+  // 'limit' is what a missing kind means already: kept implicit.
+  if (row.kind === 'goal') b.kind = 'goal';
+  if (row.plan_id) b.planId = row.plan_id;
+  if (row.goal_name) b.goalName = row.goal_name;
+  if (row.goal_amount != null) b.goalAmount = Number(row.goal_amount);
+  return b;
 }
 export function budgetToRow(userId: string, b: Budget): BudgetRow {
   return {
     id: b.id, user_id: userId, category_id: b.categoryId, year: b.year, month: b.month,
     amount: b.amount,
+    kind: b.kind ?? 'limit',
+    plan_id: b.planId ?? null,
+    goal_name: b.goalName ?? null,
+    goal_amount: b.goalAmount ?? null,
     updated_at: b.updatedAt || new Date().toISOString(),
   };
+}
+/** The row as a server without migration 0019 accepts it. */
+export function budgetRowWithoutKind(row: BudgetRow): BudgetRow {
+  const rest: BudgetRow = { ...row };
+  delete rest.kind;
+  delete rest.plan_id;
+  delete rest.goal_name;
+  delete rest.goal_amount;
+  return rest;
 }
 
 export interface ReminderRow {
