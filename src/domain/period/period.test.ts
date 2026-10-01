@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculatePeriod, isMonthly, normalizePayDays, periodsOfMonth, rangeFromKey } from './period';
+import { calculatePeriod, isMonthly, normalizePayDays, periodMonthOf, periodsOfMonth, rangeFromKey } from './period';
 import { addDays, clampDay, parseISO, shiftMonth, toISO } from '../dates';
 
 /**
@@ -189,4 +189,17 @@ describe('coverage: every day falls in exactly one period', () => {
       }
     });
   }
+});
+
+describe('periodMonthOf', () => {
+  it('before the first pay day, the month is still the previous one', () => {
+    expect(periodMonthOf('2026-10-01', [10, 25])).toEqual({ y: 2026, m: 9 });
+    expect(periodMonthOf('2026-10-09', [10, 25])).toEqual({ y: 2026, m: 9 });
+    expect(periodMonthOf('2026-01-05', [10, 25])).toEqual({ y: 2025, m: 12 });
+  });
+  it('from the first pay day on, it is the calendar month', () => {
+    expect(periodMonthOf('2026-10-10', [10, 25])).toEqual({ y: 2026, m: 10 });
+    expect(periodMonthOf('2026-10-31', [10, 25])).toEqual({ y: 2026, m: 10 });
+    expect(periodMonthOf('2026-10-01', [1])).toEqual({ y: 2026, m: 10 });
+  });
 });

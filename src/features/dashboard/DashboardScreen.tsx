@@ -20,7 +20,7 @@ import { calculateMonthBalance } from '@/domain/period/balance';
 import { calculateMonthFlow } from '@/domain/totals/available';
 import { calculateOutstanding } from '@/domain/totals/outstanding';
 import { unpaidBalances } from '@/domain/credit-card/availableCredit';
-import { calculatePeriod, periodsOfMonth } from '@/domain/period/period';
+import { calculatePeriod, periodMonthOf, periodsOfMonth } from '@/domain/period/period';
 import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { shortDay } from '@/lib/formatShortDate';
@@ -48,12 +48,18 @@ export function DashboardScreen() {
   const [porPagarOpen, setPorPagarOpen] = useState(false);
 
   const today = todayISO();
-  const [todayYear, todayMonth] = today.split('-').map(Number) as [number, number];
+  const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
+  // The month of today's PERIOD (periodMonthOf): paid on the 10th/25th,
+  // October 1st–9th are still September's last period.
+  const { y: todayYear, m: todayMonth } = periodMonthOf(today, settings.payDays);
 
   // Visible month. Starts on the current one; the arrows move it.
   // Everything below (flow, pay periods, upcoming) is recalculated for
-  // THIS month.
-  const [cursor, setCursor] = useState({ y: todayYear, m: todayMonth });
+  // THIS month. null = follow "today" (settings load after the first render).
+  const [ownCursor, setOwnCursor] = useState<{ y: number; m: number } | null>(null);
+  const cursor = ownCursor ?? { y: todayYear, m: todayMonth };
+  const setCursor = (next: { y: number; m: number } | ((c: { y: number; m: number }) => { y: number; m: number })) =>
+    setOwnCursor((c) => (typeof next === 'function' ? next(c ?? { y: todayYear, m: todayMonth }) : next));
   const { y: year, m: month } = cursor;
   const isCurrentMonth = year === todayYear && month === todayMonth;
 
@@ -62,7 +68,6 @@ export function DashboardScreen() {
   // month comes out empty even though the rule has no end date.
   useEffect(() => { void ensureMonthMaterialized(year, month); }, [year, month]);
 
-  const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
   const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;

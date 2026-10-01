@@ -30,8 +30,12 @@ test('a card folds and stays folded after a reload', async ({ page }) => {
 });
 
 test('tapping a category row opens its detail', async ({ page }) => {
-  await page.getByRole('button', { name: /Hogar/ }).first().click();
-  await expect(page.getByRole('dialog', { name: 'Hogar' })).toBeVisible();
+  // Whichever category tops the month: the sample data is dated around
+  // today, so on the 1st the month may only hold one or two of them.
+  const row = page.getByRole('button', { name: /^.+ \$\s[\d.]+ \d+%$/ }).first();
+  const name = (await row.getAttribute('aria-label') ?? await row.innerText()).split(' $')[0]!.split('\n')[0]!.trim();
+  await row.click();
+  await expect(page.getByRole('dialog', { name })).toBeVisible();
 });
 
 test('no budgets: "Definir" goes to the budgets screen', async ({ page }) => {
