@@ -9,7 +9,7 @@
  */
 import { getSupabase } from './client';
 import { selectAll } from './supabaseRepository';
-import { budgetFromRow, budgetToRow, type BudgetRow } from './mappers';
+import { budgetFromRow, budgetRowWithoutKind, budgetToRow, type BudgetRow } from './mappers';
 import type { Budget } from '@/domain/types';
 import { translate } from '@/i18n/language';
 
@@ -32,8 +32,23 @@ export async function saveRemoteBudgets(budgets: Budget[]): Promise<void> {
   const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);
   // In a single upsert: there are few rows (one per category and month)
   // and this way sync doesn't make one request per budget.
-  const { error } = await supabase
-    .from('budgets')
-    .upsert(budgets.map((b) => budgetToRow(userId, b)));
-  if (error) throw error;
+  const rows = budgets.map((b) => budgetToRow(userId, b));
+  const { error } = await supabase.from('budgets').upsert(rows);
+  if (!error) return;
+  // Migration 0019 not run yet: PostgREST doesn't know the kind columns.
+  // Upload what the server understands rather than stopping the whole sync;
+  // Tope/Meta stays on this device until the migration is in.
+  if (missingColumn(error)) {
+    console.warn('Sync: la tabla budgets no tiene las columnas de la migración 0019; se sube sin Tope/Meta.');
+    const retry = await supabase.from('budgets').upsert(rows.map(budgetRowWithoutKind));
+    if (retry.error) throw retry.error;
+    return;
+  }
+  throw error;
+}
+
+function missingColumn(error: { code?: string; message?: string }): boolean {
+  if (error.code === 'PGRST204' || error.code === '42703') return true;
+  const message = error.message ?? '';
+  return /column/i.test(message) && /kind|plan_id|goal_/.test(message);
 }

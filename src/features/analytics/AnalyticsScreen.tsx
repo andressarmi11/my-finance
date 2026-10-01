@@ -6,11 +6,11 @@ import { BigAmount } from '@/components/ui/BigAmount';
 import { fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { MonthNav } from '@/components/ui/MonthNav';
-import { shortAmount } from './shortAmount';
 import { heroRangeLabel, RANGE_KEY, shortRangeLabel, widestShortRangeLabel } from './rangeLabel';
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { useNavigate } from 'react-router-dom';
 import { Screen } from '@/components/ui/Screen';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { db } from '@/data/db';
@@ -22,7 +22,8 @@ import { categoryColor, UNCATEGORIZED_COLOR } from '@/domain/seed/categoryColor'
 import { filterByRange, rangeBounds, shiftAnchor, containsToday, type Range } from './periodAggregate';
 import type { Transaction, Category } from '@/domain/types';
 import { todayISO } from '@/lib/todayISO';
-import { BudgetColumns, budgetColumns } from './BudgetColumns';
+import { BudgetColumns, budgetColumns, summarizeColumns } from './BudgetColumns';
+import { BudgetStats, budgetHeader } from '@/features/budgets/BudgetStats';
 import { spendByMethod } from './byMethod';
 import { ChartManager } from './ChartManager';
 import {
@@ -32,6 +33,7 @@ import { EMPTY } from '@/lib/empty';
 
 export function AnalyticsScreen() {
   const t = useT();
+  const navigate = useNavigate();
   const [range, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
   const [layout, setLayout] = useState<ChartLayout>(readChartLayout);
@@ -173,8 +175,7 @@ export function AnalyticsScreen() {
   ];
 
   const budgetCols = budgetColumns(categories, budgets, transactions, budgetMonth);
-  const budgetLimit = budgetCols.reduce((a, c) => a + c.limit, 0);
-  const budgetSpent = budgetCols.reduce((a, c) => a + c.spent, 0);
+  const budgetSummary = summarizeColumns(budgetCols);
 
   const methods = [
     { key: 'debit', label: t('analytics.debit'), value: byMethod.debit, color: 'var(--q10)' },
@@ -233,20 +234,29 @@ export function AnalyticsScreen() {
     },
     'budgets': {
       title: t('analytics.monthBudgets'),
-      summary: budgetLimit > 0 ? fill(t('analytics.used'), { pct: pctOf(budgetSpent, budgetLimit) }) : '',
-      content: (<>
-        {budgetLimit > 0 && (
-          <p style={{ margin: '-8px 0 0', fontSize: 13, color: 'var(--text-muted)' }}>
-            {fill(t('budgets.soFar'), { spent: shortAmount(budgetSpent), limit: shortAmount(budgetLimit) })}
-          </p>
-        )}
+      summary: budgetHeader(t, budgetSummary),
+      content: (<div style={{ marginTop: -8 }}>
+        <BudgetStats summary={budgetSummary} />
         <BudgetColumns
           categories={categories}
           budgets={budgets}
           transactions={transactions}
           monthPrefix={budgetMonth}
+          bleed={16}
         />
-      </>),
+        {budgetCols.length > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/ajustes/presupuestos')}
+            style={{
+              marginTop: 14, width: '100%', height: 40, borderRadius: 12, border: 'none', cursor: 'pointer',
+              background: 'var(--surface-sunken)', color: 'var(--q10-text)', fontWeight: 600, fontSize: 14,
+            }}
+          >
+            {t('budgets.editAll')}
+          </button>
+        )}
+      </div>),
     },
     'fixed-vs-variable': {
       title: t('analytics.fixedVsVariable'),

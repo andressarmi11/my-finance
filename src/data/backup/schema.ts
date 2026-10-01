@@ -151,6 +151,11 @@ export const BudgetSchema = z.object({
   year: z.number().int(),
   month: z.number().int().min(1).max(12),
   amount: z.number(),
+  // Tope/Meta and the savings plan's marks: absent in older backups.
+  kind: z.enum(['limit', 'goal']).optional(),
+  planId: z.string().optional(),
+  goalName: z.string().optional(),
+  goalAmount: z.number().optional(),
   // default(''): a backup made before budgets were synced doesn't carry
   // this field, and it still has to restore.
   updatedAt: z.string().default(''),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetFromRow, budgetToRow, categoryFromRow, categoryToRow,
+  budgetFromRow, budgetRowWithoutKind, budgetToRow, categoryFromRow, categoryToRow,
   paymentMethodFromRow, paymentMethodToRow, recurringRuleFromRow, recurringRuleToRow,
   reminderFromRow, reminderToRow, settingsFromRow, settingsToRow,
   transactionFromRow, transactionToRow,
@@ -115,6 +115,20 @@ describe('budget round-trip', () => {
       id: 'b1', categoryId: 'cat-hogar', year: 2026, month: 9, amount: 3_000_000, updatedAt: '',
     };
     expect(budgetToRow(USER, budget).updated_at).not.toBe('');
+  });
+
+  it('keeps a goal and its savings-plan marks', () => {
+    const budget: Budget = {
+      id: 'b2', categoryId: 'cat-ahorro', year: 2026, month: 9, amount: 3_500_000, kind: 'goal',
+      planId: 'plan-1', goalName: 'Viaje', goalAmount: 3_000_000, updatedAt: '2026-09-18T10:00:00.000Z',
+    };
+    expect(budgetToRow(USER, budget).kind).toBe('goal');
+    expect(budgetFromRow(budgetToRow(USER, budget))).toEqual(budget);
+  });
+
+  it('a server without migration 0019 gets the row without the kind columns', () => {
+    const row = budgetRowWithoutKind(budgetToRow(USER, { id: 'b', categoryId: 'c', year: 2026, month: 9, amount: 1, kind: 'goal', updatedAt: 'x' }));
+    expect(Object.keys(row).sort()).toEqual(['amount', 'category_id', 'id', 'month', 'updated_at', 'user_id', 'year']);
   });
 });
 

@@ -5,8 +5,9 @@
  */
 import type { Repository } from '../repository';
 import { getSupabase } from './client';
+import { saveRemoteBudgets } from './budgets';
 import {
-  budgetFromRow, budgetToRow, categoryFromRow, categoryToRow,
+  budgetFromRow, categoryFromRow, categoryToRow,
   paymentMethodFromRow, paymentMethodToRow, recurringRuleFromRow, recurringRuleToRow,
   reminderFromRow, reminderToRow, settingsFromRow, settingsToRow,
   transactionFromRow, transactionToRow,
@@ -206,9 +207,8 @@ export const supabaseRepository: Repository = {
     return (data as BudgetRow[]).map(budgetFromRow).filter((b) => b.amount > 0); // 0 = deleted
   },
   async saveBudget(budget) {
-    const [supabase, userId] = await Promise.all([getSupabase(), currentUserId()]);
-    const { error } = await supabase.from('budgets').upsert(budgetToRow(userId, budget));
-    if (error) throw error;
+    // Same path as sync: it copes with a server without migration 0019.
+    await saveRemoteBudgets([budget]);
   },
 
   async listReminders() {

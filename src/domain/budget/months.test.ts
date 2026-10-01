@@ -24,4 +24,16 @@ describe('planBudgetSet', () => {
     expect(rows.map((r) => [r.month, r.id, r.amount])).toEqual([[4, 'b4', 300], [6, 'b6', 300], [12, 'new1', 300]]);
     expect(replaced).toBe(1); // only April had a real budget; the 0 row is a deleted one
   });
+
+  it('a live goal stays a goal; a new or removed one takes the kind asked for', () => {
+    const goal = { ...b(4, 100), kind: 'goal' as const, planId: 'p1' };
+    const removed = { ...b(5, 0), kind: 'goal' as const };
+    const months = [4, 5, 6].map((month) => ({ year: 2026, month }));
+    const { rows } = planBudgetSet([goal, removed], 'c', months, 300, 'now', () => 'new');
+    expect(rows.map((r) => r.kind ?? 'limit')).toEqual(['goal', 'limit', 'limit']);
+    expect(rows[0]!.planId).toBe('p1');
+    const asGoal = planBudgetSet([removed, { ...b(7, 100), kind: 'limit' as const }], 'c',
+      [5, 6, 7].map((month) => ({ year: 2026, month })), 300, 'now', () => 'new', 'goal').rows;
+    expect(asGoal.map((r) => r.kind)).toEqual(['goal', 'goal', 'limit']);
+  });
 });

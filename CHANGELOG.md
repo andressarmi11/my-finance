@@ -8,6 +8,36 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-10-01
+
+Presupuestos: Tope y Meta. Plan: `docs/presupuestos/PRESUPUESTOS-Y-AHORRO.md`
+(part A). Prototype: `docs/presupuestos/Step Up Rediseno.dc.html`.
+
+### Added
+- A budget is a **Tope** (limit: the most you want to spend) or a **Meta**
+  (goal: what you want to save up). `Budget.kind`, default `limit`; budgets
+  of savings categories (the savings icon, like "Ahorro") are born goals.
+- Goal columns: a green gradient fill under a faint green dashed border,
+  with a "Meta" tag on top; at 100 % the border turns solid and the tag
+  reads "✓ Meta". The % is green and going over is never red.
+- Budget stats over the columns, Gastos and Ahorro (each only if it
+  exists), in Análisis, Ajustes → Presupuestos and the desktop Inicio
+  card (now with "Editar"). The Análisis card header reads
+  "Gastos 89% · Ahorro 86%"; Presupuestos, "Gastaste … · Ahorraste …".
+- Ajustes → Presupuestos: a mini **Tope | Meta** under each budgeted
+  category (the viewed month and the later ones that have a budget; past
+  months keep theirs). Goals read "Ahorrado $X de $Y · faltan $Z" or
+  "· meta cumplida". The intro explains both.
+- Zero amounts in the columns read "$ 0".
+- Supabase migration `0019_budget_kind.sql`: `kind`, plus `plan_id`,
+  `goal_name`, `goal_amount` for the savings plan (part B). Until it runs,
+  sync uploads budgets without those columns instead of failing.
+
+### Tests
+- Unit: `budget/kind.ts` (kind, savings categories, summary), Tope/Meta
+  kept across edits in `planBudgetSet`, mapper round-trip and fallback.
+- E2E 49-budget-goals (ES and EN).
+
 ## [1.4.1] — 2026-10-01
 
 ### Fixed

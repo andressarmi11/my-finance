@@ -34,7 +34,8 @@ import { IconPlus, IconSearch } from '@tabler/icons-react';
 import { useBreakpoint } from '@/app/useBreakpoint';
 import { SEARCH_INPUT_ID, consumeSearchFocus, onSearchFocusRequest } from '@/app/searchFocus';
 import { QuickActions } from '@/components/ui/TabBar';
-import { BudgetColumns } from '@/features/analytics/BudgetColumns';
+import { BudgetColumns, budgetColumns, summarizeColumns } from '@/features/analytics/BudgetColumns';
+import { BudgetStats } from '@/features/budgets/BudgetStats';
 import { TransactionsScreen } from '@/features/transactions/TransactionsScreen';
 import { InboxButton } from '@/features/inbox/InboxButton';
 import { InboxCard } from '@/features/inbox/InboxCard';
@@ -83,6 +84,8 @@ export function DashboardScreen() {
     () => (desktop ? localRepository.listBudgets(year, month) : Promise.resolve([])),
     [desktop, year, month],
   ) ?? EMPTY;
+  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+  const budgetSummary = summarizeColumns(budgetColumns(categories, budgets, transactions, monthPrefix));
   const hasTransactions = transactions.length > 0;
   useEffect(() => {
     if (!desktop) return;
@@ -483,12 +486,27 @@ export function DashboardScreen() {
             </section>
 
             <section style={{ ...card, padding: 18 }}>
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('budgets.title')}</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('budgets.title')}</h2>
+                <button
+                  type="button"
+                  onClick={() => navigate('/ajustes/presupuestos')}
+                  aria-label={t('budgets.editAll')}
+                  style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--q10-text)', fontWeight: 600, fontSize: 13 }}
+                >
+                  {t('budgets.edit')}
+                </button>
+              </div>
+              {budgetSummary.spending || budgetSummary.savings ? (
+                <div style={{ marginTop: 12 }}><BudgetStats summary={budgetSummary} /></div>
+              ) : null}
               <BudgetColumns
                 categories={categories}
                 budgets={budgets}
                 transactions={transactions}
-                monthPrefix={`${year}-${String(month).padStart(2, '0')}`}
+                monthPrefix={monthPrefix}
+                width={76}
+                bleed={18}
               />
             </section>
           </div>
