@@ -36,8 +36,21 @@ Presupuestos: Tope y Meta. Plan: `docs/presupuestos/PRESUPUESTOS-Y-AHORRO.md`
 ### Tests
 - Unit: `budget/kind.ts` (kind, savings categories, summary), Tope/Meta
   kept across edits in `planBudgetSet`, mapper round-trip and fallback.
-- E2E 49-budget-goals (ES and EN). E2E 42 no longer assumes "Hogar" has
-  spending in the current month (it failed on the 1st of the month).
+- E2E 49-budget-goals (ES and EN).
+
+## [1.4.1] — 2026-10-01
+
+### Fixed
+- Inicio and Movimientos open on the month of today's pay period, not the
+  calendar month. Paid on the 10th and the 25th, the 1st–9th belong to the
+  period of the 25th of the previous month, so an expense recorded on
+  October 1st showed up nowhere: October's view only holds its own periods.
+  "Hoy" (back to the current month) follows the same rule.
+
+### Tests
+- Unit: `periodMonthOf`. E2E 42 and 10 no longer assume the date: they
+  hard-coded "Hogar" having spending this month, "Septiembre" and
+  "Quincena del 5", and failed on October 1st.
 
 ## [1.4.0] — 2026-09-30
 

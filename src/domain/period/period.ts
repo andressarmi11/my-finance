@@ -115,6 +115,19 @@ export function periodsOfMonth(year: number, month: number, payDays: PayDays = D
 }
 
 /**
+ * The month whose periods hold `date`: the month the screens open on.
+ *
+ * Not always the calendar month. Paid on the 10th and the 25th, October
+ * 1st–9th still belong to "the period of the 25th" of SEPTEMBER, so a
+ * month view anchored on October showed them nowhere until the 10th: an
+ * expense recorded on the 1st vanished from Movimientos and Inicio.
+ */
+export function periodMonthOf(date: ISODate, payDays: PayDays = DEFAULT_PAY_DAYS): { y: number; m: number } {
+  const match = /^(\d{4})-(\d{2})-Q\d+$/.exec(calculatePeriod(date, payDays).key)!;
+  return { y: Number(match[1]), m: Number(match[2]) };
+}
+
+/**
  * Rebuilds the range from a key, without needing a transaction in hand.
  * Used by the list headers and the calendar.
  *
