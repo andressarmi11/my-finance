@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type {
-  Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction,
+  Budget, Category, PaymentMethod, RecurringRule, Reminder, SavingsPlan, Settings, Transaction,
 } from '@/domain/types';
 import type { ConceptIndexEntry } from '@/domain/inference/conceptInference';
 import type { Tombstone } from './sync/tombstones';
@@ -21,6 +21,7 @@ export class MyFinanceDB extends Dexie {
   recurringRules!: EntityTable<RecurringRule, 'id'>;
   budgets!: EntityTable<Budget, 'id'>;
   reminders!: EntityTable<Reminder, 'id'>;
+  savingsPlans!: EntityTable<SavingsPlan, 'id'>;
   conceptIndex!: EntityTable<ConceptIndexEntry, 'id'>;
   deletions!: EntityTable<Tombstone, 'id'>;
   /** Device-local data, never synced. See sync/owner.ts. */
@@ -55,6 +56,11 @@ export class MyFinanceDB extends Dexie {
     // person's transactions to the second person's account (see sync/owner.ts).
     this.version(4).stores({
       meta: 'id',
+    });
+    // v5: "Ayúdame a ahorrar" (PRESUPUESTOS-Y-AHORRO.md). One active plan
+    // at most; deleted ones stay as rows (deletedAt) so the deletion syncs.
+    this.version(5).stores({
+      savingsPlans: 'id, updatedAt',
     });
   }
 }

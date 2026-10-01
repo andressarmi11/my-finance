@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { TabBar } from '@/components/ui/TabBar';
 import { InstallBanner } from '@/components/ui/InstallBanner';
 import { InboxProvider } from '@/features/inbox/InboxProvider';
+import { ToastHost } from '@/components/ui/Toast';
 import { SyncIndicator } from '@/components/ui/SyncIndicator';
 import { PullToRefresh } from '@/components/ui/PullToRefresh';
 import { AuthGate } from '@/features/auth/AuthGate';
@@ -88,6 +89,7 @@ function AppShell() {
           {!desktop && <TabBar />}
           <PullToRefresh />
           <SyncIndicator status={status} error={error} onReintentar={() => void sync(true)} />
+          <ToastHost />
         </div>
       </InboxProvider>
     </OnboardingGate>

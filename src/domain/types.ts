@@ -290,6 +290,8 @@ export interface SavingsPlan {
   goalMonthly: number;
   /** Set when the end notice was answered (renewed or ended). */
   closedAt?: string;
+  /** Deleted (kept as a row so the deletion syncs, last write wins). */
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
