@@ -17,7 +17,7 @@ import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { maybeScheduleReminder } from '@/features/notifications/scheduleReminder';
 import { formatMoney } from '@/domain/money/format';
-import { periodsOfMonth } from '@/domain/period/period';
+import { periodMonthOf, periodsOfMonth } from '@/domain/period/period';
 import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { todayISO } from '@/lib/todayISO';
@@ -67,11 +67,17 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
   const [loadingDemo, setLoadingDemo] = useState(false);
 
   const today = todayISO();
-  const [todayYear, todayMonth] = today.split('-').map(Number) as [number, number];
-  const [ownCursor, setCursor] = useState({ y: todayYear, m: todayMonth });
+  const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
+  // The month of today's PERIOD, not the calendar's (periodMonthOf): on the
+  // 1st–9th, paid on the 10th/25th, today still sits in last month's view.
+  const { y: todayYear, m: todayMonth } = periodMonthOf(today, settings.payDays);
+  // null = follow "today" (settings load after the first render).
+  const [ownCursor, setOwnCursor] = useState<{ y: number; m: number } | null>(null);
+  const setCursor = (next: { y: number; m: number } | ((c: { y: number; m: number }) => { y: number; m: number })) =>
+    setOwnCursor((c) => (typeof next === 'function' ? next(c ?? { y: todayYear, m: todayMonth }) : next));
   const cursor = useMemo(
-    () => (embedded ? { y: embedded.year, m: embedded.month } : ownCursor),
-    [embedded, ownCursor],
+    () => (embedded ? { y: embedded.year, m: embedded.month } : ownCursor ?? { y: todayYear, m: todayMonth }),
+    [embedded, ownCursor, todayYear, todayMonth],
   );
   const isCurrentMonth = cursor.y === todayYear && cursor.m === todayMonth;
 
@@ -79,7 +85,6 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
   // instances created, even if it's two years out.
   useEffect(() => { void ensureMonthMaterialized(cursor.y, cursor.m); }, [cursor]);
 
-  const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const categories = useLiveQuery(() => localRepository.listCategories(), []) ?? EMPTY;
   const paymentMethods = useLiveQuery(() => localRepository.listPaymentMethods(), []) ?? EMPTY;
   const transactions = useLiveQuery(() => db.transactions.toArray(), []) ?? EMPTY;

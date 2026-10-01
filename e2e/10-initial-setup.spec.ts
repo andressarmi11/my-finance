@@ -43,8 +43,10 @@ base('the initial setup asks for name, currency, pay periods and categories', as
 
   // The chosen pay period wins (Home names only today's period now, so the
   // list is where both show), and the removed category is nowhere to be seen.
+  // Whichever of the two holds today: the sample data is dated around it.
   await page.goto('movimientos');
-  await expect(page.getByText('Quincena del 5')).toBeVisible();
+  await expect(page.getByText(/^Quincena del (5|25)$/).first()).toBeVisible();
+  await expect(page.getByText(/^Quincena del 10$/)).toHaveCount(0);
   await page.goto('movimientos?nuevo=1');
   await expect(page.getByRole('button', { name: /Viajes/ })).toBeHidden();
 });
@@ -90,9 +92,11 @@ base('you can choose to be paid once a month', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Te queda en');
   await expect(page.getByText(/Quincena del/)).toBeHidden();
   // Count the boxes, not just check they don't say "quincena": the real
-  // bug was that TWO came out, both called "Septiembre" and the second at
+  // bug was that TWO came out, both called after the month and the second at
   // zero, because the month balance wasn't given the pay days.
-  await expect(page.getByText('Septiembre', { exact: true })).toHaveCount(1);
+  // (named after the current month, whichever it is when this runs).
+  const monthNow = new Date().toLocaleString('es-CO', { month: 'long' });
+  await expect(page.getByText(monthNow.charAt(0).toUpperCase() + monthNow.slice(1), { exact: true })).toHaveCount(1);
 
   // And the list groups by month, without mentioning pay periods.
   await page.goto('movimientos');
