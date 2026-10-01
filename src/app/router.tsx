@@ -57,7 +57,14 @@ export const router = createBrowserRouter(
         // The calendar is a view of Movimientos now. The old path stays so
         // bookmarks and notifications that point to it keep working.
         { path: 'calendario', element: <Navigate to="/movimientos?vista=calendario" replace /> },
-        { path: 'analisis', element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary> },
+        {
+          path: 'analisis',
+          element: <ErrorBoundary><Suspense fallback={<LazyFallback />}><AnalyticsScreen /></Suspense></ErrorBoundary>,
+          // "Ayúdame a ahorrar": AnalyticsScreen draws it (useMatch), over itself
+          // on the phone and in its place on desktop; a child route keeps the
+          // screen mounted, so the period chosen survives opening the plan.
+          children: [{ path: 'ahorrar', element: null }],
+        },
         {
           // Settings sub-screens (redesign §7): each a thin wrapper around the
           // section that used to be expanded on the long Settings page. On a

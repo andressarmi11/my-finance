@@ -45,6 +45,7 @@ import { reconcileBudgets } from './budgets';
 import { remindersToUpload } from './reminders';
 import { newest as newer } from './newest';
 import { reconcileOccurrences } from './duplicateOccurrences';
+import { syncSavingsPlans } from './savingsPlans';
 import type { Budget, Category, PaymentMethod, RecurringRule, Reminder, Settings, Transaction } from '@/domain/types';
 
 export interface SyncResult {
@@ -490,7 +491,9 @@ async function currentRemoteVersions(): Promise<Map<string, string>> {
 export async function syncBidirectional(): Promise<SyncResult> {
   const pull = await pullCloudToLocal();
   const push = await pushLocalToCloud(pull.remote);
-  return { pushed: push.pushed, pulled: pull.pulled, deleted: pull.deleted };
+  // After budgets: a plan's budgets travel with the budgets' own sync.
+  const plans = await syncSavingsPlans();
+  return { pushed: push.pushed + plans.pushed, pulled: pull.pulled + plans.pulled, deleted: pull.deleted };
 }
 
 /**

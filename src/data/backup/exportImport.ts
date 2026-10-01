@@ -136,11 +136,14 @@ export function parseBackupFile(text: string): ParseResult {
 export async function importBackup(backup: Backup): Promise<void> {
   await db.transaction(
     'rw',
-    [db.settings, db.categories, db.paymentMethods, db.transactions, db.recurringRules, db.budgets, db.reminders],
+    [db.settings, db.categories, db.paymentMethods, db.transactions, db.recurringRules, db.budgets, db.reminders, db.savingsPlans],
     async () => {
       await Promise.all([
         db.settings.clear(), db.categories.clear(), db.paymentMethods.clear(),
         db.transactions.clear(), db.recurringRules.clear(), db.budgets.clear(), db.reminders.clear(),
+        // A savings plan points at budgets the backup replaces: it ends here
+        // (marked deleted, so the deletion syncs instead of the plan coming back).
+        db.savingsPlans.toCollection().modify((p) => { const now = new Date().toISOString(); p.deletedAt ??= now; p.updatedAt = now; }),
       ]);
       await Promise.all([
         db.settings.bulkPut(backup.settings),

@@ -88,6 +88,12 @@ button { font: inherit; color: inherit; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+/* "Ayúdame a ahorrar" on the phone: a full screen coming in from the right. */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
