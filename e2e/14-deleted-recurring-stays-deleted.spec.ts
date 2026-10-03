@@ -15,6 +15,9 @@ test('a deleted recurring transaction does not come back on reload', async ({ pa
   const dialog = page.getByRole('dialog', { name: 'Nuevo recurrente' });
   await dialog.getByPlaceholder('¿En qué fue? ej. Almuerzo').fill('Gimnasio Zombi');
   await dialog.getByLabel('Valor', { exact: true }).fill('100000');
+  // On today's day: Movimientos opens on today's pay-period month, which the
+  // next 1st (the default day) falls outside of from the 2nd to the pay day.
+  for (let d = 1; d < new Date().getDate(); d++) await dialog.getByRole('button', { name: 'Un día después' }).click();
   await dialog.getByRole('button', { name: 'Débito' }).click();
   await dialog.getByRole('button', { name: 'Guardar' }).click();
   await expect(dialog).toBeHidden();

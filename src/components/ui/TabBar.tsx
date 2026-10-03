@@ -1,6 +1,6 @@
 import { useNavBarStyle } from '@/lib/navBar';
 import { useT } from '@/i18n/language';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { QuickEntrySheet } from '@/features/quick/QuickEntrySheet';
@@ -20,6 +20,34 @@ export const TABS = [
   { to: '/ajustes', key: 'nav.settings', icon: 'M4 7h9M17 7h3M4 17h3M11 17h9M15 5v4M9 15v4' },
 ] as const;
 
+/**
+ * iOS sometimes leaves fixed elements where they were when the page gets
+ * shorter under the thumb (marking the last "Falta este mes" while scrolled
+ * down): the pill floats well above the bottom until the next scroll.
+ * Re-setting the scroll once the page shrinks makes Safari place them again.
+ */
+function useFixedBarResync(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || typeof ResizeObserver === 'undefined') return;
+    const root = document.documentElement;
+    let last = root.scrollHeight;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      const height = root.scrollHeight;
+      if (height < last) {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          const max = Math.max(0, root.scrollHeight - window.innerHeight);
+          window.scrollTo(window.scrollX, Math.min(window.scrollY, max));
+        });
+      }
+      last = height;
+    });
+    observer.observe(document.body);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [enabled]);
+}
+
 export function TabBar() {
   const t = useT();
   const [quickOpen, setQuickOpen] = useState(false);
@@ -27,6 +55,7 @@ export function TabBar() {
   const rail = useBreakpoint() === 'tablet';
   // Keeps --nav-* / --fab-* in step with Ajustes → Tema y barra.
   useNavBarStyle();
+  useFixedBarResync(!rail);
 
   // The + is always visible (it used to hide on scroll down): it's the main
   // action, and the pill it sits next to doesn't cover the content anyway.

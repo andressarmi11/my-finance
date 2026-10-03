@@ -8,6 +8,17 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.6.2] — 2026-10-03
+
+### Fixed
+- Por revisar: the concept takes spaces again ("Transferencia de…"); it was
+  trimmed on every keystroke. It's trimmed only when it's saved.
+- Por revisar: after Anotar, the "Deshacer" toast no longer covers
+  Descartar and Anotar on the next entry; the sheet makes room for it.
+- Inicio (iPhone): marking the last "Falta este mes" while scrolled down
+  could leave the tab bar floating above the bottom. The scroll is re-set
+  when the page gets shorter so iOS places it again.
+
 ## [1.6.1] — 2026-10-01
 
 ### Fixed

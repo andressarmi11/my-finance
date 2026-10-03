@@ -33,7 +33,11 @@ export function InboxSheet({ review }: { review: InboxReview }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%', maxWidth: 560, background: 'var(--surface)', borderRadius: '28px 28px 0 0',
-          padding: '10px 18px calc(var(--safe-bottom) + 30px)', maxHeight: '92vh', overflowY: 'auto',
+          // While the undo toast shows it sits over the bottom of the sheet,
+          // so the sheet makes room for it and the buttons stay above it.
+          padding: `10px 18px calc(var(--safe-bottom) + ${review.toast ? 88 : 30}px)`,
+          maxHeight: '92vh', overflowY: 'auto',
+          transition: 'padding-bottom .3s cubic-bezier(.22,1,.36,1)',
           animation: 'slideUp var(--dur-med) var(--ease-spring-out)',
         }}
       >

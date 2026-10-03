@@ -107,7 +107,8 @@ export function useInboxReview() {
   }
 
   function what(d: Draft): string {
-    return d.amount != null ? `${d.concept} ${formatMoney(d.amount, d.currency)}` : d.concept;
+    const c = d.concept.trim();
+    return d.amount != null ? `${c} ${formatMoney(d.amount, d.currency)}` : c;
   }
 
   /** Moves on to the one after `id` (or the one before, at the end). */
