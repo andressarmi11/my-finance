@@ -4,7 +4,7 @@ import { IconCheck, IconEye, IconEyeOff, IconLock, IconMail } from '@tabler/icon
 import { getSupabase } from '@/data/supabase/client';
 import { MIN_PASSWORD, translateError } from './authStyles';
 import { useTurnstile } from './useTurnstile';
-import { forgetSignedOutEmail, readSignedOutEmail } from './signedOut';
+import { forgetSignedOutEmail, readSignedOutEmail, readAccountDeleted, forgetAccountDeleted } from './signedOut';
 import { Logo } from '@/components/ui/Logo';
 import { Segmented } from '@/components/ui/Segmented';
 import { PasswordStrength, passwordStrength } from '@/components/ui/PasswordStrength';
@@ -86,7 +86,11 @@ function SignInForm() {
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState(() => (signedOutEmail ? t('login.signedOut') : ''));
+  const [accountDeleted] = useState(readAccountDeleted);
+  useEffect(() => { if (accountDeleted) forgetAccountDeleted(); }, [accountDeleted]);
+  const [notice, setNotice] = useState(() => (
+    accountDeleted ? t('login.accountDeleted') : signedOutEmail ? t('login.signedOut') : ''
+  ));
   // Arriving from an email link that failed (#error_code=otp_expired…):
   // say so, and clear it from the address bar.
   useEffect(() => {

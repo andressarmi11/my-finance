@@ -13,7 +13,8 @@ import { SettingsGroup, SettingsRow, card, noteStyle, useSettingsBack } from './
 /**
  * Perfil (redesign §9e), opened from the profile card: the name the app
  * greets you with on Inicio (settings.displayName), the account's sync
- * (CloudSection: "Sincronizar ahora"), "Cambiar contraseña" and sign out.
+ * (CloudSection: "Sincronizar ahora"), "Cambiar contraseña", "Eliminar cuenta"
+ * and sign out.
  * Without an account only the name is here.
  */
 export function ProfileScreen() {
@@ -77,6 +78,7 @@ export function ProfileScreen() {
               <SettingsGroup style={{ marginTop: 0 }}>
                 <CloudSection />
                 <SettingsRow label={t('set.changePassword')} to="/ajustes/cuenta/contrasena" />
+                <SettingsRow label={t('set.deleteAccount')} to="/ajustes/cuenta/eliminar" danger />
               </SettingsGroup>
             </div>
           )}
@@ -127,6 +129,7 @@ export function ProfileScreen() {
           <SettingsGroup title={t('set.account')} note={t('cloud.sameDataAnywhere')}>
             <CloudSection />
             <SettingsRow label={t('set.changePassword')} to="/ajustes/cuenta/contrasena" />
+            <SettingsRow label={t('set.deleteAccount')} to="/ajustes/cuenta/eliminar" danger />
           </SettingsGroup>
           <button
             type="button"

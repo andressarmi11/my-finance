@@ -2,8 +2,8 @@ import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * Redesign phase 6, signed in (§9f, §11 items 4 and 5): change the password
- * from Perfil, and sign out with or without "Borrar también de este
- * teléfono".
+ * from Perfil, sign out with or without "Borrar también de este
+ * teléfono", and delete the account (required by the app stores).
  *
  * Runs in the cloud-sync project: a build pointed at a fake `.test`
  * Supabase that this spec answers with route() (see playwright.config.ts
@@ -19,10 +19,11 @@ interface Calls {
   passwordSignIns: string[];
   passwordUpdates: string[];
   logouts: number;
+  rpcs: string[];
 }
 
 async function fakeBackend(context: BrowserContext): Promise<Calls> {
-  const calls: Calls = { passwordSignIns: [], passwordUpdates: [], logouts: 0 };
+  const calls: Calls = { passwordSignIns: [], passwordUpdates: [], logouts: 0, rpcs: [] };
   const b64 = (o: object) => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
   const exp = Math.floor(Date.now() / 1000) + 3600 * 24;
   const accessToken = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: USER_ID, role: 'authenticated', exp })}.sig`;
@@ -69,6 +70,10 @@ async function fakeBackend(context: BrowserContext): Promise<Calls> {
     }
     if (url.pathname.startsWith('/auth/v1/')) return json(200, {});
 
+    if (url.pathname.startsWith('/rest/v1/rpc/')) {
+      calls.rpcs.push(url.pathname.replace('/rest/v1/rpc/', ''));
+      return route.fulfill({ status: 204, headers: cors, body: '' });
+    }
     const table = url.pathname.replace('/rest/v1/', '');
     if (req.method() === 'GET' || req.method() === 'HEAD') {
       const rows = table === 'settings' ? [settingsRow] : [];
@@ -192,6 +197,44 @@ test('sign out keeps this phone\'s data unless "erase it from this phone" is tic
   expect(await count(page, 'meta')).toBe(0);
   const keys = await page.evaluate(() => Object.keys(localStorage).filter((k) => !k.startsWith('sb-')));
   expect(keys).toEqual([]);
+  expect(errors).toEqual([]);
+  await context.close();
+});
+
+test('delete the account: re-authenticates, calls delete_account and wipes this phone', async ({ browser }) => {
+  const context = await browser.newContext({ locale: 'es-CO', viewport: { width: 390, height: 844 } });
+  const calls = await fakeBackend(context);
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+
+  await signIn(page);
+  await addExpense(page, 'Almuerzo que se va');
+  await page.goto('ajustes');
+  await page.getByRole('link', { name: /^Perfil/ }).click();
+  await page.getByRole('link', { name: 'Eliminar cuenta' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Eliminar cuenta' })).toBeVisible();
+  await expect(page.getByText('Qué se borra')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Exportar mis datos antes' })).toBeVisible();
+
+  const remove = page.getByRole('button', { name: 'Eliminar mi cuenta' });
+  // Nothing happens without the password.
+  await expect(remove).toBeDisabled();
+  await page.getByLabel('Escribe tu contraseña para confirmar').fill('clave-actual-123');
+  await expect(remove).toBeEnabled();
+
+  const before = calls.passwordSignIns.length;
+  const reloaded = page.waitForEvent('load');
+  await remove.click();
+  await reloaded;
+
+  await expect(page.getByLabel('Correo')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('Tu cuenta y sus datos fueron eliminados.')).toBeVisible();
+  expect(calls.passwordSignIns.slice(before)).toEqual(['clave-actual-123']);
+  expect(calls.rpcs).toEqual(['delete_account']);
+  // Nothing of the account is left on this phone either.
+  await expect.poll(() => count(page, 'transactions')).toBe(0);
+  expect(await count(page, 'meta')).toBe(0);
   expect(errors).toEqual([]);
   await context.close();
 });

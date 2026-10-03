@@ -10,6 +10,7 @@ import { LegalRedirect, PreferencesScreen, SettingsIndex, SettingsLayout } from 
 import { ThemeScreen } from '@/features/settings/ThemeSheet';
 import { ProfileScreen } from '@/features/settings/ProfileScreen';
 import { ChangePasswordScreen } from '@/features/settings/ChangePasswordScreen';
+import { DeleteAccountScreen } from '@/features/settings/DeleteAccountScreen';
 import { CurrencyScreen } from '@/features/settings/CurrencyScreen';
 import { PayDaysScreen } from '@/features/settings/PayDaysScreen';
 import { RemindersScreen } from '@/features/settings/RemindersScreen';
@@ -76,6 +77,7 @@ export const router = createBrowserRouter(
             { index: true, element: <SettingsIndex /> },
             { path: 'cuenta', element: <ProfileScreen /> },
             { path: 'cuenta/contrasena', element: <ChangePasswordScreen /> },
+            { path: 'cuenta/eliminar', element: <DeleteAccountScreen /> },
             { path: 'preferencias', element: <PreferencesScreen /> },
             { path: 'tema', element: <ThemeScreen /> },
             { path: 'moneda', element: <CurrencyScreen /> },

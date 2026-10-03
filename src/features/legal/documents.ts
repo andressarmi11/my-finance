@@ -8,10 +8,16 @@ import type { Language } from '@/i18n/language';
  *   - there is no analytics or tracking of any kind (no Google Analytics,
  *     no Sentry, no pixels): grep over src/ and index.html;
  *   - document.cookie is not used anywhere;
- *   - the only third party that received requests was Google Fonts, and
- *     that was removed by serving the font from the app itself;
- *   - the data lives in IndexedDB and, if the user creates an account,
- *     also in Supabase (region us-west-2).
+ *   - the font is served from the app itself (Google Fonts was removed);
+ *   - the third parties that receive requests are exactly: GitHub Pages
+ *     (hosting), Supabase (account and sync), Cloudflare Turnstile (the
+ *     sign-in captcha, useTurnstile.ts) and ExchangeRate-API (open.er-api.com,
+ *     the fallback for today's rates, src/lib/fxRates.ts) — the CSP in
+ *     vite.config.ts allows nothing else;
+ *   - the published build requires an account (AuthGate): the data lives in
+ *     IndexedDB and in Supabase (region us-west-2);
+ *   - the account can be deleted in the app (Ajustes → Perfil → Eliminar
+ *     cuenta, migration 0021_delete_account.sql).
  *
  * If any of those things changes, THIS FILE LIES. Anyone adding analytics,
  * a third party or a cookie has to come back here.
@@ -20,7 +26,7 @@ import type { Language } from '@/i18n/language';
  * and no lawyer reviewed them.
  */
 
-export const UPDATED = '2026-09-26';
+export const UPDATED = '2026-10-03';
 
 export type LegalSlug = 'aviso' | 'privacidad' | 'terminos' | 'cookies' | 'propiedad';
 
@@ -68,7 +74,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Alojamiento',
         p: [
-          'La aplicación se sirve como sitio estático desde GitHub Pages (GitHub, Inc.). La sincronización opcional usa Supabase, Inc.',
+          'La aplicación se sirve como sitio estático desde GitHub Pages (GitHub, Inc.). La cuenta y la sincronización usan Supabase, Inc.',
         ],
       },
       {
@@ -88,7 +94,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
         h: 'Lo corto',
         p: [
           'Step up no tiene analítica, ni rastreadores, ni píxeles publicitarios, ni cookies. No se vende ni se comparte tu información con nadie, porque no hay a quién: el modelo de negocio de esta app no son tus datos.',
-          'Tus movimientos viven en tu propio dispositivo. Si creas una cuenta, además se guardan cifrados en tránsito en Supabase para que puedas verlos desde otro teléfono.',
+          'Tus movimientos se guardan en tu dispositivo y en tu cuenta, en Supabase, para que puedas verlos desde otro teléfono. Viajan siempre cifrados (HTTPS). Puedes eliminar la cuenta y todos sus datos cuando quieras desde la app.',
         ],
       },
       {
@@ -100,8 +106,8 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Qué datos se tratan',
         ul: [
-          'Sin cuenta: nada sale de tu dispositivo. Todo se guarda en el navegador (IndexedDB).',
-          'Con cuenta: tu correo electrónico y una contraseña, que se guarda con hash y nunca en texto plano.',
+          'Tu cuenta: tu correo electrónico y una contraseña, que se guarda con hash y nunca en texto plano.',
+          'Una copia de tus datos en tu dispositivo (IndexedDB del navegador), para que la app funcione sin conexión.',
           'Tus datos financieros: movimientos, conceptos, montos, fechas, categorías, presupuestos, reglas recurrentes y recordatorios.',
           'Tus métodos de pago tal como tú los escribes: un nombre, el día de corte, el día de pago y el cupo. Nunca se pide ni se guarda el número de una tarjeta, su CVV ni su fecha de vencimiento.',
           'Si activas las notificaciones: la suscripción push que genera tu navegador, para poder enviarte el recordatorio.',
@@ -116,8 +122,10 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Quién los procesa',
         ul: [
-          'Supabase, Inc. — base de datos y autenticación, solo si creas cuenta. Servidores en Estados Unidos (región us-west-2).',
+          'Supabase, Inc. — base de datos y autenticación. Servidores en Estados Unidos (región us-west-2).',
           'GitHub, Inc. — alojamiento del sitio. Recibe la petición de descarga de la app, como cualquier servidor web.',
+          'Cloudflare, Inc. — verificación anti-bots (Turnstile) en las pantallas de inicio de sesión, contraseña y eliminación de cuenta. Recibe tu dirección IP y datos técnicos del navegador para distinguir personas de bots. Funciona desde el dominio de Cloudflare y se rige por su propia política de privacidad.',
+          'ExchangeRate-API (open.er-api.com) — las tasas de cambio del día, si usas otra moneda. Normalmente las trae el servidor una vez al día para todos; si no están, tu dispositivo las pide directamente y ese servicio recibe tu dirección IP. No se le envía ningún dato tuyo.',
         ],
         p: [
           'No hay más terceros. La tipografía que usa la app se sirve desde la propia aplicación precisamente para que ningún proveedor externo reciba la dirección IP de quien la usa.',
@@ -126,13 +134,13 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Transferencia internacional',
         p: [
-          'Si creas cuenta, tus datos se almacenan en servidores en Estados Unidos. Al registrarte autorizas esa transferencia, en los términos de la Ley 1581 de 2012 y el Decreto 1377 de 2013. Si prefieres que no salgan de tu dispositivo, usa la aplicación sin cuenta: funciona completa.',
+          'Tus datos se almacenan en servidores en Estados Unidos. Al registrarte autorizas esa transferencia, en los términos de la Ley 1581 de 2012 y el Decreto 1377 de 2013. Puedes revocarla en cualquier momento eliminando tu cuenta.',
         ],
       },
       {
         h: 'Cuánto tiempo',
         p: [
-          'Mientras tengas la cuenta. Si la eliminas, se borran sus datos. Lo que esté guardado en tu dispositivo lo controlas tú y puedes borrarlo limpiando los datos del sitio en tu navegador.',
+          'Mientras tengas la cuenta. La eliminas cuando quieras desde Ajustes → Perfil → Eliminar cuenta: en ese momento se borran tu cuenta y todos sus datos de la base de datos, y lo guardado en ese dispositivo. Si no puedes entrar a la app, escribe a andresarmi11@gmail.com desde el correo de la cuenta y se elimina por ti.',
         ],
       },
       {
@@ -170,7 +178,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Qué se te ofrece',
         p: [
-          'Una herramienta gratuita para registrar y organizar tu dinero. Puedes usarla sin crear cuenta; en ese caso todo se queda en tu dispositivo. Crear una cuenta solo sirve para que tus datos te sigan a otros dispositivos.',
+          'Una herramienta gratuita para registrar y organizar tu dinero. Necesitas una cuenta: con ella tus datos se guardan y te siguen a otros dispositivos.',
         ],
       },
       {
@@ -179,6 +187,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
           'Eres responsable de tu contraseña y de lo que ocurra en tu cuenta.',
           'Debes dar un correo válido: es el único camino para recuperar el acceso.',
           'Puedes dejar de usar la aplicación cuando quieras. Exporta antes tus datos si te importan.',
+          'Puedes eliminar tu cuenta y todos sus datos cuando quieras, desde Ajustes → Perfil → Eliminar cuenta.',
         ],
       },
       {
@@ -223,6 +232,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
         h: 'Step up no usa cookies',
         p: [
           'Ni propias ni de terceros, ni técnicas ni de análisis ni de publicidad. La aplicación no escribe cookies en ningún momento, y por eso no verás un banner pidiéndote que las aceptes: no habría nada que aceptar.',
+          'El verificador anti-bots de Cloudflare que aparece al iniciar sesión corre desde el dominio de Cloudflare, no desde la app, y se rige por la política de Cloudflare.',
         ],
       },
       {
@@ -240,7 +250,7 @@ const ES: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Cómo borrarlo',
         p: [
-          'Desde tu navegador, borrando los datos del sitio. En iOS: Ajustes, Safari, Avanzado, Datos de sitios web. Ten en cuenta que si no tienes cuenta, eso borra también tus movimientos: exporta antes desde Ajustes.',
+          'Desde tu navegador, borrando los datos del sitio. En iOS: Ajustes, Safari, Avanzado, Datos de sitios web. Eso borra la copia de este dispositivo; lo que está en tu cuenta sigue ahí. Para borrar también la cuenta: Ajustes → Perfil → Eliminar cuenta.',
         ],
       },
     ],
@@ -316,7 +326,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Hosting',
         p: [
-          'The app is served as a static site from GitHub Pages (GitHub, Inc.). Optional sync uses Supabase, Inc.',
+          'The app is served as a static site from GitHub Pages (GitHub, Inc.). The account and sync use Supabase, Inc.',
         ],
       },
       {
@@ -336,7 +346,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
         h: 'The short version',
         p: [
           'Step up has no analytics, no trackers, no advertising pixels and no cookies. Your information is not sold or shared with anyone, because there is no one to share it with: your data is not this app’s business model.',
-          'Your transactions live on your own device. If you create an account, they are also stored — encrypted in transit — on Supabase, so you can see them from another phone.',
+          'Your transactions are stored on your device and in your account, on Supabase, so you can see them from another phone. They always travel encrypted (HTTPS). You can delete the account and all its data from the app whenever you like.',
         ],
       },
       {
@@ -348,8 +358,8 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'What is processed',
         ul: [
-          'Without an account: nothing leaves your device. Everything is stored in your browser (IndexedDB).',
-          'With an account: your email address and a password, stored hashed and never in plain text.',
+          'Your account: your email address and a password, stored hashed and never in plain text.',
+          'A copy of your data on your device (the browser’s IndexedDB), so the app works offline.',
           'Your financial data: transactions, descriptions, amounts, dates, categories, budgets, recurring rules and reminders.',
           'Your payment methods exactly as you type them: a name, the statement cut-off day, the payment day and the credit limit. A card number, CVV or expiry date is never requested or stored.',
           'If you turn on notifications: the push subscription your browser generates, so the reminder can reach you.',
@@ -364,8 +374,10 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'Who processes it',
         ul: [
-          'Supabase, Inc. — database and authentication, only if you create an account. Servers in the United States (us-west-2).',
+          'Supabase, Inc. — database and authentication. Servers in the United States (us-west-2).',
           'GitHub, Inc. — site hosting. It receives the request to download the app, like any web server.',
+          'Cloudflare, Inc. — bot check (Turnstile) on the sign-in, password and account-deletion screens. It receives your IP address and technical browser data to tell people from bots. It runs from Cloudflare’s domain under its own privacy policy.',
+          'ExchangeRate-API (open.er-api.com) — today’s exchange rates, if you use another currency. Usually the server fetches them once a day for everyone; if they’re missing, your device asks directly and that service receives your IP address. None of your data is sent to it.',
         ],
         p: [
           'There are no other third parties. The app’s typeface is served from the app itself precisely so that no outside provider receives the IP address of whoever uses it.',
@@ -374,13 +386,13 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'International transfer',
         p: [
-          'If you create an account, your data is stored on servers in the United States. By signing up you authorise that transfer under Colombian Law 1581 of 2012 and Decree 1377 of 2013. If you would rather nothing left your device, use the app without an account: it works in full.',
+          'Your data is stored on servers in the United States. By signing up you authorise that transfer under Colombian Law 1581 of 2012 and Decree 1377 of 2013. You can revoke it at any time by deleting your account.',
         ],
       },
       {
         h: 'How long',
         p: [
-          'For as long as you keep the account. Delete it and its data goes. Whatever is stored on your device is yours to control, and you can remove it by clearing the site data in your browser.',
+          'For as long as you keep the account. Delete it whenever you like from Settings → Profile → Delete account: your account and all its data are removed from the database at that moment, along with what’s stored on that device. If you can’t get into the app, write to andresarmi11@gmail.com from the account’s email and it will be deleted for you.',
         ],
       },
       {
@@ -418,7 +430,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'What you get',
         p: [
-          'A free tool to record and organise your money. You can use it without an account, in which case everything stays on your device. An account exists only so your data follows you to other devices.',
+          'A free tool to record and organise your money. You need an account: it keeps your data and lets it follow you to other devices.',
         ],
       },
       {
@@ -427,6 +439,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
           'You are responsible for your password and for what happens in your account.',
           'You must give a valid email address: it is the only way to recover access.',
           'You can stop using the app whenever you like. Export your data first if it matters to you.',
+          'You can delete your account and all its data whenever you like, from Settings → Profile → Delete account.',
         ],
       },
       {
@@ -471,6 +484,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
         h: 'Step up uses no cookies',
         p: [
           'None of its own and none from third parties — not technical, not analytical, not advertising. The app never writes a cookie, which is why you will not see a banner asking you to accept them: there would be nothing to accept.',
+          'The Cloudflare bot check shown at sign-in runs from Cloudflare’s domain, not from the app, and is governed by Cloudflare’s policy.',
         ],
       },
       {
@@ -488,7 +502,7 @@ const EN: Record<LegalSlug, LegalDocument> = {
       {
         h: 'How to clear it',
         p: [
-          'From your browser, by clearing the site data. On iOS: Settings, Safari, Advanced, Website Data. Note that without an account this also deletes your transactions — export them first from Settings.',
+          'From your browser, by clearing the site data. On iOS: Settings, Safari, Advanced, Website Data. That erases this device’s copy; what’s in your account stays. To delete the account too: Settings → Profile → Delete account.',
         ],
       },
     ],
