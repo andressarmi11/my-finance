@@ -47,6 +47,13 @@ describe('buildDraft', () => {
   it('an emptied concept turns it red', () => {
     expect(draft(LUNCH, { concept: '  ' })).toMatchObject({ missing: 'concept', complete: false });
   });
+
+  it('keeps the space being typed and trims it only when saved', () => {
+    const d = draft(LUNCH, { concept: 'Transferencia ' });
+    expect(d.concept).toBe('Transferencia ');
+    const tx = toTransaction(d, { id: 'x', now: '2026-09-30T12:00:00Z', methods: [], mainCurrency: 'COP', fxRate: null });
+    expect(tx?.concept).toBe('Transferencia');
+  });
 });
 
 describe('bulkable — "Anotar los N completos"', () => {

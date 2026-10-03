@@ -56,6 +56,18 @@ test('review one by one: type the missing amount, record, undo', async ({ browse
     .toMatchObject({ amount: 18_000, source: 'sms', sourceLabel: 'Bancolombia' });
   // It moved on to the next one.
   await expect(sheet.getByLabel('Concepto')).toHaveValue(/Restaurante/i);
+  // The undo toast doesn't cover the next one's buttons: the sheet makes room.
+  await expect.poll(async () => {
+    const button = (await record.boundingBox())!;
+    const bar = (await toast.boundingBox())!;
+    return button.y + button.height <= bar.y;
+  }).toBe(true);
+
+  // The concept takes spaces between words, as typed.
+  const concept = sheet.getByLabel('Concepto');
+  await concept.fill('');
+  await concept.pressSequentially('Pago de arriendo');
+  await expect(concept).toHaveValue('Pago de arriendo');
 
   await toast.getByRole('button', { name: 'Deshacer' }).click();
   await expect.poll(() => patches).toContainEqual({ id: 'e-uber', status: 'pending' });

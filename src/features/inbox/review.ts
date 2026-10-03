@@ -96,7 +96,9 @@ export function buildDraft(entry: InboxEntry, read: Interpretation, edits: Edits
   const { parsed } = read;
   const named = parsed.currency && ctx.knownCurrencies.includes(parsed.currency) ? parsed.currency : ctx.mainCurrency;
   const amount = edits.amount !== undefined ? edits.amount : parsed.amount;
-  const concept = (edits.concept ?? parsed.concept).trim();
+  // Kept as typed so the input can take a space between words; trimmed
+  // only to judge it and when it's saved.
+  const concept = edits.concept ?? parsed.concept.trim();
   const date = edits.date ?? parsed.date;
   const categoryId = edits.categoryId !== undefined ? edits.categoryId : read.categoryId;
 
@@ -107,7 +109,7 @@ export function buildDraft(entry: InboxEntry, read: Interpretation, edits: Edits
     : 'pending';
 
   const originallyMissing = parsed.amount == null ? 'amount' : !parsed.concept ? 'concept' : null;
-  const missing = amount == null || amount <= 0 ? 'amount' : !concept ? 'concept' : null;
+  const missing = amount == null || amount <= 0 ? 'amount' : !concept.trim() ? 'concept' : null;
   const learned = read.fromLearning && categoryId === read.categoryId;
   const hint: HintKind = missing ? 'missing'
     : originallyMissing ? 'typed'
@@ -161,7 +163,7 @@ export function toTransaction(d: Draft, ctx: {
   return {
     id: ctx.id,
     type: d.type,
-    concept: d.concept,
+    concept: d.concept.trim(),
     amount: foreign ? convert(d.amount, ctx.fxRate!) : d.amount,
     ...(foreign ? { currency: d.currency, originalAmount: d.amount, fxRate: ctx.fxRate! } : {}),
     date: d.date,
