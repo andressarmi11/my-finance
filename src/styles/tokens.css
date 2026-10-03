@@ -205,6 +205,9 @@
   /* ────────────── Rediseño v4 ────────────── */
   --radius-card: 20px;           /* tarjetas: --surface + 1px --line */
   --tabbar-h: 62px;              /* pildora flotante y boton + */
+  /* Distancia de la pildora al borde: casi abajo del todo, metida en la
+     zona de la barrita de inicio de iOS (no hay nada que tocar ahi). */
+  --tabbar-bottom: max(6px, calc(var(--safe-bottom) - 14px));
   --hover: color-mix(in srgb, var(--text) 5%, var(--surface));
 
   /* Tinta SOBRE un relleno de acento (--q10, --danger, --positive). En claro

@@ -38,3 +38,15 @@ test('the + sits beside the pill, not over the content', async ({ page }) => {
   // Same row: the vertical centres line up.
   expect(Math.abs((add!.y + add!.height / 2) - (nav!.y + nav!.height / 2))).toBeLessThan(2);
 });
+
+test('the bar sits practically at the bottom, and a short Inicio still scrolls', async ({ page }) => {
+  await page.goto('');
+  const nav = page.getByRole('navigation', { name: 'Navegación principal' });
+  const box = (await nav.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  // No safe area in the test browser: 6px from the edge.
+  expect(Math.round(viewport.height - (box.y + box.height))).toBeLessThanOrEqual(8);
+  // One pixel of scroll at least, so iOS doesn't leave the fixed bar floating.
+  const max = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+  expect(max).toBeGreaterThanOrEqual(1);
+});

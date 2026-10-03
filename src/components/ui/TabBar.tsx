@@ -144,7 +144,7 @@ export function TabBar() {
           position: 'fixed',
           left: 14,
           right: 14,
-          bottom: 'calc(var(--safe-bottom) + 12px)',
+          bottom: 'var(--tabbar-bottom)',
           display: 'flex',
           gap: 10,
           zIndex: 40,

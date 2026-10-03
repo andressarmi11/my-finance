@@ -65,8 +65,10 @@ function AppShell() {
         {/* 100dvh, not 100%: on iOS a % height resolves against the large
             viewport and ignores that the Safari bar appears and disappears, so
             short screens ended up without scroll and with the bottom bar floating
-            above the toolbar. dvh follows the real viewport. */}
-        <div className="app-shell" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+            above the toolbar. dvh follows the real viewport. On the phone one
+            pixel more, so every screen scrolls, even a short Inicio: iOS (the
+            installed app too) still left the bar floating on pages that didn't. */}
+        <div className="app-shell" style={{ minHeight: breakpoint === 'phone' ? 'calc(100dvh + 1px)' : '100dvh', display: 'flex', flexDirection: 'column' }}>
           {desktop && <Sidebar status={status} />}
           <main
             className="app-main"

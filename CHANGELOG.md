@@ -8,6 +8,14 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-10-03
+
+### Fixed
+- Phone tab bar: fixed practically at the bottom edge (into the home
+  indicator area) instead of 12px above it, and every phone screen now
+  scrolls at least 1px, so iOS no longer leaves the bar floating above the
+  bottom on a short Inicio.
+
 ## [1.7.0] — 2026-10-03
 
 Ready for App Store and Google Play review: both require deleting the
