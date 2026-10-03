@@ -8,6 +8,30 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-10-03
+
+Ready for App Store and Google Play review: both require deleting the
+account from inside the app, and a privacy policy that matches what the
+app does.
+
+### Added
+- **Eliminar cuenta** (Ajustes → Perfil): lists what gets deleted, offers
+  "Exportar mis datos antes", asks for the password again (and the
+  captcha), then deletes the account and every row it owns, wipes this
+  phone and returns to the login with "Tu cuenta y sus datos fueron
+  eliminados." Needs migration `0021_delete_account.sql` (the
+  `delete_account()` RPC; every table already cascades from `auth.users`).
+
+### Fixed
+- Privacy policy: it said "No hay más terceros", but sign-in uses
+  Cloudflare Turnstile and today's rates can come from ExchangeRate-API.
+  Both are listed now, with what they receive.
+- Privacy policy and terms: they said the app works in full without an
+  account; the published app requires one. They now say so, and explain
+  how to delete the account (in the app, or by email).
+- Cookie policy: notes that the Cloudflare check runs from Cloudflare's
+  domain under its own policy.
+
 ## [1.6.2] — 2026-10-03
 
 ### Fixed

@@ -137,7 +137,7 @@ export function ChangePasswordScreen() {
   );
 }
 
-function PasswordField({ id, label, placeholder, value, onChange, autoComplete }: {
+export function PasswordField({ id, label, placeholder, value, onChange, autoComplete }: {
   id: string; label: string; placeholder: string; value: string;
   onChange: (v: string) => void; autoComplete: string;
 }) {
