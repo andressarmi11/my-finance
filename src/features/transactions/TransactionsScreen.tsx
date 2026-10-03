@@ -821,7 +821,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
           style={{
             position: 'fixed', left: 14, right: 14,
             // Floating right above the tab bar pill (12px gap + 62px).
-            bottom: 'calc(var(--safe-bottom) + 12px + var(--tabbar-h) + 10px)',
+            bottom: 'calc(var(--tabbar-bottom) + var(--tabbar-h) + 10px)',
             maxWidth: 560, marginInline: 'auto',
             zIndex: 45, display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 8px 8px 16px',
