@@ -8,6 +8,29 @@ when released, moves to its version with the date.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-10-04
+
+### Fixed
+- **Análisis with a monthly pay day**: Mes, Trimestre and Año now follow
+  the pay days, like Inicio and Movimientos. Paid on the 30th, October
+  is 30 Sep – 29 Oct, so the salary of the 30th and October's expenses
+  land in the same month (Análisis used calendar months and showed
+  "Ingresos $0"). Paid on the 1st nothing changes; paid on the 10th/25th,
+  Análisis' month is now the same 10th → 9th window Inicio shows.
+- Análisis counts a transaction moved to another period by hand where it
+  was moved, as Inicio does.
+
+### Added
+- A month of periods is named after the month holding most of its days:
+  paid on the 30th, 30 Sep – 29 Oct is "Octubre" on Inicio, Movimientos
+  and Análisis (it said "Septiembre" all through October).
+- Inicio shows the real days of the period and how many are left
+  ("Ahora: 25 Sep – 9 Oct · faltan 5 días"); Análisis shows the days of
+  the month when they aren't the calendar's.
+- Movimientos puts the pay period running today first, tagged "Ahora ·
+  faltan N días".
+- Paid once a month, Análisis hides "Quincena" (it was the whole month again).
+
 ## [1.7.1] — 2026-10-03
 
 ### Fixed

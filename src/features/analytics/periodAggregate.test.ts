@@ -32,25 +32,25 @@ describe('toYearlyPoints', () => {
   });
 });
 
-describe('rangeBounds', () => {
+describe('rangeBounds — paid on the 1st, the calendar ranges', () => {
   it('month: from the 1st to the last day of the current month', () => {
-    expect(rangeBounds('mes', '2026-09-18')).toEqual({ from: '2026-09-01', to: '2026-09-30' });
+    expect(rangeBounds('mes', '2026-09-18', [1])).toEqual({ from: '2026-09-01', to: '2026-09-30' });
   });
 
   it('month: respects a leap-year February', () => {
-    expect(rangeBounds('mes', '2024-02-10')).toEqual({ from: '2024-02-01', to: '2024-02-29' });
+    expect(rangeBounds('mes', '2024-02-10', [1])).toEqual({ from: '2024-02-01', to: '2024-02-29' });
   });
 
   it('quarter: September falls in Jul-Sep', () => {
-    expect(rangeBounds('trimestre', '2026-09-18')).toEqual({ from: '2026-07-01', to: '2026-09-30' });
+    expect(rangeBounds('trimestre', '2026-09-18', [1])).toEqual({ from: '2026-07-01', to: '2026-09-30' });
   });
 
   it('quarter: January falls in Jan-Mar', () => {
-    expect(rangeBounds('trimestre', '2026-01-05')).toEqual({ from: '2026-01-01', to: '2026-03-31' });
+    expect(rangeBounds('trimestre', '2026-01-05', [1])).toEqual({ from: '2026-01-01', to: '2026-03-31' });
   });
 
   it('year: the full calendar year', () => {
-    expect(rangeBounds('año', '2026-09-18')).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+    expect(rangeBounds('año', '2026-09-18', [1])).toEqual({ from: '2026-01-01', to: '2026-12-31' });
   });
 });
 
@@ -63,7 +63,7 @@ describe('filterByRange', () => {
 
   it('excludes the materialized future — month, quarter and year give different results', () => {
     const txs = [t('2026-08-15'), t('2026-09-10'), t('2026-11-20'), t('2027-01-05')];
-    const ids = (r: Range) => filterByRange(txs, r, '2026-09-18').map((x) => x.id);
+    const ids = (r: Range) => filterByRange(txs, r, '2026-09-18', [1]).map((x) => x.id);
     expect(ids('mes')).toEqual(['2026-09-10']);
     expect(ids('trimestre')).toEqual(['2026-08-15', '2026-09-10']);
     expect(ids('año')).toEqual(['2026-08-15', '2026-09-10', '2026-11-20']);

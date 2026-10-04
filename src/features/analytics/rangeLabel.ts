@@ -5,7 +5,8 @@
  */
 import { monthName, widestMonthLabel } from '@/components/ui/MonthNav';
 import { shortRange } from '@/lib/formatShortDate';
-import { rangeBounds, type Range } from './periodAggregate';
+import { daysInMonth, parseISO } from '@/domain/dates';
+import { rangeBounds, rangeMonths, type Range } from './periodAggregate';
 
 /** The range buttons said the internal key ("mes", "trimestre") even in English. */
 export const RANGE_KEY = {
@@ -48,7 +49,7 @@ export function widestRangeLabel(range: Range): string {
  */
 export function shortRangeLabel(range: Range, today: string, payDays: number[]): string {
   if (range !== 'mes') return describeRange(range, today, payDays);
-  const [y, m] = rangeBounds(range, today, payDays).from.split('-').map(Number) as [number, number];
+  const { y, m } = rangeMonths(range, today, payDays).first;
   return `${shortMonth(m)} ${y}`;
 }
 
@@ -60,22 +61,35 @@ export function widestShortRangeLabel(range: Range): string {
 /** What the hero calls the period: "Balance de Septiembre" — for a month, no year. */
 export function heroRangeLabel(range: Range, today: string, payDays: number[]): string {
   if (range !== 'mes') return describeRange(range, today, payDays);
-  const m = Number(rangeBounds(range, today, payDays).from.split('-')[1]);
-  return monthName(m);
+  return monthName(rangeMonths(range, today, payDays).first.m);
 }
 
 export function describeRange(range: Range, today: string, payDays: number[]): string {
-  const { from, to } = rangeBounds(range, today, payDays);
-  const [y, m] = from.split('-').map(Number) as [number, number];
   // A pay period is stated in days, not months: its whole point is that it
   // crosses the month boundary, and saying just "September" would hide that.
   if (range === 'quincena') {
+    const { from, to } = rangeBounds(range, today, payDays);
     return shortRange(from, to);
   }
-  if (range === 'mes') return `${monthName(m)} ${y}`;
-  if (range === 'año') return String(y);
+  // By the names Inicio uses, not the month the first day falls in: paid
+  // on the 30th, 30 Sep → 29 Oct is "Octubre".
+  const { first, last } = rangeMonths(range, today, payDays);
+  if (range === 'mes') return `${monthName(first.m)} ${first.y}`;
+  if (range === 'año') return String(first.y);
   // Abbreviated: the full "Octubre – Diciembre 2026" left no room on a
   // phone for the Today button beside the centred navigator.
-  const mTo = Number(to.split('-')[1]);
-  return `${shortMonth(m)} – ${shortMonth(mTo)} ${y}`;
+  return `${shortMonth(first.m)} – ${shortMonth(last.m)} ${first.y}`;
+}
+
+/**
+ * The real days behind a month, quarter or year, when they aren't the
+ * calendar's: "30 Sep – 29 Oct". Empty when they are (or for a pay
+ * period, whose label already is its days).
+ */
+export function rangeDays(range: Range, today: string, payDays: number[]): string {
+  if (range === 'quincena') return '';
+  const { from, to } = rangeBounds(range, today, payDays);
+  const end = parseISO(to);
+  if (from.endsWith('-01') && end.d === daysInMonth(end.y, end.m)) return '';
+  return shortRange(from, to);
 }

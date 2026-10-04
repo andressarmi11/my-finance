@@ -6,7 +6,9 @@ import { BigAmount } from '@/components/ui/BigAmount';
 import { fill } from '@/lib/dateLabels';
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { MonthNav } from '@/components/ui/MonthNav';
-import { heroRangeLabel, RANGE_KEY, shortRangeLabel, widestShortRangeLabel } from './rangeLabel';
+import { heroRangeLabel, RANGE_KEY, rangeDays, shortRangeLabel, widestShortRangeLabel } from './rangeLabel';
+import { isMonthly } from '@/domain/period/period';
+import { displayMonthOf } from '@/domain/period/display';
 import { materializeRecurringRules } from '@/data/local/materialize';
 import { useDialogo } from '@/components/ui/useDialogo';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -43,7 +45,7 @@ export function AnalyticsScreen() {
   // place on desktop (prototype 3a).
   const planRoute = useMatch('/analisis/ahorrar') !== null;
   const activePlan = useActivePlan();
-  const [range, setRange] = useState<Range>('mes');
+  const [chosenRange, setRange] = useState<Range>('mes');
   const [detailCategoryId, setDetailCategoryId] = useState<string | null | undefined>(undefined);
   const [layout, setLayout] = useState<ChartLayout>(readChartLayout);
 
@@ -62,6 +64,10 @@ export function AnalyticsScreen() {
   // Needed for 'quincena': it's the only range that isn't a calendar one.
   const settings = useLiveQuery(() => localRepository.getSettings(), []) ?? DEFAULT_SETTINGS;
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  // Paid once a month, a "quincena" would be the whole month again: the
+  // option goes, and a choice of it made before falls back to the month.
+  const monthly = isMonthly(settings.payDays);
+  const range: Range = monthly && chosenRange === 'quincena' ? 'mes' : chosenRange;
 
 
   // Filter transactions by the selected range — ALL the cards
@@ -78,7 +84,11 @@ export function AnalyticsScreen() {
   // the month the range starts in. ONE value feeds both the budgets and the
   // spending they're measured against — they used to come from different
   // months, so paging showed August's budgets against September's spend.
-  const budgetMonth = (isCurrent ? today : rangeFrom).slice(0, 7);
+  // Paged away, by the month's NAME, the one on screen: paid on the 30th,
+  // 30 Sep → 29 Oct is "Octubre", and so are its budgets (rangeFrom alone
+  // said September).
+  const pagedYM = displayMonthOf(rangeFrom, settings.payDays);
+  const budgetMonth = isCurrent ? today.slice(0, 7) : `${pagedYM.y}-${String(pagedYM.m).padStart(2, '0')}`;
   const budgets = useLiveQuery(
     () => localRepository.listBudgets(Number(budgetMonth.slice(0, 4)), Number(budgetMonth.slice(5, 7))),
     [budgetMonth],
@@ -321,7 +331,7 @@ export function AnalyticsScreen() {
           label={t('analytics.range')}
           value={range}
           onChange={(r) => startTransition(() => setRange(r))}
-          options={(['quincena', 'mes', 'trimestre', 'año'] as const).map((r) => {
+          options={(monthly ? (['mes', 'trimestre', 'año'] as const) : (['quincena', 'mes', 'trimestre', 'año'] as const)).map((r) => {
             const label = t(RANGE_KEY[r]);
             return { value: r, label: label.charAt(0).toUpperCase() + label.slice(1) };
           })}
@@ -347,6 +357,13 @@ export function AnalyticsScreen() {
           <h2 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 400, color: 'var(--text-muted)' }}>
             {fill(t('analytics.balanceOf'), { period: heroRangeLabel(range, anchor, settings.payDays) })}
           </h2>
+          {/* The real days when they aren't the calendar's: "Octubre" paid on
+              the 30th is 30 Sep – 29 Oct, and the screen says so. */}
+          {rangeDays(range, anchor, settings.payDays) && (
+            <p data-testid="range-days" style={{ margin: '-4px 0 8px', fontSize: 12, color: 'var(--text-faint)' }}>
+              {rangeDays(range, anchor, settings.payDays)}
+            </p>
+          )}
           {/* The sign and the symbol carry the colour; the figure stays in
               text colour (prototype 1a). */}
           <BigAmount

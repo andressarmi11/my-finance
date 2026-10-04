@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { setMonthNames } from '@/components/ui/MonthNav';
 import { setShortMonthNames } from '@/lib/formatShortDate';
-import { describeRange, widestRangeLabel } from './rangeLabel';
+import { describeRange, heroRangeLabel, rangeDays, shortRangeLabel, widestRangeLabel } from './rangeLabel';
 
 function inLanguage(language: 'es' | 'en') {
   setMonthNames(language);
@@ -49,5 +49,21 @@ describe('the reserved width sample has the shape of the widest label', () => {
     expect(widestRangeLabel('trimestre')).toBe('Mmm – Mmm 0000');
     expect(widestRangeLabel('quincena')).toBe('00 Mmm – 00 Mmm');
     expect(widestRangeLabel('año')).toBe('0000');
+  });
+});
+
+describe('paid on the 30th, the month is named like on Inicio, with its real days', () => {
+  it('October 4th is "Octubre", 30 Sep – 29 Oct', () => {
+    inLanguage('es');
+    expect(describeRange('mes', '2026-10-04', [30])).toBe('Octubre 2026');
+    expect(shortRangeLabel('mes', '2026-10-04', [30])).toBe('Oct 2026');
+    expect(heroRangeLabel('mes', '2026-10-04', [30])).toBe('Octubre');
+    expect(rangeDays('mes', '2026-10-04', [30])).toBe('30 Sep – 29 Oct');
+    expect(describeRange('trimestre', '2026-10-04', [30])).toBe('Oct – Dic 2026');
+  });
+
+  it('calendar months need no days line', () => {
+    expect(rangeDays('mes', '2026-10-04', [1])).toBe('');
+    expect(rangeDays('quincena', '2026-10-04', [10, 25])).toBe('');
   });
 });
