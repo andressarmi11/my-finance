@@ -12,17 +12,56 @@ function tx(over: Partial<Transaction>): Transaction {
   };
 }
 
-describe('rangeBounds — calendar ranges for month, quarter and year', () => {
+describe('rangeBounds — paid on the 1st, month, quarter and year are the calendar ones', () => {
   it('month runs from the 1st to the last day', () => {
-    expect(rangeBounds('mes', TODAY, [10, 25])).toEqual({ from: '2026-09-01', to: '2026-09-30' });
+    expect(rangeBounds('mes', TODAY, [1])).toEqual({ from: '2026-09-01', to: '2026-09-30' });
   });
 
   it('quarter is the calendar quarter containing it', () => {
-    expect(rangeBounds('trimestre', TODAY, [10, 25])).toEqual({ from: '2026-07-01', to: '2026-09-30' });
+    expect(rangeBounds('trimestre', TODAY, [1])).toEqual({ from: '2026-07-01', to: '2026-09-30' });
   });
 
   it('year is the calendar year', () => {
-    expect(rangeBounds('año', TODAY, [10, 25])).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+    expect(rangeBounds('año', TODAY, [1])).toEqual({ from: '2026-01-01', to: '2026-12-31' });
+  });
+});
+
+describe('rangeBounds — month, quarter and year follow the pay days, like Inicio', () => {
+  /* The bug: paid on the 30th, Inicio showed "Sep 2026" = 30 Sep → 29 Oct
+     with the salary of the 30th, and Análisis showed October with
+     "Ingresos $0" because its month was the calendar's. */
+  it('paid on the 30th, October 4th is in the month 30 Sep → 29 Oct', () => {
+    expect(rangeBounds('mes', '2026-10-04', [30])).toEqual({ from: '2026-09-30', to: '2026-10-29' });
+  });
+
+  it('paid on the 30th, the quarter named Oct–Dec runs 30 Sep → 29 Dec', () => {
+    expect(rangeBounds('trimestre', '2026-10-04', [30])).toEqual({ from: '2026-09-30', to: '2026-12-29' });
+  });
+
+  it('paid on the 30th, the year starts on December 30th of the one before', () => {
+    expect(rangeBounds('año', '2026-10-04', [30])).toEqual({ from: '2025-12-30', to: '2026-12-29' });
+  });
+
+  it('paid on the 31st, February\'s short month is clamped, not skipped', () => {
+    expect(rangeBounds('mes', '2027-03-05', [31])).toEqual({ from: '2027-02-28', to: '2027-03-30' });
+  });
+
+  it('paid on the 10th and 25th, October 4th is still in 10 Sep → 9 Oct, like Inicio', () => {
+    expect(rangeBounds('mes', '2026-10-04', [10, 25])).toEqual({ from: '2026-09-10', to: '2026-10-09' });
+    expect(rangeBounds('mes', TODAY, [10, 25])).toEqual({ from: '2026-09-10', to: '2026-10-09' });
+  });
+
+  it('the salary of the 30th and October\'s expenses land in the same month', () => {
+    const salary = tx({ type: 'income', date: '2026-09-30', amount: 4_185_000 });
+    const rent = tx({ date: '2026-10-01', amount: 1_000_000 });
+    const august = tx({ date: '2026-09-29' });
+    expect(filterByRange([salary, rent, august], 'mes', '2026-10-04', [30])).toEqual([salary, rent]);
+  });
+
+  it('a transaction moved to another period by hand counts there, as on Inicio', () => {
+    const moved = tx({ date: '2026-10-05', quincenaKey: '2026-08-Q1' });
+    expect(filterByRange([moved], 'mes', '2026-10-04', [30])).toEqual([]);
+    expect(filterByRange([moved], 'mes', '2026-09-04', [30])).toHaveLength(1);
   });
 });
 
@@ -49,8 +88,11 @@ describe('filterByRange — counts by when the money LEAVES', () => {
      gets paid on November 2nd. Analytics counted it in September. */
   it("a card purchase counts in the month it's paid, not the one it was made in", () => {
     const purchase = tx({ date: '2026-09-20', cyclePaymentDate: '2026-11-02' });
-    expect(filterByRange([purchase], 'mes', TODAY, [10, 25])).toEqual([]);
-    expect(filterByRange([purchase], 'mes', '2026-11-15', [10, 25])).toHaveLength(1);
+    expect(filterByRange([purchase], 'mes', TODAY, [1])).toEqual([]);
+    expect(filterByRange([purchase], 'mes', '2026-11-15', [1])).toHaveLength(1);
+    // Paid on the 10th/25th, November 2nd is still the 25th's pay period of
+    // OCTOBER (25 Oct → 9 Nov), so it's October's month — as on Inicio.
+    expect(filterByRange([purchase], 'mes', '2026-10-15', [10, 25])).toHaveLength(1);
   });
 
   it('an expense without a card counts where it was made: nothing changes', () => {
@@ -63,21 +105,23 @@ describe('filterByRange — counts by when the money LEAVES', () => {
       tx({ date: '2026-09-20', cyclePaymentDate: '2026-11-02', purchaseDate: '2026-09-20' }),
       tx({ date: '2026-10-20', cyclePaymentDate: '2026-12-02', purchaseDate: '2026-09-20' }),
     ];
-    expect(filterByRange(installments, 'mes', '2026-11-15', [10, 25])).toHaveLength(1);
-    expect(filterByRange(installments, 'mes', '2026-12-15', [10, 25])).toHaveLength(1);
+    expect(filterByRange(installments, 'mes', '2026-11-15', [1])).toHaveLength(1);
+    expect(filterByRange(installments, 'mes', '2026-12-15', [1])).toHaveLength(1);
   });
 });
 
 describe('paging through ranges', () => {
   it('moves a month back and forth, across the year boundary', () => {
-    expect(shiftAnchor('mes', '2026-09-26', -1)).toBe('2026-08-31');
-    expect(shiftAnchor('mes', '2026-12-10', 1)).toBe('2027-01-01');
-    expect(rangeBounds('mes', shiftAnchor('mes', '2026-01-15', -1))).toEqual({ from: '2025-12-01', to: '2025-12-31' });
+    expect(shiftAnchor('mes', '2026-09-26', -1, [1])).toBe('2026-08-31');
+    expect(shiftAnchor('mes', '2026-12-10', 1, [1])).toBe('2027-01-01');
+    expect(rangeBounds('mes', shiftAnchor('mes', '2026-01-15', -1, [1]), [1])).toEqual({ from: '2025-12-01', to: '2025-12-31' });
+    // Paid on the 30th: from 30 Sep → 29 Oct, back is 30 Aug → 29 Sep.
+    expect(rangeBounds('mes', shiftAnchor('mes', '2026-10-04', -1, [30]), [30])).toEqual({ from: '2026-08-30', to: '2026-09-29' });
   });
 
   it('moves a quarter and a year as whole units', () => {
-    expect(rangeBounds('trimestre', shiftAnchor('trimestre', '2026-09-26', 1))).toEqual({ from: '2026-10-01', to: '2026-12-31' });
-    expect(rangeBounds('año', shiftAnchor('año', '2026-09-26', -1))).toEqual({ from: '2025-01-01', to: '2025-12-31' });
+    expect(rangeBounds('trimestre', shiftAnchor('trimestre', '2026-09-26', 1, [1]), [1])).toEqual({ from: '2026-10-01', to: '2026-12-31' });
+    expect(rangeBounds('año', shiftAnchor('año', '2026-09-26', -1, [1]), [1])).toEqual({ from: '2025-01-01', to: '2025-12-31' });
   });
 
   it('moves a pay period to the neighbouring pay period, not by calendar', () => {
@@ -91,9 +135,9 @@ describe('paging through ranges', () => {
   });
 
   it('knows when the range shown is the current one', () => {
-    expect(containsToday('mes', '2026-09-01', TODAY)).toBe(true);
-    expect(containsToday('mes', '2026-08-31', TODAY)).toBe(false);
-    expect(containsToday('año', '2026-01-01', TODAY)).toBe(true);
+    expect(containsToday('mes', '2026-09-01', TODAY, [1])).toBe(true);
+    expect(containsToday('mes', '2026-08-31', TODAY, [1])).toBe(false);
+    expect(containsToday('año', '2026-01-01', TODAY, [1])).toBe(true);
   });
 });
 

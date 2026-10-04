@@ -17,7 +17,9 @@ import { seedDemoTransactions } from '@/data/local/demoData';
 import { ensureMonthMaterialized } from '@/data/local/materialize';
 import { maybeScheduleReminder } from '@/features/notifications/scheduleReminder';
 import { formatMoney } from '@/domain/money/format';
-import { periodMonthOf, periodsOfMonth } from '@/domain/period/period';
+import { calculatePeriod, periodMonthOf, periodsOfMonth } from '@/domain/period/period';
+import { daysLeft, displayMonth } from '@/domain/period/display';
+import { daysLeftText } from '@/lib/daysLeftText';
 import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { todayISO } from '@/lib/todayISO';
@@ -80,6 +82,9 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
     [embedded, ownCursor, todayYear, todayMonth],
   );
   const isCurrentMonth = cursor.y === todayYear && cursor.m === todayMonth;
+  // What the month is CALLED (see domain/period/display.ts): paid on the
+  // 30th, the periods of September are "Octubre".
+  const shown = displayMonth(cursor, settings.payDays);
 
   // See DashboardScreen: the month being viewed needs its recurring
   // instances created, even if it's two years out.
@@ -193,10 +198,18 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
       : filtered;
   }, [transactions, query, searching, cursor, settings.payDays, typeFilter, statusFilter, cardOnly, methodById]);
 
-  const groups = useMemo(
-    () => groupByPeriod(visibleRows, settings.payDays, transactions),
-    [visibleRows, settings.payDays, transactions],
-  );
+  // The period running today, on top. In order, October 4th opened on
+  // September's view with the 10th's pay period first, long finished, and
+  // the one actually running (25 Sep – 9 Oct) below it. The rest stay in
+  // order underneath.
+  const nowKey = calculatePeriod(today, settings.payDays).key;
+  const groups = useMemo(() => {
+    const all = groupByPeriod(visibleRows, settings.payDays, transactions);
+    if (searching) return all;
+    const current = all.filter((g) => g.key === nowKey);
+    return [...current, ...all.filter((g) => g.key !== nowKey)];
+  }, [visibleRows, settings.payDays, transactions, searching, nowKey]);
+  const nowDaysLeft = (end: string) => daysLeftText(t, daysLeft(today, end));
 
   const monthTotal = useMemo(() => {
     let income = 0;
@@ -339,7 +352,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
     <MonthNav
       compact={Boolean(embedded)}
       bare={!embedded}
-      label={`${monthName(cursor.m).slice(0, 3)} ${cursor.y}`}
+      label={`${monthName(shown.m).slice(0, 3)} ${shown.y}`}
       widthSample={widestMonthLabel(true)}
       todayIsAhead={cursor.y * 12 + cursor.m < todayYear * 12 + todayMonth}
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
@@ -494,7 +507,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
 
         {calendarView ? (
           <div style={{ marginTop: 16 }}>
-            <CalendarView year={cursor.y} month={cursor.m} wide />
+            <CalendarView year={shown.y} month={shown.m} wide />
           </div>
         ) : (<>
           <div style={{ marginTop: 12 }}>{filterChips}</div>
@@ -552,7 +565,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                 title={searching ? t('transactions.noResultsTitle') : t('transactions.empty')}
                 body={searching
                   ? `${t('transactions.nothingMatches')} "${query}".`
-                  : `${t('transactions.noTransactionsThisMonth')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
+                  : `${t('transactions.noTransactionsThisMonth')} ${monthName(shown.m).toLowerCase()} ${shown.y}.`}
               />
             </div>
           ) : (<>
@@ -587,6 +600,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                     <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />
                     <span style={{ fontWeight: 700, fontSize: 14, color: `var(${group.colorVar}-text)` }}>{group.label}</span>
                     <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>{group.rangeLabel}</span>
+                    {group.key === nowKey && <NowBadge text={`${t('period.now')} · ${nowDaysLeft(group.end)}`} />}
                     <span style={{ flex: 1 }} />
                     <span className="figures" style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                       {isCollapsed
@@ -655,7 +669,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
         </div>
       )}
 
-      {calendarView ? <div style={{ marginTop: 18 }}><CalendarView year={cursor.y} month={cursor.m} /></div> : (<>
+      {calendarView ? <div style={{ marginTop: 18 }}><CalendarView year={shown.y} month={shown.m} /></div> : (<>
       {transactions.length > 0 && (
         <label
           style={{
@@ -721,7 +735,7 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
           title={searching ? t('transactions.noResultsTitle') : t('transactions.empty')}
           body={searching
             ? `${t('transactions.nothingMatches')} "${query}".`
-            : `${t('transactions.noTransactionsThisMonth')} ${monthName(cursor.m).toLowerCase()} ${cursor.y}.`}
+            : `${t('transactions.noTransactionsThisMonth')} ${monthName(shown.m).toLowerCase()} ${shown.y}.`}
         />
       ) : (
         groups.map((group) => {
@@ -747,7 +761,10 @@ export function TransactionsScreen({ embedded }: { embedded?: EmbeddedMovimiento
                   folded, the dot goes and the remainder shows on the right. */}
               {!isCollapsed && <span aria-hidden style={{ width: 8, height: 8, borderRadius: 4, flex: 'none', background: `var(${group.colorVar})` }} />}
               <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <span style={{ fontWeight: 700, fontSize: 15, color: `var(${group.colorVar}-text)`, whiteSpace: 'nowrap' }}>{group.label}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: `var(${group.colorVar}-text)`, whiteSpace: 'nowrap' }}>{group.label}</span>
+                  {group.key === nowKey && <NowBadge text={`${t('period.now')} · ${nowDaysLeft(group.end)}`} />}
+                </span>
                 <span style={{ fontSize: 12, color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>{group.rangeLabel}</span>
               </span>
               {isCollapsed && (
@@ -938,4 +955,19 @@ function saveCollapsed(value: Record<string, boolean>): void {
 function withFreshFirst(list: Transaction[], fresh: ReadonlySet<string>): Transaction[] {
   if (fresh.size === 0) return list;
   return [...list].sort((a, b) => Number(fresh.has(b.id)) - Number(fresh.has(a.id)));
+}
+
+/** "Ahora · faltan 5 días", beside the pay period running today. */
+function NowBadge({ text }: { text: string }) {
+  return (
+    <span
+      data-testid="period-now"
+      style={{
+        fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+        background: 'var(--q10-soft)', color: 'var(--q10-text)',
+      }}
+    >
+      {text}
+    </span>
+  );
 }

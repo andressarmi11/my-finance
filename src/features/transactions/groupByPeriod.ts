@@ -34,6 +34,7 @@ export interface PeriodGroup {
   label: string;
   rangeLabel: string;
   start: string;
+  end: string;
   colorVar: (typeof PERIOD_COLORS)[number];
   softVar: (typeof SOFT)[number];
   balance: PeriodBalance;
@@ -97,6 +98,7 @@ export function groupByPeriod(
       label: periodGroupLabel(payments, i, key),
       rangeLabel: formatRangeLabel(range.start, range.end),
       start: range.start,
+      end: range.end,
       colorVar: PERIOD_COLORS[(i - 1) % PERIOD_COLORS.length]!,
       softVar: SOFT[(i - 1) % SOFT.length]!,
       balance: calculatePeriodBalance(resolvedForBalance, key),

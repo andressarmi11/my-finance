@@ -20,7 +20,10 @@ import { calculateMonthBalance } from '@/domain/period/balance';
 import { calculateMonthFlow } from '@/domain/totals/available';
 import { calculateOutstanding } from '@/domain/totals/outstanding';
 import { unpaidBalances } from '@/domain/credit-card/availableCredit';
-import { calculatePeriod, periodMonthOf, periodsOfMonth } from '@/domain/period/period';
+import { calculatePeriod, periodMonthOf, periodsOfMonth, rangeFromKey } from '@/domain/period/period';
+import { daysLeft, displayMonth } from '@/domain/period/display';
+import { daysLeftText } from '@/lib/daysLeftText';
+import { shortRange } from '@/lib/formatShortDate';
 import { withResolvedPeriods } from '@/domain/period/resolve';
 import { shiftMonth } from '@/domain/dates';
 import { shortDay } from '@/lib/formatShortDate';
@@ -63,6 +66,9 @@ export function DashboardScreen() {
     setOwnCursor((c) => (typeof next === 'function' ? next(c ?? { y: todayYear, m: todayMonth }) : next));
   const { y: year, m: month } = cursor;
   const isCurrentMonth = year === todayYear && month === todayMonth;
+  // The month's NAME, which isn't always the key's: paid on the 30th, the
+  // periods of September run 30 Sep → 29 Oct and are called "Octubre".
+  const { y: shownYear, m: shownMonth } = displayMonth(cursor, settings.payDays);
 
   // Recurring transactions are only materialized ~3 months ahead. Looking
   // at a month outside that window means they have to be created, or the
@@ -81,10 +87,10 @@ export function DashboardScreen() {
   const [quickOpen, setQuickOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const budgets = useLiveQuery(
-    () => (desktop ? localRepository.listBudgets(year, month) : Promise.resolve([])),
-    [desktop, year, month],
+    () => (desktop ? localRepository.listBudgets(shownYear, shownMonth) : Promise.resolve([])),
+    [desktop, shownYear, shownMonth],
   ) ?? EMPTY;
-  const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
+  const monthPrefix = `${shownYear}-${String(shownMonth).padStart(2, '0')}`;
   const budgetSummary = summarizeColumns(budgetColumns(categories, budgets, transactions, monthPrefix));
   const hasTransactions = transactions.length > 0;
   useEffect(() => {
@@ -158,11 +164,15 @@ export function DashboardScreen() {
   // one when you're looking at another month.
   const linePeriodIdx = activePeriodIdx >= 0 ? activePeriodIdx : 0;
   const linePeriod = monthBalance.periods[linePeriodIdx];
+  // Its real days, and on the period running now, how many are left: on
+  // October 4th, paid on the 10th/25th, "25 Sep – 9 Oct · faltan 5 días"
+  // says plainly why the screen still shows September.
+  const lineRange = monthKeys[linePeriodIdx] ? rangeFromKey(monthKeys[linePeriodIdx], settings.payDays) : null;
   const lineColorVar = linePeriodIdx % 2 === 1 ? '--q25-text' : '--q10-text';
 
   // "septiembre" inside a Spanish sentence, "September" in English.
   // Capitalised in both languages, as the prototype writes it (§3).
-  const monthInSentence = monthName(month);
+  const monthInSentence = monthName(shownMonth);
   const heroLine = settings.displayName
     ? fill(t('home.heroLine'), { name: settings.displayName, month: monthInSentence })
     : fill(t('home.heroLineNoName'), { month: monthInSentence });
@@ -189,7 +199,7 @@ export function DashboardScreen() {
     <MonthNav
       compact
       large={desktop}
-      label={`${monthName(month).slice(0, 3)} ${year}`}
+      label={`${monthName(shownMonth).slice(0, 3)} ${shownYear}`}
       widthSample={widestMonthLabel(true)}
       todayIsAhead={year * 12 + month < todayYear * 12 + todayMonth}
       onPrev={() => setCursor((c) => shiftMonth(c.y, c.m, -1))}
@@ -280,6 +290,16 @@ export function DashboardScreen() {
       </span>
     </p>
   );
+  const periodDays = lineRange && (
+    <p
+      data-testid="period-days"
+      style={{ margin: '4px 0 0', textAlign: desktop ? 'left' : 'center', fontSize: 12, color: 'var(--text-faint)' }}
+    >
+      {activePeriodIdx >= 0 && <b style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{t('period.now')}: </b>}
+      {shortRange(lineRange.start, lineRange.end)}
+      {activePeriodIdx >= 0 && ` · ${daysLeftText(t, daysLeft(today, lineRange.end))}`}
+    </p>
+  );
 
   // The four numbers that make it up, in one card. None can be negative.
   // "Falta pagar" opens its breakdown.
@@ -308,7 +328,7 @@ export function DashboardScreen() {
   // Upcoming transactions FOR THE visible month: income and expenses.
   const upcomingList = upcoming.length === 0 ? (
     <p style={{ color: 'var(--text-faint)', fontSize: 'var(--text-sm)' }}>
-      {t('home.nothingPending')} — {monthName(month).toLowerCase()}.
+      {t('home.nothingPending')} — {monthName(shownMonth).toLowerCase()}.
     </p>
   ) : (
     <div style={desktop ? {} : { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-card)', overflow: 'hidden' }}>
@@ -475,6 +495,7 @@ export function DashboardScreen() {
                 />
               </div>
               {periodLine}
+              {periodDays}
               {flowGrid}
             </section>
 
@@ -543,6 +564,7 @@ export function DashboardScreen() {
           />
         </div>
         {periodLine}
+        {periodDays}
       </section>
 
       {flowGrid}
